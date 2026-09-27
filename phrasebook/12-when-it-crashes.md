@@ -20,17 +20,21 @@ opts = [strategy: :one_for_one, name: Platform.Supervisor]
 Supervisor.start_link(children, opts)
 ```
 
-`:one_for_one`: if a child dies, restart that child only. The example tests
-exactly this ([`test/app/shop/workers/expire_unpaid_orders_test.exs`](../example/test/app/shop/workers/expire_unpaid_orders_test.exs)):
-it kills the job, waits for the supervisor to start a new one, and checks the
-new one still cancels orders.
+`:one_for_one`: if a child dies, restart that child only.
+
+Background jobs add a second safety net: a job that crashes isn't lost.
+Oban records the error and runs the job again later, with backoff, up to its
+`max_attempts`
+([`lib/app/shop/workers/expire_unpaid_orders.ex`](../example/lib/app/shop/workers/expire_unpaid_orders.ex)).
+If a whole node dies mid-job, another node picks the job up.
 
 What that means day to day:
 
 - A bug in one HTTP request crashes that request's process: the client gets a
   500, every other request carries on.
-- The database goes away for a minute: the job crashes on its next tick, is
-  restarted, and works again once the database is back — no code for that.
+- The database goes away for a minute: that minute's job fails and is
+  retried, the next cron tick runs as usual once the database is back — no
+  code for that.
 - No `recover` blocks around business logic: write the happy path (with
   `{:error, _}` for errors you *expect*, [page 4](04-errors-as-values.md)),
   and let the unexpected crash.
@@ -39,7 +43,7 @@ What that means day to day:
 |---|---|
 | `panic` | `raise` / a failed match — the process exits |
 | `recover` | a supervisor restarting the process (not in your code) |
-| a dead background goroutine | restarted automatically |
+| a dead background goroutine | the process is restarted; a failed job is retried |
 | crash = whole program | crash = one process |
 
 **Why:** this is the reason to learn Elixir. Failures stay small, recovery is

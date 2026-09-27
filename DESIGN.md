@@ -75,8 +75,10 @@ lib/
       router.ex               ≈ chi router: every route of every domain
       fallback_handler.ex     ≈ one place turning errors into HTTP statuses
       health_handler.ex  error_json.ex  telemetry.ex
+    queue.ex                  ≈ Cloud Tasks: Oban (jobs in Postgres)
+    cron.ex                   ≈ Cloud Scheduler: the crontab, once per cluster
     release.ex                migrations in production
-    # added by §10: cluster/ queue/ pubsub/ cache/ cron/ realtime/
+    # coming with §10: cluster/ pubsub/ cache/ realtime/
   app/
     shop/                     one domain; landing/, dashboard/, … the same way
       handlers/               ≈ internal/shop/http: params → service → JSON
@@ -166,7 +168,7 @@ and changes only what must differ per project:
   formatter rules (captured from the example), since a longer or shorter
   name moves line breaks;
 - `--no-example`: the `shop` domain (`lib/app/shop/`, its tests, the
-  migration) is left out and three spots (routes, job start, job config)
+  migration) is left out and three spots (routes, cron entry, job config)
   are edited — each edit fails loudly if its text is
   missing, so a change to the example can't produce a broken project.
 
@@ -527,8 +529,9 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
 1. Clustering: libcluster + `libcluster_postgres`, release node / cookie
    config, `compose.cluster.yaml` with 3 nodes + nginx; proof that nodes
    connect and PubSub crosses nodes.
-2. Oban: confirmation job, expiry via Oban Cron (the timer goes), the
-   kill-a-node proof.
+2. Oban: ✅ Oban in (`Platform.Queue`, `Platform.Cron`), expiry via Oban
+   Cron — the per-node timer is gone (2026-09-27); still to do: the
+   confirmation job, the kill-a-node proof.
 3. Events: `Events.publish/3` (a job per subscriber, in the caller's
    transaction), the `order.created` subscribers; the ordered queue per
    key (§10.7.1) and the payment webhook on it.

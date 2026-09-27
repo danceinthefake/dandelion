@@ -48,5 +48,6 @@ left alone. If other services call yours over plain HTTP inside the network
 (`http://acme:4000` in Kubernetes), remove `force_ssl` from
 [`config/prod.exs`](config/prod.exs).
 
-`SECRET_KEY_BASE`: `mix phx.gen.secret`. Unpaid orders: `UNPAID_ORDER_MAX_AGE_SECONDS`
-(default 3600), `UNPAID_ORDER_CHECK_EVERY_SECONDS` (default 60).
+`SECRET_KEY_BASE`: `mix phx.gen.secret`. Unpaid orders are cancelled after
+`UNPAID_ORDER_MAX_AGE_SECONDS` (default 3600), checked every minute
+(`lib/platform/cron.ex`).

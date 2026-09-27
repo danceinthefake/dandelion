@@ -47,6 +47,7 @@ defmodule Acme.MixProject do
       {:telemetry_poller, "~> 1.0"},
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
+      {:oban, "~> 2.24"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

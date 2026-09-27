@@ -20,9 +20,7 @@ boot and reads the environment:
 
 ```elixir
 config :acme, App.Shop.Workers.ExpireUnpaidOrders,
-  max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600")),
-  every_seconds: String.to_integer(System.get_env("UNPAID_ORDER_CHECK_EVERY_SECONDS", "60")),
-  enabled: config_env() != :test
+  max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600"))
 ```
 
 and `mix release` builds a self-contained directory — your code plus the
@@ -50,5 +48,6 @@ left alone. If other services call yours over plain HTTP inside the network
 | attaching a debugger to prod | `bin/acme remote` — a live shell inside the running server |
 
 **Why:** `runtime.exs` means one image for every environment. And a remote
-shell into a running release (`App.Shop.Workers.ExpireUnpaidOrders.run_now()` from
-production, safely) is something Go can't offer.
+shell into a running release — say, queueing a job by hand with
+`Oban.insert(App.Shop.Workers.ExpireUnpaidOrders.new(%{}))` — is something
+Go can't offer.

@@ -1,5 +1,8 @@
 import Config
 
+# Jobs are only run by tests themselves (Oban.Testing), no queues or cron.
+config :acme, Oban, testing: :manual
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

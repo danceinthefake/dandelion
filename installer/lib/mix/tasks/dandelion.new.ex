@@ -133,7 +133,7 @@ defmodule Mix.Tasks.Dandelion.New do
     |> binary_part(0, length)
   end
 
-  # --no-example: remove the example's routes, job and job config. Each edit
+  # --no-example: remove the example's routes, cron entry and job config. Each edit
   # must find its text — if the example changes, generation fails loudly
   # (and the tests catch it) instead of producing a broken project.
   defp without_example("lib/platform/web/router.ex", contents) do
@@ -151,16 +151,16 @@ defmodule Mix.Tasks.Dandelion.New do
     )
   end
 
-  defp without_example("lib/platform/application.ex", contents) do
+  defp without_example("lib/platform/cron.ex", contents) do
     replace!(
       contents,
-      ~r/  defp jobs do\n.*?\n  end\n/s,
-      "  defp jobs do\n    # e.g. [{App.Things.Workers.SomeWorker, []}]\n    []\n  end\n"
+      ~r/    \[\n      # every minute: cancel orders.*?\n    \]\n/s,
+      "    [\n      # e.g. {\"0 * * * *\", App.Things.Workers.HourlyCleanup}\n    ]\n"
     )
   end
 
   defp without_example("config/runtime.exs", contents) do
-    replace!(contents, ~r/# ≈ envconfig.*?enabled: config_env\(\) != :test\n\n/s, "")
+    replace!(contents, ~r/# ≈ envconfig.*?UNPAID_ORDER_MAX_AGE_SECONDS", "3600"\)\)\n\n/s, "")
   end
 
   defp without_example(_file, contents), do: contents

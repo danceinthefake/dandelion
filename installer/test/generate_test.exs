@@ -60,7 +60,7 @@ defmodule DandelionNew.GenerateTest do
     assert Map.has_key?(files, "lib/app/.gitkeep")
     assert Map.has_key?(files, "lib/platform/web/fallback_handler.ex")
     refute files["lib/platform/web/router.ex"] =~ "/orders"
-    refute files["lib/platform/application.ex"] =~ "ExpireUnpaidOrders"
+    refute files["lib/platform/cron.ex"] =~ "ExpireUnpaidOrders"
     refute files["config/runtime.exs"] =~ "ExpireUnpaidOrders"
     refute files["README.md"] =~ "orders"
   end

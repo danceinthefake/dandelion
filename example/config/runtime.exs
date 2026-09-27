@@ -25,9 +25,7 @@ config :acme, Platform.Web.Endpoint,
 
 # ≈ envconfig: settings from environment variables, read at boot.
 config :acme, App.Shop.Workers.ExpireUnpaidOrders,
-  max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600")),
-  every_seconds: String.to_integer(System.get_env("UNPAID_ORDER_CHECK_EVERY_SECONDS", "60")),
-  enabled: config_env() != :test
+  max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600"))
 
 if config_env() == :prod do
   database_url =

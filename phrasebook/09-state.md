@@ -31,29 +31,16 @@ end
 
 It handles one message at a time, so there is no race to lock against.
 
-The example's background job is a `GenServer` too
-([`lib/app/shop/workers/expire_unpaid_orders.ex`](../example/lib/app/shop/workers/expire_unpaid_orders.ex#L25)):
-its state is its settings, a timer message (`:tick`) wakes it up, and
-`run_now/1` is a `call` other code can make:
-
-```elixir
-def handle_info(:tick, state) do
-  expire(state)
-  schedule(state)
-  {:noreply, state}
-end
-
-def handle_call(:run_now, _from, state), do: {:reply, expire(state), state}
-
-defp schedule(state), do: Process.send_after(self(), :tick, state.every * 1000)
-```
+The example itself has no `GenServer` of its own, on purpose: its shared
+state lives in Postgres. What it runs on is full of them — Oban's queues and
+its cron, PubSub, the database pool — each one process owning its state.
 
 | Go | Elixir |
 |---|---|
 | `sync.Mutex` around a map | a process owning the map |
 | method call | `GenServer.call` (waits for the answer) / `cast` (doesn't) |
-| `time.Ticker` | `Process.send_after(self(), :tick, ms)` |
+| `time.Ticker` | inside one process, `Process.send_after(self(), :tick, ms)`; once per cluster, a cron entry ([`lib/platform/cron.ex`](../example/lib/platform/cron.ex)) |
 
-**Why:** most state belongs in the database. For the rest (caches, rate
-limits, a job's schedule), one owner process is simpler than locks — and it
-can't deadlock on itself.
+**Why:** most state belongs in the database. For the rest (a cache, a
+counter), one owner process is simpler than locks — and it can't deadlock on
+itself.
