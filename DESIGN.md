@@ -1,9 +1,10 @@
 # dandelion — design notes
 
-> A starting point for Go developers writing their first Elixir service: a
-> project laid out the way a Go service is — router, handlers, services,
-> repositories — with a guide that maps every Go habit to its Elixir
-> equivalent.
+> A whole cloud in one app. The usual cloud setup — web servers, workers,
+> pub/sub, cache, task queue, cron, message brokers — as one Elixir
+> release, laid out the way a Go service is (router, handlers, services,
+> repositories). Run one copy on one VM; run 3 or 10 and they join into one
+> system. Every seed carries the whole plant.
 
 Name: *dandelion* — **simplicity with resilience and joy.** The plainest
 flower there is; it grows through cracks in concrete and comes back every
@@ -208,7 +209,8 @@ every Go library's equivalent.
    pages and map-shaped query parameters are 4xx, not 500; `GET /health`
    (503 when the database is down, excluded from `force_ssl`); cookie
    session and method override removed (JSON API).
-6. **Cluster** (§10) — to be designed in detail when it starts.
+6. **A whole cloud in one app** (§10) — designed 2026-09-27; steps in
+   §10.10.
 
 ## 9. Decisions
 
@@ -221,29 +223,287 @@ Decided 2026-09-27:
 3. ✅ Database — Postgres.
 4. ✅ Delivery — generator, `mix dandelion.new`, copying the tested example (§4).
 5. ✅ Linting — `credo` included.
-6. ✅ Frontend — API only; a Vue + blessing-ui add-on later.
+6. ✅ Frontend — API only at first; *changed 2026-09-27*: Vue + blessing-ui
+   in the template, `--no-frontend` to leave it out (§10.6).
+7. ✅ Scope — a whole cloud in one app: every cloud piece but the load
+   balancer, Postgres and object storage runs inside the release (§10).
+8. ✅ Name — stays *dandelion*: every seed carries the whole plant.
+9. ✅ Libraries used directly, no dandelion runtime library (§10.2).
+10. ✅ Postgres decides; memory only makes things faster (§10.3).
+11. ✅ Every node runs everything; no roles.
+12. ✅ Discovery — `libcluster_postgres` (§10.4).
+13. ✅ Private network; TLS between nodes optional.
+14. ✅ No external broker — Oban queues and a job per subscriber replace
+    it; Broadway only pointed to for talking to other systems (§10.7).
+    Ordered queue **per key**, order = arrival at Postgres (§10.7.1).
+15. ✅ Proof — local 3 nodes; N-VM guide written, untested (§10.8).
+16. ✅ No rate limiting in the template — the load balancer's job.
 
-## 10. Growing into a cluster
+## 10. A whole cloud in one app
 
-Start single, then extend. A company service usually needs an app **plus**
-Redis (cache, pub/sub), Kafka / RabbitMQ consumers, a worker and cron.
-Several Elixir nodes forming a cluster cover all of that in one runtime —
-dandelion shows how, on top of the same layout, with the same
-Go-developer-first explanations. It reuses mature libraries instead of
-rebuilding them:
+Designed 2026-09-27.
 
-| Need | Go stack usually | dandelion (proposal) |
+### 10.1 The idea
+
+A company service at scale usually runs as many separate pieces: web
+servers, workers, Redis for pub/sub and cache, a task queue, a scheduler,
+a message broker (RabbitMQ, Kafka, Google Pub/Sub), and a load balancer in
+front. Each piece is its own
+deployment, its own client library and its own thing to watch.
+
+dandelion puts all of it into **one Elixir release**. One copy on one VM is
+the whole stack. Start 3 or 10 copies and they find each other and act as
+one system: a message published on one node reaches subscribers on every
+node, a job queued on one node can run on any node, a WebSocket client on
+node C sees an order made on node A.
+
+Only three things stay outside: the **load balancer**, **Postgres** and
+**object storage**.
+
+### 10.2 The pieces
+
+| Cloud piece | Usually | In dandelion | Across nodes | Survives a node crash |
+|---|---|---|---|---|
+| Load balancer | Cloud LB, nginx | **outside** | — | — |
+| Backend API | Cloud Run, VM | Phoenix endpoint, every node | stateless | — |
+| Frontend | static hosting | Vue + blessing-ui, built into the release (§10.6) | same files | — |
+| Worker / consumer | separate deployment | Oban queues on every node | work spread over nodes | yes (Postgres) |
+| Task queue | Cloud Tasks, RabbitMQ, asynq | Oban | shared | yes (Postgres) |
+| Cron | Cloud Scheduler | Oban Cron | runs once per cluster | yes |
+| Pub/sub (internal) | Redis pub/sub, NATS | `Phoenix.PubSub` | yes | no — like Redis pub/sub |
+| Message broker, work queue | RabbitMQ, Cloud Tasks | an Oban queue (§10.7) | shared | yes (Postgres) |
+| Ordered queue | SQS FIFO, Kafka partition, Pub/Sub ordering key | ordered per key on Oban (§10.7.1) | shared | yes (Postgres) |
+| Message broker, topic with subscribers | Google Pub/Sub, Kafka | one Oban job per subscriber (§10.7) | shared | yes (Postgres) |
+| Cache | Redis, Memcached | Cachex per node, cleared across nodes via PubSub | kept in step | no — it's a cache |
+| Leader / "only one does it" | Redis lock, etcd | Oban's leader (the `oban_peers` table) and unique jobs | yes | yes (Postgres) |
+| WebSockets | Pusher, socket server + Redis | Phoenix Channels + Presence | yes | reconnects |
+| Sessions | Redis | signed cookies (no store) | — | — |
+| Service discovery | Consul, k8s DNS | libcluster + `libcluster_postgres` | — | — |
+| Service-to-service calls | HTTP / gRPC + mesh | direct calls between nodes | yes | — |
+| Metrics | Prometheus exporters | PromEx (`/metrics`) | per node | — |
+| Database | Cloud SQL | **outside**: Postgres | — | — |
+| File storage | GCS, S3 | **outside** | — | — |
+
+The generated project uses these libraries **directly** — no dandelion
+runtime library, no `Cloud.*` wrappers. The phrasebook maps each one to the
+product it replaces ("where is my Redis?").
+
+### 10.3 Rules
+
+1. **Postgres decides; memory only makes things faster.** Anything that must
+   survive a crash or happen exactly once — queued work, cron, "only one
+   node does this", data changes — goes through Postgres (Oban, transactions,
+   row locks). Cache, pub/sub and presence live in memory and
+   may be lost or briefly stale.
+2. **Every node runs everything.** Same image, same config, no roles. Scale
+   by adding nodes.
+3. **Private network only.** Connected nodes trust each other fully: anyone
+   holding the cookie can run code on every node. Nodes must be on a private
+   network, with the distribution ports firewalled from everything else. TLS
+   between nodes is a nice-to-have, documented as an option (§10.8).
+4. **Network splits are survivable by rule 1.** Nothing prevents a split;
+   what matters is what each half can do:
+
+   | Piece | During a split | Handled by |
+   |---|---|---|
+   | Jobs, cron, leader | could run twice | Postgres: Oban's leader and unique jobs live in the database, so a half that can't reach it can't act |
+   | Data | — | transactions and row locks |
+   | Cache | halves drift | short TTLs; clear on node reconnect |
+   | PubSub | messages between halves lost | at-most-once, like Redis pub/sub; events that must arrive are Oban jobs |
+   | Presence | each half sees its own users | merges on heal (CRDT) |
+
+   `:global` locks are not used for anything that matters (in a split
+   both halves elect a leader; one is killed on heal).
+
+### 10.4 Finding each other
+
+`libcluster` with the `libcluster_postgres` strategy: each node announces
+itself with `NOTIFY` on a channel and listens for the others; a heartbeat
+(default 5 s) heals the cluster after restarts. Nothing extra to run —
+Postgres is already there.
+
+- Discovery only decides who joins; once joined, nodes talk directly over
+  Erlang distribution, so it adds no latency to requests.
+- Needs a **direct** Postgres connection: `LISTEN` doesn't work through
+  PgBouncer in transaction mode. A separate `CLUSTER_DATABASE_URL` allows
+  pointing it past a pooler.
+- If Postgres is down, running nodes stay connected; new nodes can't join
+  until it's back.
+- Alternatives (documented, one setting): DNS (`dns_cluster`) and a static
+  host list.
+
+Release config: `RELEASE_NODE=<app>@<private ip>`, `RELEASE_COOKIE` from
+the environment (never baked into the image), a fixed distribution port
+range so the firewall rule is one line.
+
+### 10.5 The example, grown
+
+The `orders` example gains a flow that touches every piece:
+
+1. `POST /api/orders` creates the order and, **in the same transaction**,
+   publishes `order.created`: one Oban job per subscriber (§10.7). Either
+   the order and its jobs are saved, or neither is.
+2. Subscribers: send the confirmation (logged, no real mail) and update the
+   customer's order count — the **topic with subscribers**, each retried on
+   its own.
+3. After commit, `order.created` also goes out on **PubSub** for live
+   views.
+4. The payment provider calls `POST /api/payments/webhook` (as Midtrans,
+   Xendit or Stripe do); the handler enqueues a job on the **ordered
+   queue** with key `order:<id>` (§10.7.1): `payment.succeeded` marks the
+   order `paid`, `payment.refunded` marks it `refunded`, always in the order
+   they arrived for that order. This is also the first code path that sets
+   `paid`.
+5. Unpaid orders expire via **Oban Cron** — once per cluster, replacing
+   today's per-node timer.
+6. Product prices are read through the **cache** (a small `products`
+   table), cleared on every node when a price changes.
+7. The Vue page shows a **live order feed** over Channels and **who's
+   online** with Presence — an order made through node A appears for a
+   browser connected to node C.
+
+### 10.6 Frontend
+
+Vue 3 + blessing-ui (from npm), built by Vite into `priv/static` and served
+by the same release — the fumehood setup. Pages: orders list with the live
+feed and presence, create order, order detail.
+
+`mix dandelion.new --no-frontend` leaves it out (no Node needed), like
+`--no-example`. The image build gets a Node stage only when the frontend is
+there.
+
+### 10.7 No external broker
+
+A message broker does two jobs, and both run inside the app:
+
+| Broker job | Usually | In dandelion |
 |---|---|---|
-| nodes finding each other | — | `dns_cluster` (DNS / Kubernetes headless service) |
-| pub/sub across instances | Redis pub/sub, NATS | `Phoenix.PubSub` (already in the example) |
-| cache shared across instances | Redis | `Cachex` or `Nebulex` (distributed) |
-| queue consumers | sarama / segmentio kafka-go, amqp | `Broadway` (Kafka, RabbitMQ, GCP Pub/Sub, SQS) |
-| background jobs + cron | a worker binary + cron / asynq | `Oban` (Postgres-backed, cron built in) |
-| exactly one instance does X | leader election via Redis / etcd lock | one process per cluster (`:global` / Oban uniqueness) |
+| Work queue: each message handled once, retried | RabbitMQ queue, Cloud Tasks | an Oban queue |
+| Topic: one event, several subscribers, each gets it reliably | Google Pub/Sub subscriptions, Kafka consumer groups | `Events.publish/3` enqueues one Oban job per subscriber |
+| Fan-out that may drop messages (live updates) | Redis pub/sub | `Phoenix.PubSub` |
 
-Shape (*proposal*, to decide when this milestone starts): an option on the
-generator (`mix dandelion.new my_app --cluster`) or a later step that adds
-clustering to an existing project, plus phrasebook pages (Redis pub/sub →
-Phoenix.PubSub, consumer groups → Broadway, cron + leader lock → one
-process per cluster, …), and a real deployment test: three nodes, one
-killed, the work carries on elsewhere.
+What this gets right that an external broker makes hard: the jobs live in
+the same Postgres as the data, so saving a change and publishing its event
+happen in **one transaction**. With Kafka or RabbitMQ that is the
+dual-write problem (save, crash before publishing, event lost), usually
+solved with an outbox table and a relay process.
+
+#### 10.7.1 Ordered queue, per key
+
+Most queues don't keep order: Cloud Tasks doesn't, RabbitMQ only with a
+single consumer. Where order matters it's usually **per key** — the events
+of one order, one customer — which is what Kafka partitions, SQS FIFO
+message groups and Pub/Sub ordering keys give. dandelion does the same on
+Oban.
+
+**The queue is in Postgres, not on a VM.** Every node adds jobs and every
+node runs them; no node is special.
+
+```
+req A (order 42) → VM1 ─┐
+req C (order 77) → VM3 ─┼─► Postgres numbers them: A=101, C=102, B=103
+req B (order 42) → VM2 ─┘
+                            line order:42 → A(101), then B(103)
+                            line order:77 → C(102), doesn't wait for A
+```
+
+- **Order means arrival at Postgres**, not the VMs' clocks (they drift).
+  If order must follow the source (the time a payment happened), the
+  source sends a sequence number and the worker checks it.
+- **Enqueue**: in the caller's transaction, take
+  `pg_advisory_xact_lock` on the key, then insert the job with the key in
+  its `meta`. The lock makes the job id order equal to commit order for
+  that key — without it, job 102 could become visible before 101 commits,
+  and run first.
+- **Run**: before doing its work, a job checks for an unfinished job with
+  the same key and a lower id (`available`, `scheduled`, `executing` or
+  `retryable`). If there is one, it snoozes a moment and tries again. One
+  partial index on the key (unfinished jobs only) keeps the check cheap.
+- **Different keys run in parallel** on all nodes; within a key, one at a
+  time, in order.
+- **A failing job blocks its key** while it retries — that's what
+  "ordered" means (Kafka does the same). When it has used up its retries
+  (discarded), it stops blocking and is logged, like SQS FIFO's
+  dead-letter queue.
+- **Idempotent**: webhooks get retried by the provider, so the job is
+  unique on the provider's event id — the same event enqueued twice runs
+  once.
+- **A global queue** — everything in one line — is the same with one fixed
+  key. It runs one job at a time for the whole cluster, however many nodes;
+  the docs say so, and it's rarely what you want.
+
+To check while building: a job running on a node that dies stays
+`executing` until Oban's Lifeline plugin rescues it, and it blocks its key
+until then — the rescue time has to be set short enough (the default is
+long).
+
+#### What it doesn't replace
+
+Said plainly in the docs:
+
+- **Other systems sending you events.** They call your HTTP API, or you
+  keep a real broker at that edge and consume it with Broadway.
+- **Kafka-style replay at high volume** (a new consumer re-reading months
+  of events). An events table in Postgres covers the modest version.
+
+### 10.8 Running it
+
+**Local, 3 nodes** (`compose.cluster.yaml`): Postgres, three app
+containers on one Docker network, and nginx in front as the load
+balancer. No privileged containers. The proof, as a script and in the docs:
+
+- all three nodes see each other;
+- an order created through node 1 shows up live in a browser on node 3;
+- kill node 2 while jobs are queued: the jobs finish on nodes 1 and 3;
+- cron runs once per tick across the cluster, before and after the kill;
+- each `order.created` subscriber runs exactly once, even with a node
+  killed mid-way;
+- payment events for one order run in arrival order across the three
+  nodes, other orders' events in parallel, and a killed node's job is
+  rescued before the next one for its key runs;
+- node 2 comes back and rejoins without a restart of the others.
+
+**N VMs behind a load balancer** (a guide, not tested on real VMs — no
+cloud budget):
+
+- VMs on a private network, no public IPs; the load balancer the only way in.
+- Each VM runs the same image (Docker) or release (systemd), with
+  `RELEASE_NODE` from its private IP and a shared `RELEASE_COOKIE` from a
+  secret store.
+- Firewall: the distribution ports (EPMD 4369 + the fixed range) open only
+  between the app VMs; HTTP open only to the load balancer.
+- Health check: `GET /health`.
+- Rolling deploy: one VM at a time; Oban jobs of a stopped node are picked
+  up by the others.
+- Optional: TLS for distribution (`-proto_dist inet_tls`), with the
+  certificate setup.
+
+### 10.9 Decided while building
+
+- **Cache**: Cachex per node plus PubSub invalidation (simple, one
+  library) — Nebulex's distributed modes only if a real need shows up.
+- **Metrics**: PromEx on `/metrics`, or telemetry only.
+
+Not in the template: **rate limiting** — until a service is very large, the
+load balancer does it (Cloud Armor, nginx `limit_req`).
+
+### 10.10 Steps
+
+1. Clustering: libcluster + `libcluster_postgres`, release node / cookie
+   config, `compose.cluster.yaml` with 3 nodes + nginx; proof that nodes
+   connect and PubSub crosses nodes.
+2. Oban: confirmation job, expiry via Oban Cron (the timer goes), the
+   kill-a-node proof.
+3. Events: `Events.publish/3` (a job per subscriber, in the caller's
+   transaction), the `order.created` subscribers; the ordered queue per
+   key (§10.7.1) and the payment webhook on it.
+4. Cache: `products` table, Cachex with cross-node clearing.
+5. Frontend: Vue + blessing-ui, live feed + presence; `--no-frontend` in
+   the generator.
+6. Docs: phrasebook pages (Redis pub/sub → PubSub, Redis cache → Cachex,
+   Cloud Tasks / asynq → Oban, Cloud Scheduler → Oban Cron, Kafka / Pub/Sub
+   topic → a job per subscriber and the one-transaction publish, "I still
+   need a real broker" → Broadway, leader lock → Oban leader, "my service mesh" → node
+   calls), the N-VM guide, README.
+7. Generator: templates synced, integration test generating with and
+   without the example / frontend.
