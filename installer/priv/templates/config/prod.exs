@@ -1,13 +1,15 @@
 import Config
 
-# Force using SSL in production. This also sets the "strict-security-transport" header,
-# known as HSTS. If you have a health check endpoint, you may want to exclude it below.
-# Note `:force_ssl` is required to be set at compile-time.
+# Plain-HTTP requests are redirected to HTTPS (and HSTS is set), trusting
+# the load balancer's x-forwarded-proto header. /health is left alone for
+# probes. If other services call this one over plain HTTP inside your network
+# (e.g. http://shop:4000 in Kubernetes), they'd get a redirect: remove
+# `force_ssl` here. It's read at compile time.
 config :shop, ShopWeb.Endpoint,
   force_ssl: [
     rewrite_on: [:x_forwarded_proto],
     exclude: [
-      # paths: ["/health"],
+      paths: ["/health"],
       hosts: ["localhost", "127.0.0.1"]
     ]
   ]

@@ -37,6 +37,12 @@ docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… shop /app/bin/migrate
 docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PHX_HOST=… -p 4000:4000 shop
 ```
 
+Di production, request HTTP biasa dialihkan ke HTTPS, berdasarkan header
+`x-forwarded-proto` dari load balancer; `GET /health` (untuk probe) tidak
+ikut dialihkan. Kalau service lain memanggil service kamu lewat HTTP biasa di
+dalam jaringan (`http://shop:4000` di Kubernetes), hapus `force_ssl` dari
+[`config/prod.exs`](../../example/config/prod.exs).
+
 | Go | Elixir |
 |---|---|
 | envconfig / viper | `config/runtime.exs` + `System.get_env` |

@@ -21,7 +21,7 @@ func (h *OrderHandler) Show(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-**In Elixir** — routes in [`lib/shop_web/router.ex`](../example/lib/shop_web/router.ex#L8):
+**In Elixir** — routes in [`lib/shop_web/router.ex`](../example/lib/shop_web/router.ex#L12):
 
 ```elixir
 scope "/api", ShopWeb.Handlers do

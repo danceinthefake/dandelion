@@ -103,7 +103,7 @@ at each step.
 ### 3.3 The worked example: `orders`
 
 One resource, end to end: `POST /orders`, `GET /orders/:id`,
-`GET /orders?status=…`, `PATCH /orders/:id/cancel`. Enough to show:
+`GET /orders?status=…`, `POST /orders/:id/cancel`. Enough to show:
 validation errors → 422 with field messages, not found → 404, a business
 rule (can't cancel a shipped order), a transaction touching two tables
 (order + order_items), pagination, and a background job (e.g. a timeout
@@ -201,7 +201,13 @@ every Go library's equivalent.
 4. **Bahasa Indonesia** translation ✅ (done 2026-09-27: `phrasebook/id/`,
    `README.id.md`; code blocks checked identical to the English pages),
    release (hex `dandelion_new`) — pending, needs the maintainer's hex account.
-5. **Cluster** (§10) — to be designed in detail when it starts.
+5. ✅ **Review fixes** (done 2026-09-27) — unpaid-order expiry is one
+   `UPDATE … WHERE status = 'pending'` (a list-then-cancel could cancel an
+   order paid in between); numbers too big for their columns, huge ids /
+   pages and map-shaped query parameters are 4xx, not 500; `GET /health`
+   (503 when the database is down, excluded from `force_ssl`); cookie
+   session and method override removed (JSON API).
+6. **Cluster** (§10) — to be designed in detail when it starts.
 
 ## 9. Decisions
 

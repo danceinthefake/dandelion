@@ -42,10 +42,10 @@ defmodule ShopWeb.Handlers.OrderHandler do
     end
   end
 
-  # Path ids are strings; anything that isn't a positive integer is 404.
+  # Path ids are strings; anything that isn't a positive bigint is 404.
   defp id(value) do
     case Integer.parse(value) do
-      {id, ""} when id > 0 -> {:ok, id}
+      {id, ""} when id in 1..9_223_372_036_854_775_807//1 -> {:ok, id}
       _ -> {:error, :not_found}
     end
   end

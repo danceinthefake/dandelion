@@ -69,6 +69,8 @@ defmodule Shop.Services.OrderServiceTest do
             %{"status" => "lost"},
             %{"page" => "0"},
             %{"page" => "x"},
+            %{"page" => "99999999999999999999"},
+            %{"page" => %{"x" => "1"}},
             %{"per_page" => "101"}
           ] do
         assert {:error, {:invalid, _message}} = OrderService.list(params), inspect(params)

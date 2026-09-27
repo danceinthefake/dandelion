@@ -16,6 +16,8 @@ defmodule Shop.Services.OrderService do
           | Ecto.Changeset.t()
 
   @max_per_page 100
+  # keeps OFFSET well inside Postgres's bigint
+  @max_page 1_000_000
 
   @doc "Creates an order with its items. Validation errors come back as a changeset."
   @spec create(map()) :: {:ok, Order.t()} | {:error, error()}
@@ -41,7 +43,7 @@ defmodule Shop.Services.OrderService do
           | {:error, error()}
   def list(params) do
     with {:ok, status} <- status_param(params["status"]),
-         {:ok, page} <- positive_int(params["page"], 1, :infinity, "page"),
+         {:ok, page} <- positive_int(params["page"], 1, @max_page, "page"),
          {:ok, per_page} <- positive_int(params["per_page"], 20, @max_per_page, "per_page") do
       orders = OrderRepo.list(%{status: status, page: page, per_page: per_page})
       {:ok, %{orders: orders, page: page, per_page: per_page}}
@@ -65,17 +67,19 @@ defmodule Shop.Services.OrderService do
   end
 
   @doc """
-  Cancels pending orders created more than `max_age_seconds` ago, one by one
-  through `cancel/1`. Returns how many were cancelled. Used by
-  `Shop.Jobs.ExpireUnpaidOrders`.
+  Cancels pending orders created more than `max_age_seconds` ago. Returns
+  how many were cancelled. Used by `Shop.Jobs.ExpireUnpaidOrders`.
+
+  One `UPDATE … WHERE status = 'pending'`, not "list, then cancel each": an
+  order paid in between would be cancelled by the second step. Postgres
+  checks the `WHERE` again on each row as it locks it, so a paid order is
+  never touched.
   """
   @spec expire_unpaid(pos_integer()) :: non_neg_integer()
   def expire_unpaid(max_age_seconds) do
-    cutoff = DateTime.add(DateTime.utc_now(), -max_age_seconds, :second)
-
-    cutoff
-    |> OrderRepo.pending_before()
-    |> Enum.count(fn id -> match?({:ok, _}, cancel(id)) end)
+    DateTime.utc_now()
+    |> DateTime.add(-max_age_seconds, :second)
+    |> OrderRepo.cancel_pending_before()
   end
 
   # -- helpers -----------------------------------------------------------------
@@ -105,15 +109,12 @@ defmodule Shop.Services.OrderService do
 
   defp positive_int(nil, default, _max, _name), do: {:ok, default}
 
+  # Query parameters are strings — or maps / lists (`?page[x]=1`), which are
+  # just as invalid.
   defp positive_int(value, _default, max, name) do
-    case Integer.parse(to_string(value)) do
-      {n, ""} when n >= 1 and (max == :infinity or n <= max) ->
-        {:ok, n}
-
-      _ ->
-        {:error,
-         {:invalid,
-          "#{name} must be a whole number from 1#{if max != :infinity, do: " to #{max}"}"}}
+    case is_binary(value) and Integer.parse(value) do
+      {n, ""} when n in 1..max//1 -> {:ok, n}
+      _ -> {:error, {:invalid, "#{name} must be a whole number from 1 to #{max}"}}
     end
   end
 end

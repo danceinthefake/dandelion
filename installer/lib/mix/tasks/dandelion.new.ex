@@ -230,6 +230,11 @@ defmodule Mix.Tasks.Dandelion.New do
     docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PHX_HOST=… -p 4000:4000 #{app}
     ```
 
+    Plain-HTTP requests are redirected to HTTPS in production (behind a load
+    balancer that sets `x-forwarded-proto`); `GET /health` is left alone for
+    probes. Services calling this one over plain HTTP inside your network?
+    Remove `force_ssl` from `config/prod.exs`.
+
     Coming from Go? The [phrasebook](https://github.com/danceinthefake/dandelion/tree/main/phrasebook)
     maps each Go habit to the Elixir way
     ([Bahasa Indonesia](https://github.com/danceinthefake/dandelion/tree/main/phrasebook/id)).

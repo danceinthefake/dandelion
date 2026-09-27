@@ -21,7 +21,11 @@ defmodule Shop.Models.OrderItem do
     |> cast(attrs, [:sku, :quantity, :price_cents])
     |> validate_required([:sku, :quantity, :price_cents])
     |> validate_length(:sku, min: 1, max: 64)
-    |> validate_number(:quantity, greater_than: 0)
-    |> validate_number(:price_cents, greater_than_or_equal_to: 0)
+    # upper limits too: past the column's range, Postgres refuses the insert
+    |> validate_number(:quantity, greater_than: 0, less_than_or_equal_to: 1_000_000)
+    |> validate_number(:price_cents,
+      greater_than_or_equal_to: 0,
+      less_than_or_equal_to: 1_000_000_000_000
+    )
   end
 end

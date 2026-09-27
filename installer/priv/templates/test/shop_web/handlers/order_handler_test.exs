@@ -32,6 +32,21 @@ defmodule ShopWeb.Handlers.OrderHandlerTest do
            }
   end
 
+  test "POST /api/orders refuses numbers too big to store", %{conn: conn} do
+    for {items, field} <- [
+          {[%{"sku" => "A", "quantity" => 3_000_000_000, "price_cents" => 1}], "items"},
+          {[%{"sku" => "A", "quantity" => 1, "price_cents" => 9_000_000_000_000_000_000}],
+           "items"},
+          {List.duplicate(
+             %{"sku" => "A", "quantity" => 1_000_000, "price_cents" => 1_000_000_000_000},
+             2
+           ), "total_cents"}
+        ] do
+      conn = post(conn, "/api/orders", order_params(%{"items" => items}))
+      assert %{"errors" => %{^field => _}} = json_response(conn, 422)
+    end
+  end
+
   test "GET /api/orders/:id, and 404 for unknown or malformed ids", %{conn: conn} do
     order = order_fixture()
     assert %{"id" => id} = conn |> get("/api/orders/#{order.id}") |> json_response(200)
@@ -39,6 +54,9 @@ defmodule ShopWeb.Handlers.OrderHandlerTest do
 
     assert %{"error" => "not found"} = conn |> get("/api/orders/999999") |> json_response(404)
     assert %{"error" => "not found"} = conn |> get("/api/orders/abc") |> json_response(404)
+
+    assert %{"error" => "not found"} =
+             conn |> get("/api/orders/99999999999999999999") |> json_response(404)
   end
 
   test "GET /api/orders pages and filters; bad parameters are 400", %{conn: conn} do

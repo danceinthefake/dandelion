@@ -47,7 +47,7 @@ defmodule DandelionNew.GenerateTest do
     a = secrets(files("a_app", "AApp"))
     b = secrets(files("b_app", "BApp"))
 
-    assert length(a) == 4
+    assert length(a) == 2
     assert MapSet.disjoint?(MapSet.new(a), MapSet.new(example))
     assert MapSet.disjoint?(MapSet.new(a), MapSet.new(b))
 

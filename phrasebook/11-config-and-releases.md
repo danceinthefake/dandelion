@@ -37,6 +37,12 @@ docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… shop /app/bin/migrate
 docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PHX_HOST=… -p 4000:4000 shop
 ```
 
+In production, plain-HTTP requests are redirected to HTTPS, trusting the
+load balancer's `x-forwarded-proto` header; `GET /health` (for probes) is
+left alone. If other services call yours over plain HTTP inside the network
+(`http://shop:4000` in Kubernetes), remove `force_ssl` from
+[`config/prod.exs`](../example/config/prod.exs).
+
 | Go | Elixir |
 |---|---|
 | envconfig / viper | `config/runtime.exs` + `System.get_env` |

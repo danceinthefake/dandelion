@@ -18,7 +18,7 @@ func (s *OrderService) Cancel(ctx context.Context, id int64) (Order, error) {
 }
 ```
 
-**In Elixir** ([`lib/shop/services/order_service.ex`](../example/lib/shop/services/order_service.ex#L57)):
+**In Elixir** ([`lib/shop/services/order_service.ex`](../example/lib/shop/services/order_service.ex#L59)):
 
 ```elixir
 def cancel(id) do

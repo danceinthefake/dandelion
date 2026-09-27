@@ -40,12 +40,14 @@ defmodule Shop.Repos.OrderRepo do
     order |> Ecto.Changeset.change(status: status) |> Repo.update()
   end
 
-  @doc "Ids of pending orders created before `cutoff`."
-  @spec pending_before(DateTime.t()) :: [integer()]
-  def pending_before(cutoff) do
-    Order
-    |> where([o], o.status == "pending" and o.inserted_at < ^cutoff)
-    |> select([o], o.id)
-    |> Repo.all()
+  @doc "Cancels pending orders created before `cutoff`; returns how many."
+  @spec cancel_pending_before(DateTime.t()) :: non_neg_integer()
+  def cancel_pending_before(cutoff) do
+    {count, _} =
+      Order
+      |> where([o], o.status == "pending" and o.inserted_at < ^cutoff)
+      |> Repo.update_all(set: [status: "cancelled", updated_at: DateTime.utc_now()])
+
+    count
   end
 end

@@ -19,8 +19,7 @@ config :shop, ShopWeb.Endpoint,
     formats: [json: ShopWeb.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Shop.PubSub,
-  live_view: [signing_salt: "6x9k7/ac"]
+  pubsub_server: Shop.PubSub
 
 # Configure Elixir's Logger
 config :logger, :default_formatter,

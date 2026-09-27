@@ -51,6 +51,8 @@ defmodule Shop.Models.Order do
       |> get_assoc(:items, :struct)
       |> Enum.reduce(0, fn item, sum -> sum + item.quantity * item.price_cents end)
 
-    put_change(changeset, :total_cents, total)
+    changeset
+    |> put_change(:total_cents, total)
+    |> validate_number(:total_cents, less_than_or_equal_to: 1_000_000_000_000_000)
   end
 end

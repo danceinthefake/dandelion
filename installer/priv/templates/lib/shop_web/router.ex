@@ -5,6 +5,10 @@ defmodule ShopWeb.Router do
     plug :accepts, ["json"]
   end
 
+  scope "/", ShopWeb.Handlers do
+    get "/health", HealthHandler, :show
+  end
+
   scope "/api", ShopWeb.Handlers do
     pipe_through :api
 

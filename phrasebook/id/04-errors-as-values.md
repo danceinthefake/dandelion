@@ -19,12 +19,12 @@ func (s *OrderService) List(p Params) (Page, error) {
 **Di Elixir** — function mengembalikan `{:ok, value}` atau
 `{:error, reason}`, dan `with` menjalankan jalur normal (happy path),
 berhenti di hal pertama yang tidak cocok
-([`lib/shop/services/order_service.ex`](../../example/lib/shop/services/order_service.ex#L42)):
+([`lib/shop/services/order_service.ex`](../../example/lib/shop/services/order_service.ex#L44)):
 
 ```elixir
 def list(params) do
   with {:ok, status} <- status_param(params["status"]),
-       {:ok, page} <- positive_int(params["page"], 1, :infinity, "page"),
+       {:ok, page} <- positive_int(params["page"], 1, @max_page, "page"),
        {:ok, per_page} <- positive_int(params["per_page"], 20, @max_per_page, "per_page") do
     orders = OrderRepo.list(%{status: status, page: page, per_page: per_page})
     {:ok, %{orders: orders, page: page, per_page: per_page}}
