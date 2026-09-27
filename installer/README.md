@@ -11,3 +11,7 @@ mix dandelion.new my_app            # --no-example to leave out the orders examp
 
 - Project, example service and design: https://github.com/danceinthefake/dandelion
 - Go → Elixir phrasebook: https://github.com/danceinthefake/dandelion/tree/main/phrasebook
+
+## License
+
+MIT — see [LICENSE](LICENSE).

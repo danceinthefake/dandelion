@@ -14,7 +14,7 @@ defmodule DandelionNew.MixProject do
       aliases: aliases(),
       package: [
         licenses: ["MIT"],
-        files: ~w(lib priv mix.exs README.md),
+        files: ~w(lib priv mix.exs README.md LICENSE),
         links: %{"GitHub" => "https://github.com/danceinthefake/dandelion"}
       ]
     ]

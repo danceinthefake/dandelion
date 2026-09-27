@@ -24,3 +24,7 @@ Name: *dandelion* — **simplicity with resilience and joy.** The plainest
 flower there is; it grows through cracks in concrete and comes back every
 time you pull it; its seeds scatter on the wind — one flower becoming many,
 the way a service starts single and grows into a cluster.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
