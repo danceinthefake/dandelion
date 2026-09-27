@@ -78,7 +78,9 @@ lib/
     queue.ex                  ≈ Cloud Tasks: Oban (jobs in Postgres)
     cron.ex                   ≈ Cloud Scheduler: the crontab, once per cluster
     release.ex                migrations in production
-    # coming with §10: cluster/ pubsub/ cache/ realtime/
+    # coming with §10: pubsub.ex (≈ Google Pub/Sub), queue/ordered.ex (≈ SQS FIFO),
+    # cluster/, cache/, realtime/ — Platform.Broadcast (≈ Redis pub/sub) is
+    # Phoenix.PubSub, started in application.ex
   app/
     shop/                     one domain; landing/, dashboard/, … the same way
       handlers/               ≈ internal/shop/http: params → service → JSON
@@ -270,6 +272,8 @@ Decided 2026-09-27:
 16. ✅ No rate limiting in the template — the load balancer's job.
 17. ✅ Layout — `lib/platform/` + `lib/app/<domain>/`, module names follow
     folders, example app `acme` (§3.1).
+18. ✅ Two pub/subs: `Platform.PubSub` durable (≈ Google Pub/Sub),
+    `Platform.Broadcast` live (≈ Redis pub/sub) (§10.7).
 
 ## 10. A whole cloud in one app
 
@@ -302,10 +306,10 @@ Only three things stay outside: the **load balancer**, **Postgres** and
 | Worker / consumer | separate deployment | Oban queues on every node | work spread over nodes | yes (Postgres) |
 | Task queue | Cloud Tasks, RabbitMQ, asynq | Oban | shared | yes (Postgres) |
 | Cron | Cloud Scheduler | Oban Cron | runs once per cluster | yes |
-| Pub/sub (internal) | Redis pub/sub, NATS | `Phoenix.PubSub` | yes | no — like Redis pub/sub |
+| Live broadcast | Redis pub/sub, NATS | `Platform.Broadcast` (Phoenix.PubSub) | yes | no — like Redis pub/sub |
 | Message broker, work queue | RabbitMQ, Cloud Tasks | an Oban queue (§10.7) | shared | yes (Postgres) |
 | Ordered queue | SQS FIFO, Kafka partition, Pub/Sub ordering key | ordered per key on Oban (§10.7.1) | shared | yes (Postgres) |
-| Message broker, topic with subscribers | Google Pub/Sub, Kafka | one Oban job per subscriber (§10.7) | shared | yes (Postgres) |
+| Durable pub/sub (topic → subscribers) | Google Pub/Sub, Kafka, SNS→SQS | `Platform.PubSub`: one Oban job per subscriber (§10.7) | shared | yes (Postgres) |
 | Cache | Redis, Memcached | Cachex per node, cleared across nodes via PubSub | kept in step | no — it's a cache |
 | Leader / "only one does it" | Redis lock, etcd | Oban's leader (the `oban_peers` table) and unique jobs | yes | yes (Postgres) |
 | WebSockets | Pusher, socket server + Redis | Phoenix Channels + Presence | yes | reconnects |
@@ -346,7 +350,7 @@ product it replaces ("where is my Redis?").
    | Jobs, cron, leader | could run twice | Postgres: Oban's leader and unique jobs live in the database, so a half that can't reach it can't act |
    | Data | — | transactions and row locks |
    | Cache | halves drift | short TTLs; clear on node reconnect |
-   | PubSub | messages between halves lost | at-most-once, like Redis pub/sub; events that must arrive are Oban jobs |
+   | Broadcast | messages between halves lost | at-most-once, like Redis pub/sub; events that must arrive go through `Platform.PubSub` |
    | Presence | each half sees its own users | merges on heal (CRDT) |
 
    `:global` locks are not used for anything that matters (in a split
@@ -378,13 +382,14 @@ range so the firewall rule is one line.
 The `orders` example gains a flow that touches every piece:
 
 1. `POST /api/orders` creates the order and, **in the same transaction**,
-   publishes `order.created`: one Oban job per subscriber (§10.7). Either
+   publishes `order.created` on `Platform.PubSub`: one Oban job per
+   subscriber (§10.7). Either
    the order and its jobs are saved, or neither is.
 2. Subscribers: send the confirmation (logged, no real mail) and update the
    customer's order count — the **topic with subscribers**, each retried on
    its own.
-3. After commit, `order.created` also goes out on **PubSub** for live
-   views.
+3. After commit, `order.created` also goes out on **`Platform.Broadcast`**
+   for live views.
 4. The payment provider calls `POST /api/payments/webhook` (as Midtrans,
    Xendit or Stripe do); the handler enqueues a job on the **ordered
    queue** with key `order:<id>` (§10.7.1): `payment.succeeded` marks the
@@ -416,8 +421,24 @@ A message broker does two jobs, and both run inside the app:
 | Broker job | Usually | In dandelion |
 |---|---|---|
 | Work queue: each message handled once, retried | RabbitMQ queue, Cloud Tasks | an Oban queue |
-| Topic: one event, several subscribers, each gets it reliably | Google Pub/Sub subscriptions, Kafka consumer groups | `Events.publish/3` enqueues one Oban job per subscriber |
-| Fan-out that may drop messages (live updates) | Redis pub/sub | `Phoenix.PubSub` |
+| Topic: one event, several subscribers, each gets it reliably | Google Pub/Sub subscriptions, Kafka consumer groups | `Platform.PubSub.publish/2` enqueues one Oban job per subscriber |
+| Fan-out that may drop messages (live updates) | Redis pub/sub | `Platform.Broadcast` (Phoenix.PubSub) |
+
+**Two kinds of pub/sub, two names.** Redis pub/sub and Google Pub/Sub look
+alike but aren't:
+
+| | `Platform.PubSub` — durable | `Platform.Broadcast` — live |
+|---|---|---|
+| Like | Google Pub/Sub, Kafka topics | Redis pub/sub |
+| Stored | yes, in Postgres | no, memory only |
+| Delivery | each subscriber at least once, retried, survives crashes | whoever listens right now, on every node; lost if nobody is |
+| Order | none (a subscriber that needs it uses the ordered queue, §10.7.1) | none across publishers |
+| For | work that must happen | live views, presence, clearing caches |
+
+`Platform.PubSub` (`lib/platform/pubsub.ex`) holds `publish/2` and the
+subscriptions — which workers receive each topic, listed in one place like
+the crontab. Subscribers are Oban workers in their domain and must tolerate
+running twice (at least once), as with Google Pub/Sub.
 
 What this gets right that an external broker makes hard: the jobs live in
 the same Postgres as the data, so saving a change and publishing its event
@@ -528,20 +549,21 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
 
 1. Clustering: libcluster + `libcluster_postgres`, release node / cookie
    config, `compose.cluster.yaml` with 3 nodes + nginx; proof that nodes
-   connect and PubSub crosses nodes.
+   connect and a broadcast crosses nodes.
 2. Oban: ✅ Oban in (`Platform.Queue`, `Platform.Cron`), expiry via Oban
    Cron — the per-node timer is gone (2026-09-27); still to do: the
    confirmation job, the kill-a-node proof.
-3. Events: `Events.publish/3` (a job per subscriber, in the caller's
-   transaction), the `order.created` subscribers; the ordered queue per
+3. Events: `Platform.PubSub.publish/2` and its subscriptions (a job per
+   subscriber, in the caller's transaction), the `order.created` subscribers; the ordered queue per
    key (§10.7.1) and the payment webhook on it.
 4. Cache: `products` table, Cachex with cross-node clearing.
 5. Frontend: Vue + blessing-ui, live feed + presence; `--no-frontend` in
    the generator.
-6. Docs: phrasebook pages (Redis pub/sub → PubSub, Redis cache → Cachex,
-   Cloud Tasks / asynq → Oban, Cloud Scheduler → Oban Cron, Kafka / Pub/Sub
-   topic → a job per subscriber and the one-transaction publish, "I still
-   need a real broker" → Broadway, leader lock → Oban leader, "my service mesh" → node
+6. Docs: phrasebook pages (Redis pub/sub → `Platform.Broadcast`, Google
+   Pub/Sub / Kafka topic → `Platform.PubSub` and the one-transaction
+   publish, Redis cache → Cachex, Cloud Tasks / asynq → Oban, SQS FIFO →
+   the ordered queue, Cloud Scheduler → Oban Cron, "I still need a real
+   broker" → Broadway, leader lock → Oban leader, "my service mesh" → node
    calls), the N-VM guide, README.
 7. Generator: templates synced, integration test generating with and
    without the example / frontend.

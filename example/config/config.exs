@@ -19,7 +19,7 @@ config :acme, Platform.Web.Endpoint,
     formats: [json: Platform.Web.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Platform.PubSub
+  pubsub_server: Platform.Broadcast
 
 # Configure Elixir's Logger
 config :logger, :default_formatter,

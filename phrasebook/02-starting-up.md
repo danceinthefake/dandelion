@@ -19,7 +19,7 @@ def start(_type, _args) do
     [
       Platform.Web.Telemetry,
       Platform.Database.Repo,                  # the database pool (≈ *sql.DB)
-      {Phoenix.PubSub, name: Platform.PubSub}
+      {Phoenix.PubSub, name: Platform.Broadcast}
     ] ++ jobs() ++ [Endpoint]                  # jobs (≈ goroutines), then HTTP
 
   opts = [strategy: :one_for_one, name: Platform.Supervisor]

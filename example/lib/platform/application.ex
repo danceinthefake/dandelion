@@ -17,8 +17,8 @@ defmodule Platform.Application do
         Platform.Web.Telemetry,
         # ≈ Cloud SQL connection pool
         Platform.Database.Repo,
-        # ≈ Redis pub/sub (on this node, for now)
-        {Phoenix.PubSub, name: Platform.PubSub},
+        # ≈ Redis pub/sub: live broadcast, fire-and-forget (on this node, for now)
+        {Phoenix.PubSub, name: Platform.Broadcast},
         # ≈ Cloud Tasks + Cloud Scheduler: background jobs and cron
         {Oban, Platform.Queue.config()},
         # ≈ the web servers
