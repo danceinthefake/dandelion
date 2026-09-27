@@ -167,7 +167,8 @@ request:
 11. Config and releases (vs env + Dockerfile)
 12. When it crashes: supervisors (vs `panic`/`recover`)
 
-Written in **English and Bahasa Indonesia** (DITF principle).
+Written in English. (A Bahasa Indonesia translation was removed 2026-09-27:
+it read unnaturally.)
 
 ## 6. Relationship to fumehood
 
@@ -198,9 +199,9 @@ every Go library's equivalent.
    compiles with warnings as errors, passes `mix format --check-formatted`,
    its tests and `credo --strict`; the built archive installs and generates
    from outside the repo.
-4. **Bahasa Indonesia** translation ✅ (done 2026-09-27: `phrasebook/id/`,
-   `README.id.md`; code blocks checked identical to the English pages),
-   release (hex `dandelion_new`) — pending, needs the maintainer's hex account.
+4. **Release** (hex `dandelion_new`) — pending, needs the maintainer's hex
+   account. (The Bahasa Indonesia translation done here was removed
+   2026-09-27: it read unnaturally.)
 5. ✅ **Review fixes** (done 2026-09-27) — unpaid-order expiry is one
    `UPDATE … WHERE status = 'pending'` (a list-then-cancel could cancel an
    order paid in between); numbers too big for their columns, huge ids /

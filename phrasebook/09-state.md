@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/09-state.md)
-
 # 9. State that outlives a request
 
 **In Go** — shared state behind a mutex:

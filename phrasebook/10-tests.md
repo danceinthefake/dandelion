@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/10-tests.md)
-
 # 10. Tests
 
 **In Go** — table-driven:

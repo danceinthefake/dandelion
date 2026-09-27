@@ -83,7 +83,6 @@ defmodule Mix.Tasks.Dandelion.New do
 
     New to Elixir from Go? Start with the phrasebook:
     https://github.com/danceinthefake/dandelion/tree/main/phrasebook
-    (Bahasa Indonesia: https://github.com/danceinthefake/dandelion/tree/main/phrasebook/id)
     """)
   end
 
@@ -236,8 +235,7 @@ defmodule Mix.Tasks.Dandelion.New do
     Remove `force_ssl` from `config/prod.exs`.
 
     Coming from Go? The [phrasebook](https://github.com/danceinthefake/dandelion/tree/main/phrasebook)
-    maps each Go habit to the Elixir way
-    ([Bahasa Indonesia](https://github.com/danceinthefake/dandelion/tree/main/phrasebook/id)).
+    maps each Go habit to the Elixir way.
     """
   end
 end

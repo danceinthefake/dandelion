@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/06-services-and-transactions.md)
-
 # 6. Services and transactions
 
 **In Go**:

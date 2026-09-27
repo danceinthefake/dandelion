@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/README.md)
-
 # The Go → Elixir phrasebook
 
 For Go developers writing their first Elixir service. Each page shows how

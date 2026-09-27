@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/03-routing-and-handlers.md)
-
 # 3. Routing and handlers
 
 **In Go** (chi):

@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/12-when-it-crashes.md)
-
 # 12. When it crashes
 
 **In Go** — a panic in a goroutine takes down the whole program unless you

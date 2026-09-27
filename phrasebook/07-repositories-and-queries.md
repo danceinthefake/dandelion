@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/07-repositories-and-queries.md)
-
 # 7. Repositories and queries
 
 **In Go** (`database/sql`, or sqlc generating the same):

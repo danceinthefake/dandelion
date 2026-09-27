@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/05-structs-and-validation.md)
-
 # 5. Structs and validation
 
 **In Go**:

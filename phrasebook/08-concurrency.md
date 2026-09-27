@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/08-concurrency.md)
-
 # 8. Concurrency
 
 Everything in Elixir runs in **processes** — not OS processes: tiny,

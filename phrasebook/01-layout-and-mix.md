@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/01-layout-and-mix.md)
-
 # 1. Project layout and `mix`
 
 **In Go**

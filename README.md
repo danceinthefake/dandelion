@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](README.id.md)
-
 # dandelion
 
 **Simplicity with resilience and joy.**

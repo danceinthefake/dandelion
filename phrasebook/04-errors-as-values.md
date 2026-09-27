@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/04-errors-as-values.md)
-
 # 4. Errors as values
 
 **In Go**:

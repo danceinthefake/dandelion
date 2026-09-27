@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/02-starting-up.md)
-
 # 2. Starting up
 
 **In Go** — `main` wires things up and blocks:

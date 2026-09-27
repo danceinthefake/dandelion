@@ -1,5 +1,3 @@
-**English** · [Bahasa Indonesia](id/11-config-and-releases.md)
-
 # 11. Config and releases
 
 **In Go** — config from the environment, one static binary in an image:
