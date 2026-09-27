@@ -1,9 +1,0 @@
-# Local Postgres for development and tests: docker compose up -d
-services:
-  postgres:
-    image: postgres:18-alpine
-    container_name: acme-pg
-    environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-    ports: ["55432:5432"]

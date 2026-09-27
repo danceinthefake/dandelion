@@ -171,9 +171,11 @@ and changes only what must differ per project:
   missing, so a change to the example can't produce a broken project.
 
 Every generated project is the tested example, and there's no dependency on
-the user's `phx_new` version. `mix dandelion.sync_templates` copies `example/`
-into the package; a test fails while they differ. Upgrading Phoenix means
-upgrading the example.
+the user's `phx_new` version. The generator's `mix.exs` copies `example/`
+into `priv/templates` before every compile and package build (not
+committed: `example/` is the only copy); the example's formatter rules, per
+folder, are captured by `mix dandelion.sync_formatter`. Upgrading Phoenix
+means upgrading the example.
 
 ## 5. The phrasebook (guide)
 

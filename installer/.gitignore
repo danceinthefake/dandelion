@@ -3,3 +3,4 @@
 /tmp/
 *.ez
 erl_crash.dump
+/priv/templates/

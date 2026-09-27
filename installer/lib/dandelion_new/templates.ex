@@ -1,16 +1,23 @@
 defmodule DandelionNew.Templates do
   @moduledoc """
-  The example service, embedded at compile time from `priv/templates`
-  (a copy of `../example`, kept in sync by `mix dandelion.sync_templates`).
+  The example service, embedded at compile time from `priv/templates` — a
+  copy of `../example` that `mix.exs` refreshes before every compile.
   """
 
   @root Path.expand("../../priv/templates", __DIR__)
 
-  @files (for path <- Path.wildcard(Path.join(@root, "**/*"), match_dot: true),
-              File.regular?(path) do
-            @external_resource path
-            {Path.relative_to(path, @root), File.read!(path)}
-          end)
+  @paths Path.wildcard(Path.join(@root, "**/*"), match_dot: true) |> Enum.filter(&File.regular?/1)
+  for path <- @paths, do: @external_resource(path)
+
+  @files for path <- @paths, do: {Path.relative_to(path, @root), File.read!(path)}
+
+  # Recompile when a template is added or removed (edits are covered by
+  # @external_resource).
+  @doc false
+  def __mix_recompile__?,
+    do:
+      Path.wildcard(Path.join(@root, "**/*"), match_dot: true) |> Enum.filter(&File.regular?/1) !=
+        @paths
 
   @formatter_file Path.expand("../../priv/formatter.exs", __DIR__)
   @external_resource @formatter_file
@@ -21,19 +28,24 @@ defmodule DandelionNew.Templates do
   @doc "`[{relative_path, contents}]` of every template file."
   def all, do: @files
 
-  @doc "Formatter options for an Elixir template file, or nil."
-  def formatter_opts(file), do: Map.get(@formatter, file)
+  @doc """
+  Formatter options for an Elixir template file, or nil: those of the
+  deepest folder with a `.formatter.exs` (as `mix format` picks them).
+  """
+  def formatter_opts(file) do
+    if Path.extname(file) in [".ex", ".exs"] do
+      dir =
+        @formatter
+        |> Map.keys()
+        |> Enum.filter(&(&1 == "." or String.starts_with?(file, &1 <> "/")))
+        |> Enum.max_by(&String.length/1)
+
+      @formatter[dir]
+    end
+  end
 
   # -- dev-time helpers (need the dandelion git checkout) ------------------------
 
   @doc false
   def example_dir, do: Path.expand("../../../example", __DIR__)
-
-  @doc false
-  # Tracked files of ../example, minus its own README (generated projects get
-  # their own).
-  def example_files do
-    {out, 0} = System.cmd("git", ["ls-files"], cd: example_dir())
-    out |> String.split("\n", trim: true) |> Enum.reject(&(&1 == "README.md"))
-  end
 end
