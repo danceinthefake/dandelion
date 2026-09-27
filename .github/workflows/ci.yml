@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Postgres 18 on :55432, as compose.yaml gives it locally
+# (postgres / postgres, what config/dev.exs and config/test.exs expect).
+jobs:
+  example:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: example
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
+        ports: ["55432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v4 # Erlang, Elixir from example/mise.toml
+        with:
+          working_directory: example
+      - uses: actions/cache@v6
+        with:
+          path: |
+            example/deps
+            example/_build
+          key: example-${{ hashFiles('example/mise.toml', 'example/mix.lock') }}
+      - run: mix deps.get
+      - run: mix format --check-formatted
+      - run: MIX_ENV=test mix compile --warnings-as-errors
+      - run: mix test
+      - run: mix credo --strict
+
+  # The generator, and the projects it generates (with and without the
+  # example): deps, compile, format, tests and credo inside each.
+  installer:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: installer
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
+        ports: ["55432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v4
+        with:
+          working_directory: installer
+      - run: mix format --check-formatted
+      - run: mix compile --warnings-as-errors
+      - run: mix test --include integration
