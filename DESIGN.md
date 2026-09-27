@@ -60,28 +60,52 @@ explains it.
 
 ### 3.1 Layout
 
+*Changed 2026-09-27* (was `lib/my_app/` + `lib/my_app_web/`, Phoenix's
+habit). Two parts: **`lib/platform/`** — what every app runs on, the same
+in every dandelion project — and **`lib/app/<domain>/`** — the business,
+one folder per domain, laid out the way a Go service is.
+
 ```
 lib/
-  my_app/
-    application.ex            ≈ main.go: what starts (supervision tree)
-    repo.ex                   ≈ *sql.DB pool (Ecto.Repo)
-    models/order.ex           ≈ model/order.go: struct + validation (Ecto schema/changeset)
-    repos/order_repo.ex       ≈ repo/orders.go: queries only
-    services/order_service.ex ≈ service/orders.go: rules, transactions, no HTTP
-  my_app_web/
-    router.ex                 ≈ chi routes
-    handlers/order_handler.ex ≈ handlers: params → service → JSON
-    handlers/fallback.ex      ≈ one place turning errors into HTTP statuses
-    plugs/request_id.ex …     ≈ middleware
+  platform/                   what every app runs on
+    application.ex            ≈ main.go: what starts, in order
+    database/repo.ex          ≈ *sql.DB pool (Ecto.Repo) — Cloud SQL
+    web/                      ≈ the web server
+      endpoint.ex             ≈ http.Server + middleware
+      router.ex               ≈ chi router: every route of every domain
+      fallback_handler.ex     ≈ one place turning errors into HTTP statuses
+      health_handler.ex  error_json.ex  telemetry.ex
+    release.ex                migrations in production
+    # added by §10: cluster/ queue/ pubsub/ cache/ cron/ realtime/
+  app/
+    shop/                     one domain; landing/, dashboard/, … the same way
+      handlers/               ≈ internal/shop/http: params → service → JSON
+      workers/                ≈ background goroutines / queue handlers
+      services/               ≈ internal/shop/service: rules, transactions, no HTTP
+      repos/                  ≈ internal/shop/repo: queries only
+      models/                 ≈ internal/shop/model: structs + validation
 priv/repo/migrations/         ≈ migrations (golang-migrate / goose)
-test/                         ≈ *_test.go, table-driven where it fits
+test/                         mirrors lib/ (test/platform/…, test/app/shop/…)
 config/runtime.exs            ≈ envconfig: settings from environment variables
 ```
 
-Names follow Go vocabulary on purpose (`handlers/`, `services/`, `repos/`,
-`models/`) instead of Phoenix's (`controllers/`, contexts). Under the hood
-they are ordinary Phoenix controllers and Ecto modules — the guide says so
-at each step.
+- **Module names follow the folders**, like Go packages:
+  `lib/app/shop/services/order_service.ex` is
+  `App.Shop.Services.OrderService`; `lib/platform/web/router.ex` is
+  `Platform.Web.Router`. Explicit over implicit.
+- **Handlers and workers belong to their domain**; `platform/` holds only
+  the machinery. The router lists every route with full module names.
+- **Services may use platform tools** (publish an event, read the cache),
+  the way a Go service uses a Redis client; business rules never live in
+  `platform/`.
+- **The app name appears in no module name.** The example's OTP app is
+  `acme` (`Acme.MixProject`, `config :acme`); the generator renames only
+  that.
+
+Names follow Go vocabulary (`handlers/`, `services/`, `repos/`, `models/`,
+`workers/`) instead of Phoenix's (`controllers/`, contexts). Under the hood
+they are ordinary Phoenix controllers and Ecto modules — the phrasebook
+says so at each step.
 
 ### 3.2 Conventions the template shows
 
@@ -134,14 +158,16 @@ output plus the dandelion edits — and it's the tested version. So `dandelion.n
 **copies the example** (embedded in the archive as `installer/priv/templates`)
 and changes only what must differ per project:
 
-- names: `Shop` / `shop` → module / app, in paths and contents, in one regex
-  pass (so a name like `Workshop` isn't renamed twice);
+- names: `Acme` / `acme` → module / app, in paths and contents, in one regex
+  pass (so a name like `acme_admin` isn't renamed twice); `Platform.*` and
+  `App.Shop.*` modules stay as they are (§3.1);
 - secrets: fresh `secret_key_base` values and signing salts;
 - formatting: every Elixir file is re-formatted with the project's own
   formatter rules (captured from the example), since a longer or shorter
   name moves line breaks;
-- `--no-example`: the orders files are left out and three spots (routes, job
-  start, job config) are edited — each edit fails loudly if its text is
+- `--no-example`: the `shop` domain (`lib/app/shop/`, its tests, the
+  migration) is left out and three spots (routes, job start, job config)
+  are edited — each edit fails loudly if its text is
   missing, so a change to the example can't produce a broken project.
 
 Every generated project is the tested example, and there's no dependency on
@@ -238,6 +264,8 @@ Decided 2026-09-27:
     Ordered queue **per key**, order = arrival at Postgres (§10.7.1).
 15. ✅ Proof — local 3 nodes; N-VM guide written, untested (§10.8).
 16. ✅ No rate limiting in the template — the load balancer's job.
+17. ✅ Layout — `lib/platform/` + `lib/app/<domain>/`, module names follow
+    folders, example app `acme` (§3.1).
 
 ## 10. A whole cloud in one app
 
@@ -283,6 +311,11 @@ Only three things stay outside: the **load balancer**, **Postgres** and
 | Metrics | Prometheus exporters | PromEx (`/metrics`) | per node | — |
 | Database | Cloud SQL | **outside**: Postgres | — | — |
 | File storage | GCS, S3 | **outside** | — | — |
+
+Each piece gets its folder in `lib/platform/` — `cluster/`, `queue/`,
+`pubsub/`, `cache/`, `cron/`, `realtime/` — next to `web/` and `database/`;
+the jobs and subscribers themselves live in their domain's `workers/`
+(§3.1).
 
 The generated project uses these libraries **directly** — no dandelion
 runtime library, no `Cloud.*` wrappers. The phrasebook maps each one to the

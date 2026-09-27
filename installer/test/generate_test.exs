@@ -14,32 +14,28 @@ defmodule DandelionNew.GenerateTest do
     |> List.flatten()
   end
 
-  test "renames the app everywhere: paths and contents" do
+  test "renames the app everywhere; module names follow the folders" do
     files = files("my_app", "MyApp")
 
-    assert Map.has_key?(files, "lib/my_app/services/order_service.ex")
-    assert Map.has_key?(files, "lib/my_app_web/handlers/order_handler.ex")
-
-    assert files["lib/my_app/services/order_service.ex"] =~
-             "defmodule MyApp.Services.OrderService"
-
+    assert files["mix.exs"] =~ "defmodule MyApp.MixProject"
+    assert files["mix.exs"] =~ "app: :my_app,"
     assert files["config/dev.exs"] =~ "database: \"my_app_dev\""
     assert files["compose.yaml"] =~ "container_name: my_app-pg"
+    assert files["lib/platform/database/repo.ex"] =~ "otp_app: :my_app"
+
+    assert files["lib/app/shop/services/order_service.ex"] =~
+             "defmodule App.Shop.Services.OrderService"
 
     for {path, contents} <- files do
-      refute path =~ ~r/shop/i, path
-      refute contents =~ ~r/\bShop\b|shop_|Shop\.|ShopWeb/, "#{path} still mentions shop"
+      refute path =~ ~r/acme/i, path
+      refute contents =~ ~r/acme/i, "#{path} still mentions acme"
     end
   end
 
-  test "names containing 'shop' are renamed once, not twice" do
-    workshop = files("workshop", "Workshop")
-    assert workshop["lib/workshop/repo.ex"] =~ "defmodule Workshop.Repo do"
-    assert workshop["mix.exs"] =~ "app: :workshop,"
-
-    admin = files("shop_admin", "ShopAdmin")
-    assert Map.has_key?(admin, "lib/shop_admin_web/router.ex")
-    assert admin["lib/shop_admin_web/router.ex"] =~ "defmodule ShopAdminWeb.Router do"
+  test "names containing 'acme' are renamed once, not twice" do
+    admin = files("acme_admin", "AcmeAdmin")
+    assert admin["mix.exs"] =~ "defmodule AcmeAdmin.MixProject"
+    assert admin["mix.exs"] =~ "app: :acme_admin,"
   end
 
   test "every project gets its own secrets, never the example's" do
@@ -60,11 +56,11 @@ defmodule DandelionNew.GenerateTest do
   test "--no-example keeps the layout and drops the orders example" do
     files = files("my_app", "MyApp", false)
 
-    refute Enum.any?(Map.keys(files), &(&1 =~ "order"))
-    assert Map.has_key?(files, "lib/my_app/services/.gitkeep")
-    assert Map.has_key?(files, "lib/my_app_web/handlers/fallback_handler.ex")
-    refute files["lib/my_app_web/router.ex"] =~ "/orders"
-    refute files["lib/my_app/application.ex"] =~ "ExpireUnpaidOrders"
+    refute Enum.any?(Map.keys(files), &(&1 =~ ~r/order|app\/shop/))
+    assert Map.has_key?(files, "lib/app/.gitkeep")
+    assert Map.has_key?(files, "lib/platform/web/fallback_handler.ex")
+    refute files["lib/platform/web/router.ex"] =~ "/orders"
+    refute files["lib/platform/application.ex"] =~ "ExpireUnpaidOrders"
     refute files["config/runtime.exs"] =~ "ExpireUnpaidOrders"
     refute files["README.md"] =~ "orders"
   end

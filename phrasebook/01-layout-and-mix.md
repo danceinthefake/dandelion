@@ -20,10 +20,12 @@ go run ./cmd/server   go test ./...   gofmt   golangci-lint
 | `gofmt` | `mix format` |
 | `golangci-lint` | `mix credo --strict` |
 | `go vet` | `mix compile --warnings-as-errors` |
-| `internal/http/` | [`lib/shop_web/`](../example/lib/shop_web) — router, handlers |
-| `internal/service/` | [`lib/shop/services/`](../example/lib/shop/services) |
-| `internal/repo/` | [`lib/shop/repos/`](../example/lib/shop/repos) |
-| `internal/model/` | [`lib/shop/models/`](../example/lib/shop/models) |
+| `cmd/server/main.go` | [`lib/platform/application.ex`](../example/lib/platform/application.ex) |
+| router, middleware | [`lib/platform/web/`](../example/lib/platform/web) — every route in `router.ex` |
+| `internal/<domain>/http/` | [`lib/app/shop/handlers/`](../example/lib/app/shop/handlers) |
+| `internal/<domain>/service/` | [`lib/app/shop/services/`](../example/lib/app/shop/services) |
+| `internal/<domain>/repo/` | [`lib/app/shop/repos/`](../example/lib/app/shop/repos) |
+| `internal/<domain>/model/` | [`lib/app/shop/models/`](../example/lib/app/shop/models) |
 | `migrations/` | [`priv/repo/migrations/`](../example/priv/repo/migrations) |
 
 Dependencies, from [`mix.exs`](../example/mix.exs#L40):
@@ -40,6 +42,9 @@ defp deps do
 end
 ```
 
-**Why:** the folder names are the same on purpose. Everything under
-`lib/shop/` is the application; `lib/shop_web/` is only the HTTP layer on
-top, so the core can be used without it (from a job, a script, a test).
+**Why:** the folder names are the same on purpose. `lib/platform/` is what
+every app runs on — the same in every dandelion project; `lib/app/<domain>/`
+is your business, one folder per domain (`shop` here). Module names follow
+the folders, like Go packages: `lib/app/shop/services/order_service.ex` is
+`App.Shop.Services.OrderService`. Services don't know about HTTP, so the
+same code runs from a handler, a worker, a script or a test.

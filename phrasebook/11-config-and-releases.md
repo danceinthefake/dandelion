@@ -15,11 +15,11 @@ FROM gcr.io/distroless/base
 COPY --from=build /server /server
 ```
 
-**In Elixir** — [`config/runtime.exs`](../example/config/runtime.exs#L26) runs at
+**In Elixir** — [`config/runtime.exs`](../example/config/runtime.exs#L27) runs at
 boot and reads the environment:
 
 ```elixir
-config :shop, Shop.Jobs.ExpireUnpaidOrders,
+config :acme, App.Shop.Workers.ExpireUnpaidOrders,
   max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600")),
   every_seconds: String.to_integer(System.get_env("UNPAID_ORDER_CHECK_EVERY_SECONDS", "60")),
   enabled: config_env() != :test
@@ -30,15 +30,15 @@ Erlang runtime — which the [`Dockerfile`](../example/Dockerfile) copies into a
 image (130 MB for the example):
 
 ```sh
-docker build -t shop .
-docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… shop /app/bin/migrate
-docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PHX_HOST=… -p 4000:4000 shop
+docker build -t acme .
+docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… acme /app/bin/migrate
+docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PHX_HOST=… -p 4000:4000 acme
 ```
 
 In production, plain-HTTP requests are redirected to HTTPS, trusting the
 load balancer's `x-forwarded-proto` header; `GET /health` (for probes) is
 left alone. If other services call yours over plain HTTP inside the network
-(`http://shop:4000` in Kubernetes), remove `force_ssl` from
+(`http://acme:4000` in Kubernetes), remove `force_ssl` from
 [`config/prod.exs`](../example/config/prod.exs).
 
 | Go | Elixir |
@@ -47,8 +47,8 @@ left alone. If other services call yours over plain HTTP inside the network
 | compile-time settings (`-ldflags`) | `config/config.exs`, `dev.exs`, `test.exs`, `prod.exs` |
 | static binary | `mix release` (runtime included; no Erlang needed on the host) |
 | `migrate up` in the entrypoint | `bin/migrate` ([`rel/overlays/bin/migrate`](../example/rel/overlays/bin/migrate)) |
-| attaching a debugger to prod | `bin/shop remote` — a live shell inside the running server |
+| attaching a debugger to prod | `bin/acme remote` — a live shell inside the running server |
 
 **Why:** `runtime.exs` means one image for every environment. And a remote
-shell into a running release (`Shop.Jobs.ExpireUnpaidOrders.run_now()` from
+shell into a running release (`App.Shop.Workers.ExpireUnpaidOrders.run_now()` from
 production, safely) is something Go can't offer.

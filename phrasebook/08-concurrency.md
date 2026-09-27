@@ -22,7 +22,7 @@ wg.Wait()
 
 ```elixir
 ids
-|> Task.async_stream(&Shop.Services.OrderService.get/1, max_concurrency: 10)
+|> Task.async_stream(&App.Shop.Services.OrderService.get/1, max_concurrency: 10)
 |> Enum.map(fn {:ok, result} -> result end)
 ```
 

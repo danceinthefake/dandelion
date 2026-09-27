@@ -7,19 +7,19 @@
 # General application configuration
 import Config
 
-config :shop,
-  ecto_repos: [Shop.Repo],
+config :acme,
+  ecto_repos: [Platform.Database.Repo],
   generators: [timestamp_type: :utc_datetime]
 
 # Configure the endpoint
-config :shop, ShopWeb.Endpoint,
+config :acme, Platform.Web.Endpoint,
   url: [host: "localhost"],
   adapter: Bandit.PhoenixAdapter,
   render_errors: [
-    formats: [json: ShopWeb.ErrorJSON],
+    formats: [json: Platform.Web.ErrorJSON],
     layout: false
   ],
-  pubsub_server: Shop.PubSub
+  pubsub_server: Platform.PubSub
 
 # Configure Elixir's Logger
 config :logger, :default_formatter,

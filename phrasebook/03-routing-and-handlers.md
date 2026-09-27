@@ -19,23 +19,27 @@ func (h *OrderHandler) Show(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-**In Elixir** — routes in [`lib/shop_web/router.ex`](../example/lib/shop_web/router.ex#L12):
+**In Elixir** — routes in [`lib/platform/web/router.ex`](../example/lib/platform/web/router.ex#L14):
 
 ```elixir
-scope "/api", ShopWeb.Handlers do
+# domain: shop
+scope "/api" do
   pipe_through :api
 
-  post "/orders", OrderHandler, :create
-  get "/orders", OrderHandler, :index
-  get "/orders/:id", OrderHandler, :show
-  post "/orders/:id/cancel", OrderHandler, :cancel
+  post "/orders", App.Shop.Handlers.OrderHandler, :create
+  get "/orders", App.Shop.Handlers.OrderHandler, :index
+  get "/orders/:id", App.Shop.Handlers.OrderHandler, :show
+  post "/orders/:id/cancel", App.Shop.Handlers.OrderHandler, :cancel
 end
 ```
 
-and the handler in [`lib/shop_web/handlers/order_handler.ex`](../example/lib/shop_web/handlers/order_handler.ex#L23):
+Every route of every domain is in this one file, with full module names —
+like the chi router in `main.go`, you see the whole API in one place.
+
+and the handler in [`lib/app/shop/handlers/order_handler.ex`](../example/lib/app/shop/handlers/order_handler.ex#L23):
 
 ```elixir
-action_fallback ShopWeb.Handlers.FallbackHandler
+action_fallback Platform.Web.FallbackHandler
 
 def show(conn, %{"id" => id}) do
   with {:ok, id} <- id(id),
@@ -50,8 +54,8 @@ end
 | `w http.ResponseWriter, r *http.Request` | one `conn` — the request *and* the response you're building |
 | `chi.URLParam(r, "id")` | `%{"id" => id}` pattern-matched from the params |
 | `writeJSON(w, 200, v)` | `json(conn, v)` |
-| `writeError(w, err)` in every handler | `action_fallback`: any `{:error, _}` goes to [`FallbackHandler`](../example/lib/shop_web/handlers/fallback_handler.ex) |
-| response struct with `json:"…"` tags | [`OrderJSON`](../example/lib/shop_web/handlers/order_json.ex) builds the map |
+| `writeError(w, err)` in every handler | `action_fallback`: any `{:error, _}` goes to [`FallbackHandler`](../example/lib/platform/web/fallback_handler.ex) |
+| response struct with `json:"…"` tags | [`OrderJSON`](../example/lib/app/shop/handlers/order_json.ex) builds the map |
 | middleware | *plugs* (`pipe_through :api`) |
 
 **Why:** handlers are Phoenix *controllers* under the hood; dandelion calls them

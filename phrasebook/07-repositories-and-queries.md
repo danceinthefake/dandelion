@@ -14,7 +14,7 @@ func (r *OrderRepo) List(ctx context.Context, status *string, page, perPage int)
 ```
 
 **In Elixir** — Ecto queries are built from functions, and compiled to
-parameterised SQL ([`lib/shop/repos/order_repo.ex`](../example/lib/shop/repos/order_repo.ex#L21)):
+parameterised SQL ([`lib/app/shop/repos/order_repo.ex`](../example/lib/app/shop/repos/order_repo.ex#L21)):
 
 ```elixir
 def list(%{status: status, page: page, per_page: per_page}) do

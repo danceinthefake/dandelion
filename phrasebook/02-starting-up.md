@@ -11,18 +11,18 @@ func main() {
 ```
 
 **In Elixir** — the application lists what must run, in order, and hands
-the list to a **supervisor** ([`lib/shop/application.ex`](../example/lib/shop/application.ex#L9)):
+the list to a **supervisor** ([`lib/platform/application.ex`](../example/lib/platform/application.ex#L13)):
 
 ```elixir
 def start(_type, _args) do
   children =
     [
-      ShopWeb.Telemetry,
-      Shop.Repo,                        # the database pool (≈ *sql.DB)
-      {Phoenix.PubSub, name: Shop.PubSub}
-    ] ++ jobs() ++ [ShopWeb.Endpoint]   # jobs (≈ goroutines), then HTTP
+      Platform.Web.Telemetry,
+      Platform.Database.Repo,                  # the database pool (≈ *sql.DB)
+      {Phoenix.PubSub, name: Platform.PubSub}
+    ] ++ jobs() ++ [Endpoint]                  # jobs (≈ goroutines), then HTTP
 
-  opts = [strategy: :one_for_one, name: Shop.Supervisor]
+  opts = [strategy: :one_for_one, name: Platform.Supervisor]
   Supervisor.start_link(children, opts)
 end
 ```

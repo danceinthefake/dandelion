@@ -16,7 +16,7 @@ func (s *OrderService) List(p Params) (Page, error) {
 
 **In Elixir** — functions return `{:ok, value}` or `{:error, reason}`, and
 `with` runs the happy path, stopping at the first thing that doesn't match
-([`lib/shop/services/order_service.ex`](../example/lib/shop/services/order_service.ex#L44)):
+([`lib/app/shop/services/order_service.ex`](../example/lib/app/shop/services/order_service.ex#L44)):
 
 ```elixir
 def list(params) do
@@ -41,8 +41,8 @@ that error as it is — no `if err != nil` per step.
 | `errors.Is(err, ErrNotFound)` | pattern matching: `{:error, :not_found} ->` |
 
 The errors the service can return are listed in one type
-([`order_service.ex`](../example/lib/shop/services/order_service.ex#L12)) and turned
-into HTTP statuses in one place ([`fallback_handler.ex`](../example/lib/shop_web/handlers/fallback_handler.ex#L13)).
+([`order_service.ex`](../example/lib/app/shop/services/order_service.ex#L12)) and turned
+into HTTP statuses in one place ([`fallback_handler.ex`](../example/lib/platform/web/fallback_handler.ex#L13)).
 
 **Why:** same idea as Go — errors are ordinary values, not exceptions — with
 less repetition. Exceptions exist in Elixir, but they're for bugs, not for

@@ -13,15 +13,15 @@ go func() {
 ```
 
 **In Elixir** — a crash ends **one process**, and its **supervisor** starts a
-fresh one ([`lib/shop/application.ex`](../example/lib/shop/application.ex#L9)):
+fresh one ([`lib/platform/application.ex`](../example/lib/platform/application.ex#L13)):
 
 ```elixir
-opts = [strategy: :one_for_one, name: Shop.Supervisor]
+opts = [strategy: :one_for_one, name: Platform.Supervisor]
 Supervisor.start_link(children, opts)
 ```
 
 `:one_for_one`: if a child dies, restart that child only. The example tests
-exactly this ([`test/shop/jobs/expire_unpaid_orders_test.exs`](../example/test/shop/jobs/expire_unpaid_orders_test.exs)):
+exactly this ([`test/app/shop/workers/expire_unpaid_orders_test.exs`](../example/test/app/shop/workers/expire_unpaid_orders_test.exs)):
 it kills the job, waits for the supervisor to start a new one, and checks the
 new one still cancels orders.
 

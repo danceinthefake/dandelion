@@ -12,18 +12,19 @@ import Config
 # If you use `mix release`, you need to explicitly enable the server
 # by passing the PHX_SERVER=true when you start it:
 #
-#     PHX_SERVER=true bin/shop start
+#     PHX_SERVER=true bin/acme start
 #
 # Alternatively, you can use `mix phx.gen.release` to generate a `bin/server`
 # script that automatically sets the env var above.
 if System.get_env("PHX_SERVER") do
-  config :shop, ShopWeb.Endpoint, server: true
+  config :acme, Platform.Web.Endpoint, server: true
 end
 
-config :shop, ShopWeb.Endpoint, http: [port: String.to_integer(System.get_env("PORT", "4000"))]
+config :acme, Platform.Web.Endpoint,
+  http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
 # ≈ envconfig: settings from environment variables, read at boot.
-config :shop, Shop.Jobs.ExpireUnpaidOrders,
+config :acme, App.Shop.Workers.ExpireUnpaidOrders,
   max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600")),
   every_seconds: String.to_integer(System.get_env("UNPAID_ORDER_CHECK_EVERY_SECONDS", "60")),
   enabled: config_env() != :test
@@ -38,7 +39,7 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  config :shop, Shop.Repo,
+  config :acme, Platform.Database.Repo,
     # ssl: true,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
@@ -60,7 +61,7 @@ if config_env() == :prod do
 
   host = System.get_env("PHX_HOST") || "example.com"
 
-  config :shop, ShopWeb.Endpoint,
+  config :acme, Platform.Web.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
     http: [
       # Enable IPv6 and bind on all interfaces.
@@ -76,7 +77,7 @@ if config_env() == :prod do
   # To get SSL working, you will need to add the `https` key
   # to your endpoint configuration:
   #
-  #     config :shop, ShopWeb.Endpoint,
+  #     config :acme, Platform.Web.Endpoint,
   #       https: [
   #         ...,
   #         port: 443,
@@ -98,7 +99,7 @@ if config_env() == :prod do
   # We also recommend setting `force_ssl` in your config/prod.exs,
   # ensuring no data is ever sent via http, always redirecting to https:
   #
-  #     config :shop, ShopWeb.Endpoint,
+  #     config :acme, Platform.Web.Endpoint,
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.

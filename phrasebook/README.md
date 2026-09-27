@@ -2,7 +2,7 @@
 
 For Go developers writing their first Elixir service. Each page shows how
 you'd do something in Go, how it's done in Elixir, where it happens in
-[`../example`](../example) (the `shop` service `mix dandelion.new` generates),
+[`../example`](../example) (the `acme` service `mix dandelion.new` generates, with its `shop` domain),
 and one line on *why* Elixir does it that way.
 
 The pages follow the path of a request, from `mix` to a crash:

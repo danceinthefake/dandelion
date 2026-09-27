@@ -1,4 +1,4 @@
-defmodule Shop.Repo.Migrations.CreateOrders do
+defmodule Platform.Database.Repo.Migrations.CreateOrders do
   use Ecto.Migration
 
   # ≈ a golang-migrate / goose "up" file. `mix ecto.migrate` runs it,

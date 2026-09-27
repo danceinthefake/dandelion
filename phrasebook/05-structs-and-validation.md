@@ -19,7 +19,7 @@ func (o NewOrder) Validate() error {
 ```
 
 **In Elixir** — an Ecto **schema** describes the struct and its table
-([`lib/shop/models/order.ex`](../example/lib/shop/models/order.ex#L17)):
+([`lib/app/shop/models/order.ex`](../example/lib/app/shop/models/order.ex#L17)):
 
 ```elixir
 schema "orders" do
@@ -32,7 +32,7 @@ end
 ```
 
 and a **changeset** validates input — "the changes we want, and what's wrong
-with them" ([`order.ex`](../example/lib/shop/models/order.ex#L33)):
+with them" ([`order.ex`](../example/lib/app/shop/models/order.ex#L33)):
 
 ```elixir
 def create_changeset(order \\ %__MODULE__{}, attrs) do

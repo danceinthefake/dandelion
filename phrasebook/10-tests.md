@@ -15,7 +15,7 @@ func TestCreateRejectsInvalid(t *testing.T) {
 ```
 
 **In Elixir** — the same table, a list of tuples
-([`test/shop/services/order_service_test.exs`](../example/test/shop/services/order_service_test.exs#L19)):
+([`test/app/shop/services/order_service_test.exs`](../example/test/app/shop/services/order_service_test.exs#L19)):
 
 ```elixir
 test "rejects invalid input" do
@@ -38,10 +38,10 @@ end
 | `go test ./...` | `mix test` (`mix test path/to/file.exs:19` for one test) |
 | `t.Run` subtests | `describe` blocks + `test` |
 | `if got != want { t.Errorf(…) }` | `assert got == want` (prints both on failure) |
-| `t.Parallel()` | `use Shop.DataCase, async: true` |
+| `t.Parallel()` | `use Platform.DataCase, async: true` |
 | test DB in a tx rolled back after | the same: the Ecto *sandbox* rolls back each test |
-| `newTestOrder(t)` helpers | [`test/support/fixtures.ex`](../example/test/support/fixtures.ex) |
-| `httptest.NewRecorder` | `ShopWeb.ConnCase`: `post(conn, "/api/orders", params)` ([handler tests](../example/test/shop_web/handlers/order_handler_test.exs)) |
+| `newTestOrder(t)` helpers | [`test/support/app/shop/fixtures.ex`](../example/test/support/app/shop/fixtures.ex) |
+| `httptest.NewRecorder` | `Platform.ConnCase`: `post(conn, "/api/orders", params)` ([handler tests](../example/test/app/shop/handlers/order_handler_test.exs)) |
 
 **Why:** `async: true` tests run in parallel, each inside its own database
 transaction — fast, and they can't see each other's data.

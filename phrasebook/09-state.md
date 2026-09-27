@@ -32,7 +32,7 @@ end
 It handles one message at a time, so there is no race to lock against.
 
 The example's background job is a `GenServer` too
-([`lib/shop/jobs/expire_unpaid_orders.ex`](../example/lib/shop/jobs/expire_unpaid_orders.ex#L25)):
+([`lib/app/shop/workers/expire_unpaid_orders.ex`](../example/lib/app/shop/workers/expire_unpaid_orders.ex#L25)):
 its state is its settings, a timer message (`:tick`) wakes it up, and
 `run_now/1` is a `call` other code can make:
 
