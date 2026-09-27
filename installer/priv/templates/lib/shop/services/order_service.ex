@@ -1,0 +1,119 @@
+defmodule Shop.Services.OrderService do
+  @moduledoc """
+  Order business rules. ≈ `service/orders.go`.
+
+  No HTTP here (handlers do that) and no SQL (repos do that). Every function
+  returns `{:ok, value}` or `{:error, reason}` — Elixir's `(value, err)`.
+  """
+  alias Shop.Models.Order
+  alias Shop.Repo
+  alias Shop.Repos.OrderRepo
+
+  @type error ::
+          :not_found
+          | {:invalid, String.t()}
+          | {:conflict, String.t()}
+          | Ecto.Changeset.t()
+
+  @max_per_page 100
+
+  @doc "Creates an order with its items. Validation errors come back as a changeset."
+  @spec create(map()) :: {:ok, Order.t()} | {:error, error()}
+  def create(params) do
+    params |> Order.create_changeset() |> OrderRepo.insert()
+  end
+
+  @doc "One order with its items."
+  @spec get(integer()) :: {:ok, Order.t()} | {:error, error()}
+  def get(id) do
+    case OrderRepo.get(id) do
+      nil -> {:error, :not_found}
+      order -> {:ok, order}
+    end
+  end
+
+  @doc """
+  Orders, newest first. `params`: optional `"status"`, `"page"` (from 1),
+  `"per_page"` (1..#{@max_per_page}, default 20).
+  """
+  @spec list(map()) ::
+          {:ok, %{orders: [Order.t()], page: pos_integer(), per_page: pos_integer()}}
+          | {:error, error()}
+  def list(params) do
+    with {:ok, status} <- status_param(params["status"]),
+         {:ok, page} <- positive_int(params["page"], 1, :infinity, "page"),
+         {:ok, per_page} <- positive_int(params["per_page"], 20, @max_per_page, "per_page") do
+      orders = OrderRepo.list(%{status: status, page: page, per_page: per_page})
+      {:ok, %{orders: orders, page: page, per_page: per_page}}
+    end
+  end
+
+  @doc """
+  Cancels an order. Pending and paid orders can be cancelled; shipped ones
+  can't. The row is locked while deciding, so two cancels (or a cancel and
+  a "mark shipped") can't race. ≈ a Go `tx` with `SELECT … FOR UPDATE`.
+  """
+  @spec cancel(integer()) :: {:ok, Order.t()} | {:error, error()}
+  def cancel(id) do
+    Repo.transact(fn ->
+      with {:ok, order} <- locked(id),
+           :ok <- cancellable(order),
+           {:ok, order} <- OrderRepo.update_status(order, "cancelled") do
+        {:ok, Repo.preload(order, :items)}
+      end
+    end)
+  end
+
+  @doc """
+  Cancels pending orders created more than `max_age_seconds` ago, one by one
+  through `cancel/1`. Returns how many were cancelled. Used by
+  `Shop.Jobs.ExpireUnpaidOrders`.
+  """
+  @spec expire_unpaid(pos_integer()) :: non_neg_integer()
+  def expire_unpaid(max_age_seconds) do
+    cutoff = DateTime.add(DateTime.utc_now(), -max_age_seconds, :second)
+
+    cutoff
+    |> OrderRepo.pending_before()
+    |> Enum.count(fn id -> match?({:ok, _}, cancel(id)) end)
+  end
+
+  # -- helpers -----------------------------------------------------------------
+
+  defp locked(id) do
+    case OrderRepo.lock_for_update(id) do
+      nil -> {:error, :not_found}
+      order -> {:ok, order}
+    end
+  end
+
+  defp cancellable(%Order{status: status}) when status in ["pending", "paid"], do: :ok
+
+  defp cancellable(%Order{status: "shipped"}),
+    do: {:error, {:conflict, "a shipped order can't be cancelled"}}
+
+  defp cancellable(%Order{status: "cancelled"}),
+    do: {:error, {:conflict, "the order is already cancelled"}}
+
+  defp status_param(nil), do: {:ok, nil}
+
+  defp status_param(status) do
+    if status in Order.statuses(),
+      do: {:ok, status},
+      else: {:error, {:invalid, "status must be one of: #{Enum.join(Order.statuses(), ", ")}"}}
+  end
+
+  defp positive_int(nil, default, _max, _name), do: {:ok, default}
+
+  defp positive_int(value, _default, max, name) do
+    case Integer.parse(to_string(value)) do
+      {n, ""} when n >= 1 and (max == :infinity or n <= max) ->
+        {:ok, n}
+
+      _ ->
+        {:error,
+         {:invalid,
+          "#{name} must be a whole number from 1#{if max != :infinity, do: " to #{max}"}"}}
+    end
+  end
+end
