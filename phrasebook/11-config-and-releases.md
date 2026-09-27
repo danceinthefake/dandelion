@@ -30,7 +30,7 @@ image (130 MB for the example):
 ```sh
 docker build -t acme .
 docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… acme /app/bin/migrate
-docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PHX_HOST=… -p 4000:4000 acme
+docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e RELEASE_COOKIE=… -e PHX_HOST=… -p 4000:4000 acme
 ```
 
 In production, plain-HTTP requests are redirected to HTTPS, trusting the

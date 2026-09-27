@@ -1,0 +1,6 @@
+## Erlang VM flags. -name / -setcookie come from env.sh.eex.
+## https://www.erlang.org/doc/apps/erts/erl_cmd.html
+
+## Distribution on one fixed port and no epmd: open 9100 between the app
+## nodes only (and to nothing else) — see ../deploy/README.md.
+-start_epmd false -erl_epmd_port 9100

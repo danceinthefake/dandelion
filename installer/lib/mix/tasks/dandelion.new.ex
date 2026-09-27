@@ -229,8 +229,11 @@ defmodule Mix.Tasks.Dandelion.New do
     ```sh
     docker build -t #{app} .
     docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… #{app} /app/bin/migrate
-    docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PHX_HOST=… -p 4000:4000 #{app}
+    docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e RELEASE_COOKIE=… -e PHX_HOST=… -p 4000:4000 #{app}
     ```
+
+    More than one node: `deploy/README.md` — a local 3-node cluster behind
+    nginx, and what each node needs.
 
     Plain-HTTP requests are redirected to HTTPS in production (behind a load
     balancer that sets `x-forwarded-proto`); `GET /health` is left alone for

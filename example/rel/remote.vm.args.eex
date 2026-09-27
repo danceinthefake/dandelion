@@ -1,0 +1,3 @@
+## Flags for `bin/<%= @release.name %> remote` / `rpc`: reach the node on 9100
+## without listening on it (the node itself holds that port).
+-start_epmd false -erl_epmd_port 9100 -dist_listen false

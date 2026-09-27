@@ -75,11 +75,12 @@ lib/
       router.ex               ≈ chi router: every route of every domain
       fallback_handler.ex     ≈ one place turning errors into HTTP statuses
       health_handler.ex  error_json.ex  telemetry.ex
+    cluster.ex  cluster/      ≈ service discovery: nodes find each other through Postgres
     queue.ex                  ≈ Cloud Tasks: Oban (jobs in Postgres)
     cron.ex                   ≈ Cloud Scheduler: the crontab, once per cluster
     release.ex                migrations in production
     # coming with §10: pubsub.ex (≈ Google Pub/Sub), queue/ordered.ex (≈ SQS FIFO),
-    # cluster/, cache/, realtime/ — Platform.Broadcast (≈ Redis pub/sub) is
+    # cache/, realtime/ — Platform.Broadcast (≈ Redis pub/sub) is
     # Phoenix.PubSub, started in application.ex
   app/
     shop/                     one domain; landing/, dashboard/, … the same way
@@ -88,6 +89,7 @@ lib/
       services/               ≈ internal/shop/service: rules, transactions, no HTTP
       repos/                  ≈ internal/shop/repo: queries only
       models/                 ≈ internal/shop/model: structs + validation
+deploy/                       ≈ the load balancer + N nodes: 3-node compose, nginx, proof
 priv/repo/migrations/         ≈ migrations (golang-migrate / goose)
 test/                         mirrors lib/ (test/platform/…, test/app/shop/…)
 config/runtime.exs            ≈ envconfig: settings from environment variables
@@ -263,7 +265,8 @@ Decided 2026-09-27:
 9. ✅ Libraries used directly, no dandelion runtime library (§10.2).
 10. ✅ Postgres decides; memory only makes things faster (§10.3).
 11. ✅ Every node runs everything; no roles.
-12. ✅ Discovery — `libcluster_postgres` (§10.4).
+12. ✅ Discovery — through Postgres, with our own libcluster strategy
+    (`libcluster_postgres` crash-looped on a database outage) (§10.4).
 13. ✅ Private network; TLS between nodes optional.
 14. ✅ No external broker — Oban queues and a job per subscriber replace
     it; Broadway only pointed to for talking to other systems (§10.7).
@@ -314,7 +317,7 @@ Only three things stay outside: the **load balancer**, **Postgres** and
 | Leader / "only one does it" | Redis lock, etcd | Oban's leader (the `oban_peers` table) and unique jobs | yes | yes (Postgres) |
 | WebSockets | Pusher, socket server + Redis | Phoenix Channels + Presence | yes | reconnects |
 | Sessions | Redis | signed cookies (no store) | — | — |
-| Service discovery | Consul, k8s DNS | libcluster + `libcluster_postgres` | — | — |
+| Service discovery | Consul, k8s DNS | libcluster + `Platform.Cluster.Postgres` | — | — |
 | Service-to-service calls | HTTP / gRPC + mesh | direct calls between nodes | yes | — |
 | Metrics | Prometheus exporters | PromEx (`/metrics`) | per node | — |
 | Database | Cloud SQL | **outside**: Postgres | — | — |
@@ -358,24 +361,39 @@ product it replaces ("where is my Redis?").
 
 ### 10.4 Finding each other
 
-`libcluster` with the `libcluster_postgres` strategy: each node announces
-itself with `NOTIFY` on a channel and listens for the others; a heartbeat
-(default 5 s) heals the cluster after restarts. Nothing extra to run —
-Postgres is already there.
+`libcluster` with our own strategy, `Platform.Cluster.Postgres`
+(`lib/platform/cluster/postgres.ex`, ~60 lines): each node sends its name
+with `pg_notify` every 5 s and `LISTEN`s on the channel, connecting to the
+names it hears. Nothing extra to run — Postgres is already there.
+
+*Changed while building (2026-09-27):* the plan was `libcluster_postgres`
+0.2. In the 3-node test, stopping Postgres made every node crash-loop
+(restarted ~every 6 s): its connections don't reconnect, so the strategy
+died, restarted at millisecond speed and took the app down. Ours starts
+both connections without waiting for the database and lets them
+reconnect by themselves — an outage only pauses discovery. It also uses a
+named channel (`<app>_cluster`); the library's default was the Erlang
+cookie, visible to anyone who can see the database's queries.
 
 - Discovery only decides who joins; once joined, nodes talk directly over
   Erlang distribution, so it adds no latency to requests.
 - Needs a **direct** Postgres connection: `LISTEN` doesn't work through
-  PgBouncer in transaction mode. A separate `CLUSTER_DATABASE_URL` allows
-  pointing it past a pooler.
-- If Postgres is down, running nodes stay connected; new nodes can't join
-  until it's back.
-- Alternatives (documented, one setting): DNS (`dns_cluster`) and a static
-  host list.
+  PgBouncer in transaction mode. `CLUSTER_DATABASE_URL` points past a
+  pooler; otherwise `DATABASE_URL`.
+- If Postgres is down, running nodes stay connected and nothing crashes;
+  new nodes join once it's back (tested).
+- A dead node is noticed when its connection drops — at once for a crash,
+  within `net_ticktime` (60 s) if the network goes silent.
+- Only when the node runs distributed (a release, `iex --name`);
+  `mix phx.server` and tests stay single.
+- Alternatives, if Postgres discovery doesn't fit: DNS (`dns_cluster`) or
+  a static host list — one line in `Platform.Cluster.topologies/0`.
 
-Release config: `RELEASE_NODE=<app>@<private ip>`, `RELEASE_COOKIE` from
-the environment (never baked into the image), a fixed distribution port
-range so the firewall rule is one line.
+Release config (`rel/env.sh.eex`, `rel/vm.args.eex`): the node is
+`<app>@$NODE_IP` (or the container's IP); `RELEASE_COOKIE` must come from
+the environment — the node refuses to start without it; distribution on
+**one port, 9100, without epmd**, so the firewall rule between nodes is one
+port.
 
 ### 10.5 The example, grown
 
@@ -528,8 +546,8 @@ cloud budget):
 - Each VM runs the same image (Docker) or release (systemd), with
   `RELEASE_NODE` from its private IP and a shared `RELEASE_COOKIE` from a
   secret store.
-- Firewall: the distribution ports (EPMD 4369 + the fixed range) open only
-  between the app VMs; HTTP open only to the load balancer.
+- Firewall: the distribution port (9100, no epmd) open only between the app
+  VMs; HTTP open only to the load balancer.
 - Health check: `GET /health`.
 - Rolling deploy: one VM at a time; Oban jobs of a stopped node are picked
   up by the others.
@@ -547,9 +565,11 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
 
 ### 10.10 Steps
 
-1. Clustering: libcluster + `libcluster_postgres`, release node / cookie
-   config, `compose.cluster.yaml` with 3 nodes + nginx; proof that nodes
-   connect and a broadcast crosses nodes.
+1. ✅ Clustering (2026-09-27): libcluster + `Platform.Cluster.Postgres`,
+   release node / cookie / port config, `deploy/compose.cluster.yaml` with
+   3 nodes + nginx, `deploy/cluster-proof.sh` (nodes connect, a broadcast
+   crosses nodes, a killed node drops out and rejoins, a database outage
+   crashes nothing).
 2. Oban: ✅ Oban in (`Platform.Queue`, `Platform.Cron`), expiry via Oban
    Cron — the per-node timer is gone (2026-09-27); still to do: the
    confirmation job, the kill-a-node proof.

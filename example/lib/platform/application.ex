@@ -17,6 +17,8 @@ defmodule Platform.Application do
         Platform.Web.Telemetry,
         # ≈ Cloud SQL connection pool
         Platform.Database.Repo,
+        # ≈ service discovery: nodes find each other through Postgres
+        Platform.Cluster,
         # ≈ Redis pub/sub: live broadcast, fire-and-forget (on this node, for now)
         {Phoenix.PubSub, name: Platform.Broadcast},
         # ≈ Cloud Tasks + Cloud Scheduler: background jobs and cron

@@ -48,6 +48,7 @@ defmodule Acme.MixProject do
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       {:oban, "~> 2.24"},
+      {:libcluster, "~> 3.5"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end
