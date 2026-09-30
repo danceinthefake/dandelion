@@ -2,37 +2,100 @@
 
 **Simplicity with resilience and joy.**
 
-A whole cloud in one app — web server, workers, queue, pub/sub, cache,
-cron, a live frontend — as one Elixir release, laid out the way a Go
-service is. Run one copy on one VM; run 3 or 10 and they join into one
-system. Every seed carries the whole plant. Only the load balancer, Postgres
-and file storage stay outside. ([DESIGN.md §10](DESIGN.md); a proof script
-checks the cluster claims on three local nodes.)
+A whole cloud in one app — web server, workers, queue, pub/sub, cache, cron,
+a live frontend — as one Elixir release, laid out the way a Go service is. Run
+one copy on one VM; run 3 or 10 and they join into one system. Only the load
+balancer, Postgres and file storage stay outside.
 
-- [`lib/`](lib) — the `dandelion` library (hex `dandelion`, being extracted:
-  clustering first): the cloud pieces that are the same in every project.
-  See [DESIGN.md §11](DESIGN.md).
-- [`example/`](example) — `acme`: `lib/platform/` (what every app runs on:
-  cluster, queue, cron, durable and live pub/sub, cache, presence) and
-  `lib/app/shop/` (one domain, laid out as handlers → services → repos →
-  models), a Vue + blessing-ui frontend, tests and a release Docker image.
-  [`deploy/`](example/deploy) runs it as 3 nodes and proves it; `deploy/vms.md`
-  is the guide for real VMs. This is what `mix dandelion.new` generates.
-- [`phrasebook/`](phrasebook) — for each Go habit, the Elixir way, pointing
-  at the exact file in `example/`: 12 pages on the service, 5 on the rest of
-  the cloud (where is my Redis, queues and topics, cron, live updates, many
-  nodes).
-- [`installer/`](installer) — the `mix dandelion.new` generator (hex package
-  `dandelion_new`). Until it's published:
-  `cd installer && mix archive.build && mix archive.install dandelion_new-0.1.0.ez`,
-  then `mix dandelion.new my_app` anywhere (`--no-frontend`, `--no-example`).
-- [`DESIGN.md`](DESIGN.md) — why it's built this way.
+This package is the **library** half: the cloud pieces that are the same in
+every dandelion project. The other half, the generator (`dandelion_new`),
+writes a project that uses them.
 
-Name: *dandelion* — **simplicity with resilience and joy.** The plainest
-flower there is; it grows through cracks in concrete and comes back every
-time you pull it; its seeds scatter on the wind — one flower becoming many,
-the way a service starts single and grows into a cluster.
+```sh
+mix archive.install hex dandelion_new
+mix dandelion.new my_app          # a service that already depends on this library
+```
+
+## The library
+
+Thin over [Oban](https://hex.pm/packages/oban), [Cachex](https://hex.pm/packages/cachex),
+`Phoenix.PubSub` and [libcluster](https://hex.pm/packages/libcluster) — not a
+new API on top of them. You need Postgres and a `Phoenix.PubSub`.
+
+```elixir
+def deps do
+  [{:dandelion, "~> 0.1"}]
+end
+```
+
+| Module | What it is | Replaces |
+|---|---|---|
+| `Dandelion.Cluster` | nodes find each other through Postgres (`NOTIFY`) | Consul, Kubernetes DNS |
+| `Dandelion.Cache` | per-node memory cache, cleared on every node | Redis as a cache |
+| `Dandelion.Queue` | the Oban setup: queues, lifeline, pruner, crontab | Cloud Tasks, Cloud Scheduler |
+| `Dandelion.Queue.Ordered` | order per key, across nodes | SQS FIFO, Kafka partition keys |
+| `Dandelion.PubSub` | a topic → one Oban job per subscriber, in your transaction | Google Pub/Sub, Kafka topics |
+| `Dandelion.Migration` | the database index the ordered queue needs | — |
+
+```elixir
+# application.ex
+children = [
+  MyApp.Repo,
+  {Dandelion.Cluster, otp_app: :my_app, repo: MyApp.Repo},
+  {Phoenix.PubSub, name: MyApp.Broadcast},
+  {Dandelion.Cache, pubsub: MyApp.Broadcast},
+  {Oban, Dandelion.Queue.config(otp_app: :my_app, repo: MyApp.Repo, crontab: MyApp.Cron.schedule())}
+]
+
+# a migration, after Oban's
+def up, do: Dandelion.Migration.up()
+def down, do: Dandelion.Migration.down()
+
+# in your code
+Dandelion.Cache.fetch({:product, sku}, fn -> Repo.get(Product, sku) end)
+Dandelion.Cache.delete({:product, sku})                    # after the commit, on every node
+
+Repo.transact(fn ->
+  {:ok, order} = insert_order(params)
+  Dandelion.PubSub.publish(%{"order.created" => [SendConfirmation]}, "order.created", %{"id" => order.id})
+  {:ok, order}                                              # saved together, or not at all
+end)
+
+Dandelion.Queue.Ordered.insert(MyWorker.new(args), "order:42")   # then, in perform/1:
+# with :ok <- Dandelion.Queue.Ordered.turn(job), do: ...
+```
+
+Each module's docs say what it promises and what it doesn't. The rules behind
+them: **Postgres decides; memory only makes things faster.** Anything that must
+survive a crash or happen exactly once goes through the database; the cache and
+live broadcasts may be lost or briefly stale.
+
+Nodes trust each other fully — anyone holding the Erlang cookie can run code on
+every node. Keep them on a private network.
+
+## The rest of the project
+
+On [GitHub](https://github.com/danceinthefake/dandelion):
+
+- [`example/`](https://github.com/danceinthefake/dandelion/tree/main/example) —
+  a service using all of it: `lib/platform/` (what every app runs on) and
+  `lib/app/shop/` (one domain laid out as handlers → services → repos →
+  models), a Vue + blessing-ui frontend, a release Docker image.
+  [`deploy/`](https://github.com/danceinthefake/dandelion/tree/main/example/deploy)
+  runs it as 3 nodes and **proves** the claims (an order made on one node shows
+  up on another; a killed node's jobs are run again by the others; payment
+  events keep their order while three nodes race for them).
+- [`phrasebook/`](https://github.com/danceinthefake/dandelion/tree/main/phrasebook) —
+  for each Go habit, the Elixir way: 12 pages on the service, 5 on the rest of
+  the cloud.
+- [`DESIGN.md`](https://github.com/danceinthefake/dandelion/blob/main/DESIGN.md) —
+  why it's built this way.
+
+Name: *dandelion* — the plainest flower there is; it grows through cracks in
+concrete and comes back every time you pull it; its seeds scatter on the wind —
+one flower becoming many, the way a service starts single and grows into a
+cluster.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/danceinthefake/dandelion/blob/main/LICENSE).

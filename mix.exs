@@ -16,10 +16,21 @@ defmodule Dandelion.MixProject do
         "The cloud pieces of a dandelion service: clustering, cache, ordered queue, durable pub/sub",
       package: [
         licenses: ["MIT"],
-        files: ~w(lib mix.exs README.md LICENSE),
+        files: ~w(lib mix.exs README.md LICENSE CHANGELOG.md),
         links: %{"GitHub" => @source_url}
       ],
-      source_url: @source_url
+      source_url: @source_url,
+      docs: [
+        main: "readme",
+        extras: ["README.md", "CHANGELOG.md"],
+        source_ref: "v#{@version}",
+        groups_for_modules: [
+          Clustering: [Dandelion.Cluster, Dandelion.Cluster.Postgres],
+          Cache: [Dandelion.Cache, Dandelion.Cache.Listener],
+          "Jobs and events": [Dandelion.Queue, Dandelion.Queue.Ordered, Dandelion.PubSub],
+          Database: [Dandelion.Migration]
+        ]
+      ]
     ]
   end
 
@@ -37,7 +48,8 @@ defmodule Dandelion.MixProject do
       {:oban, "~> 2.24"},
       {:phoenix_pubsub, "~> 2.1"},
       {:ecto_sql, "~> 3.13"},
-      {:postgrex, "~> 0.22"}
+      {:postgrex, "~> 0.22"},
+      {:ex_doc, "~> 0.40.4", only: :dev, runtime: false}
     ]
   end
 end
