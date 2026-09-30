@@ -71,6 +71,7 @@ jobs:
       - uses: jdx/mise-action@v4
         with:
           working_directory: installer
+      - run: mix deps.get
       - run: mix format --check-formatted
       - run: mix compile --warnings-as-errors
       - run: mix test --include integration
