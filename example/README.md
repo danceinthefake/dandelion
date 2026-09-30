@@ -42,7 +42,7 @@ release (the Erlang runtime included), copied into a slim Debian image.
 ```sh
 docker build -t acme .
 docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… acme /app/bin/migrate
-docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e RELEASE_COOKIE=… -e PHX_HOST=… -p 4000:4000 acme
+docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PAYMENT_WEBHOOK_TOKEN=… -e RELEASE_COOKIE=… -e PHX_HOST=… -p 4000:4000 acme
 ```
 
 More than one node: [deploy/README.md](deploy/README.md) — a local 3-node
@@ -54,6 +54,6 @@ left alone. If other services call yours over plain HTTP inside the network
 (`http://acme:4000` in Kubernetes), remove `force_ssl` from
 [`config/prod.exs`](config/prod.exs).
 
-`SECRET_KEY_BASE`: `mix phx.gen.secret`. Unpaid orders are cancelled after
+`SECRET_KEY_BASE`: `mix phx.gen.secret`. `PAYMENT_WEBHOOK_TOKEN`: the secret the payment provider sends in `x-callback-token`. Unpaid orders are cancelled after
 `UNPAID_ORDER_MAX_AGE_SECONDS` (default 3600), checked every minute
 (`lib/platform/cron.ex`).

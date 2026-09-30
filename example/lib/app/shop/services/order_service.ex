@@ -6,9 +6,9 @@ defmodule App.Shop.Services.OrderService do
   returns `{:ok, value}` or `{:error, reason}` — Elixir's `(value, err)`.
   """
   alias App.Shop.Models.Order
-  alias App.Shop.Workers.SendOrderConfirmation
   alias Platform.Database.Repo
   alias Platform.Database.Repos.OrderRepo
+  alias Platform.PubSub
 
   @type error ::
           :not_found
@@ -21,18 +21,32 @@ defmodule App.Shop.Services.OrderService do
   @max_page 1_000_000
 
   @doc """
-  Creates an order with its items and queues its confirmation, in one
-  transaction: either both are saved, or neither. Validation errors come
-  back as a changeset.
+  Creates an order with its items and publishes `order.created` to its
+  subscribers (`Platform.PubSub`), in one transaction: the order and the
+  event are saved together, or neither is. Validation errors come back as a
+  changeset.
+
+  After the commit the event also goes out live on `Platform.Broadcast`, for
+  whoever is watching right now (every node).
   """
   @spec create(map()) :: {:ok, Order.t()} | {:error, error()}
   def create(params) do
-    Repo.transact(fn ->
-      with {:ok, order} <- params |> Order.create_changeset() |> OrderRepo.insert(),
-           {:ok, _job} <- Oban.insert(SendOrderConfirmation.new(%{order_id: order.id})) do
-        {:ok, order}
-      end
-    end)
+    result =
+      Repo.transact(fn ->
+        with {:ok, order} <- params |> Order.create_changeset() |> OrderRepo.insert() do
+          PubSub.publish("order.created", %{
+            "order_id" => order.id,
+            "customer_email" => order.customer_email
+          })
+
+          {:ok, order}
+        end
+      end)
+
+    with {:ok, order} <- result do
+      Phoenix.PubSub.broadcast(Platform.Broadcast, "orders", {:order_created, order.id})
+      {:ok, order}
+    end
   end
 
   @doc "One order with its items."
@@ -77,6 +91,20 @@ defmodule App.Shop.Services.OrderService do
   end
 
   @doc """
+  An order was paid. Safe to repeat. Only a pending order can be paid.
+  Used by `App.Shop.Workers.ProcessPaymentEvent`.
+  """
+  @spec mark_paid(integer()) :: {:ok, Order.t()} | {:error, error()}
+  def mark_paid(id), do: transition(id, "paid", from: ["pending"])
+
+  @doc """
+  An order was refunded. Safe to repeat. A paid or shipped order can be
+  refunded.
+  """
+  @spec mark_refunded(integer()) :: {:ok, Order.t()} | {:error, error()}
+  def mark_refunded(id), do: transition(id, "refunded", from: ["paid", "shipped"])
+
+  @doc """
   Cancels pending orders created more than `max_age_seconds` ago. Returns
   how many were cancelled. Used by `App.Shop.Workers.ExpireUnpaidOrders`.
 
@@ -94,6 +122,26 @@ defmodule App.Shop.Services.OrderService do
 
   # -- helpers -----------------------------------------------------------------
 
+  # Moves the order to `to` if it is in one of `from` (or already there),
+  # with the row locked, like `cancel/1`.
+  defp transition(id, to, from: from) do
+    Repo.transact(fn ->
+      with {:ok, order} <- locked(id), do: move(order, to, from)
+    end)
+  end
+
+  defp move(%Order{status: to} = order, to, _from), do: {:ok, order}
+
+  defp move(%Order{status: status} = order, to, from) when is_list(from) do
+    if status in from do
+      with {:ok, order} <- OrderRepo.update_status(order, to) do
+        {:ok, Repo.preload(order, :items)}
+      end
+    else
+      {:error, {:conflict, "a #{status} order can't become #{to}"}}
+    end
+  end
+
   defp locked(id) do
     case OrderRepo.lock_for_update(id) do
       nil -> {:error, :not_found}
@@ -108,6 +156,9 @@ defmodule App.Shop.Services.OrderService do
 
   defp cancellable(%Order{status: "cancelled"}),
     do: {:error, {:conflict, "the order is already cancelled"}}
+
+  defp cancellable(%Order{status: "refunded"}),
+    do: {:error, {:conflict, "a refunded order can't be cancelled"}}
 
   defp status_param(nil), do: {:ok, nil}
 

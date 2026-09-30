@@ -577,9 +577,19 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    left `executing` by a killed node is run again by another node
    (`OBAN_RESCUE_AFTER_SECONDS=10` in the compose file; the orphan row is
    written by hand — no job runs long enough to catch one mid-flight).
-3. Events: `Platform.PubSub.publish/2` and its subscriptions (a job per
-   subscriber, in the caller's transaction), the `order.created` subscribers; the ordered queue per
-   key (§10.7.1) and the payment webhook on it.
+3. ✅ Events (2026-09-30): `Platform.PubSub` (`publish/2` and the subscription
+   list; one Oban job per subscriber, in the caller's transaction),
+   `order.created` with two subscribers (`SendOrderConfirmation`,
+   `UpdateCustomerStats` — a recount, so safe to run twice), a live
+   broadcast on `Platform.Broadcast` after the commit, `Platform.Queue.Ordered`
+   (advisory lock on the key at enqueue, "is an earlier job unfinished?" at
+   run, partial index), `POST /api/payments/webhook` (token in
+   `x-callback-token`; unique on `event_id`) → `ProcessPaymentEvent` on the
+   `ordered` queue: `payment.succeeded` → `paid`, `payment.refunded` →
+   `refunded`. Order status `refunded` added. Proof: both subscribers ran
+   once; 10 orders' payment+refund raced by three nodes all end `refunded`
+   (it fails with the order check removed); a dead node's stuck job holds
+   its order back until rescued while other orders go on.
 4. Cache: `products` table, Cachex with cross-node clearing.
 5. Frontend: Vue + blessing-ui, live feed + presence; `--no-frontend` in
    the generator.

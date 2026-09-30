@@ -68,6 +68,14 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
+  config :acme,
+         :payment_webhook_token,
+         System.get_env("PAYMENT_WEBHOOK_TOKEN") ||
+           raise("""
+           environment variable PAYMENT_WEBHOOK_TOKEN is missing.
+           It is the secret the payment provider sends in the x-callback-token header.
+           """)
+
   host = System.get_env("PHX_HOST") || "example.com"
 
   config :acme, Platform.Web.Endpoint,

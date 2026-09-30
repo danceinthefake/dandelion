@@ -11,7 +11,7 @@ defmodule App.Shop.Models.Order do
 
   alias App.Shop.Models.OrderItem
 
-  @statuses ~w(pending paid shipped cancelled)
+  @statuses ~w(pending paid shipped cancelled refunded)
 
   @timestamps_opts [type: :utc_datetime_usec]
   schema "orders" do

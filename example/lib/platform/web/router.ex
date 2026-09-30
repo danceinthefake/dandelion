@@ -19,5 +19,6 @@ defmodule Platform.Web.Router do
     get "/orders", App.Shop.Handlers.OrderHandler, :index
     get "/orders/:id", App.Shop.Handlers.OrderHandler, :show
     post "/orders/:id/cancel", App.Shop.Handlers.OrderHandler, :cancel
+    post "/payments/webhook", App.Shop.Handlers.PaymentHandler, :webhook
   end
 end

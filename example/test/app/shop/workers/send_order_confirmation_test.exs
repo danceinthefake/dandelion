@@ -5,18 +5,7 @@ defmodule App.Shop.Workers.SendOrderConfirmationTest do
   import App.Shop.Fixtures
   import ExUnit.CaptureLog
 
-  alias App.Shop.Services.OrderService
   alias App.Shop.Workers.SendOrderConfirmation
-
-  test "creating an order queues its confirmation" do
-    {:ok, order} = OrderService.create(order_params())
-    assert_enqueued(worker: SendOrderConfirmation, args: %{order_id: order.id})
-  end
-
-  test "an invalid order queues nothing" do
-    assert {:error, %Ecto.Changeset{}} = OrderService.create(%{})
-    refute_enqueued(worker: SendOrderConfirmation)
-  end
 
   test "sends the confirmation" do
     order = order_fixture()
@@ -26,13 +15,13 @@ defmodule App.Shop.Workers.SendOrderConfirmationTest do
 
     log =
       capture_log(fn ->
-        assert :ok = perform_job(SendOrderConfirmation, %{order_id: order.id})
+        assert :ok = perform_job(SendOrderConfirmation, %{payload: %{order_id: order.id}})
       end)
 
     assert log =~ "confirmation sent to sari@example.com"
   end
 
   test "cancels for an order that doesn't exist" do
-    assert {:cancel, _} = perform_job(SendOrderConfirmation, %{order_id: 0})
+    assert {:cancel, _} = perform_job(SendOrderConfirmation, %{payload: %{order_id: 0}})
   end
 end

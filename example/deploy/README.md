@@ -19,6 +19,8 @@ http://localhost:8080. The proof script checks that:
 - requests through the load balancer are answered, also with a node killed;
 - a new order's confirmation job runs once, on one node;
 - a job left behind by a killed node is run again by another node;
+- each `order.created` subscriber runs once per order;
+- payment events for one order run in arrival order even when three nodes race for them, and a dead node's unfinished payment job holds back only its own order, until rescued;
 - a killed node drops out, and rejoins when started again;
 - 15 seconds without Postgres crashes no node and splits nothing
   (`/health` says 503 meanwhile).
@@ -31,6 +33,7 @@ The secrets in `compose.cluster.yaml` are fixed and public: local only.
 |---|---|
 | `DATABASE_URL` | the database, as for a single node |
 | `SECRET_KEY_BASE` | the same on every node |
+| `PAYMENT_WEBHOOK_TOKEN` | the same on every node: the secret the payment provider sends in `x-callback-token` |
 | `RELEASE_COOKIE` | **the same on every node, from a secret store**. It lets a node join — and run code on — every other node. `mix phx.gen.secret 32` makes one. The node refuses to start without it. |
 | `NODE_IP` | this node's private IP. Needed on VMs (where `hostname -i` can say 127.0.1.1); containers find their own. The node is named `acme@<NODE_IP>`. |
 | `CLUSTER_DATABASE_URL` | optional: a direct connection to Postgres for discovery, when `DATABASE_URL` goes through PgBouncer in transaction mode (`LISTEN` doesn't work through it) |
