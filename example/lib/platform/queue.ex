@@ -1,7 +1,9 @@
 defmodule Platform.Queue do
   @moduledoc """
   Background jobs. ≈ Cloud Tasks / RabbitMQ — but the jobs are rows in
-  Postgres ([Oban](https://oban.hexdocs.pm)), next to your data.
+  Postgres ([Oban](https://oban.hexdocs.pm)), next to your data. The queues,
+  the lifeline and the pruner are set in `Dandelion.Queue.config/1` (the
+  library); read its docs for what each does.
 
     * A job survives restarts and crashed nodes; any node runs it.
     * A job that fails is retried with backoff, up to its `max_attempts`.
@@ -16,21 +18,10 @@ defmodule Platform.Queue do
 
   @doc "The Oban config; `config :acme, Oban` overrides it (tests use `testing: :manual`)."
   def config do
-    Keyword.merge(
-      [
-        repo: Platform.Database.Repo,
-        # queue name: how many of its jobs run at once, on each node
-        # `ordered` is for Dandelion.Queue.Ordered workers
-        queues: [default: 10, ordered: 10],
-        cron: [crontab: Platform.Cron.schedule()],
-        # A job left `executing` by a node that died is run again after this.
-        # ponytail: a job that genuinely runs longer than 5 minutes may run
-        # twice — keep jobs short, or raise this.
-        lifeline: [rescue_after: {5, :minutes}],
-        # finished jobs are kept a week, for looking back
-        pruner: [max_age: {7, :days}]
-      ],
-      Application.get_env(:acme, Oban, [])
+    Dandelion.Queue.config(
+      otp_app: :acme,
+      repo: Platform.Database.Repo,
+      crontab: Platform.Cron.schedule()
     )
   end
 end

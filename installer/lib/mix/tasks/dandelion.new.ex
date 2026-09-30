@@ -221,9 +221,10 @@ defmodule Mix.Tasks.Dandelion.New do
     do: replace!(contents, ~r/    PAYMENT_WEBHOOK_TOKEN: [\w-]+\n/, "")
 
   defp without_example("lib/platform/pubsub.ex", contents) do
-    replace!(
-      contents,
-      ~r/    %\{\n      "order.created" => \[.*?\]\n    \}\n/s,
+    contents
+    |> replace!(~r/  alias App\.Shop\.Workers\.\{[^}]*\}\n\n/, "")
+    |> replace!(
+      ~r/    %\{\n      "order.created" => \[[^\]]*\]\n    \}\n/,
       "    %{\n      # \"thing.created\" => [App.Things.Workers.SendWelcome]\n    }\n"
     )
   end

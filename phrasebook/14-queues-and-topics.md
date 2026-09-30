@@ -30,7 +30,8 @@ Oban.insert(SendOrderConfirmation.new(%{order_id: 42}))
 
 A job is a row. It survives a restart, runs on any node, is retried if it
 fails, and is **run again if its node dies mid-job** (the lifeline plugin
-gives it back; [`lib/platform/queue.ex`](../example/lib/platform/queue.ex)). So
+gives it back; set up in [`Dandelion.Queue`](../lib/dandelion/queue.ex), used by
+[`lib/platform/queue.ex`](../example/lib/platform/queue.ex)). So
 a worker must be safe to run twice — the same rule as every queue that
 promises "at least once".
 
@@ -46,7 +47,8 @@ PubSub.publish("order.created", %{"order_id" => order.id, "customer_email" => or
 ```
 
 `Platform.PubSub` ([`pubsub.ex`](../example/lib/platform/pubsub.ex)) holds the
-list of subscribers per topic, in one place like a crontab. `publish/2` adds
+list of subscribers per topic, in one place like a crontab; the mechanism is
+[`Dandelion.PubSub`](../lib/dandelion/pubsub.ex). `publish/2` adds
 one job **per subscriber**, so each is retried on its own and a slow or
 failing one doesn't hold back the others.
 
