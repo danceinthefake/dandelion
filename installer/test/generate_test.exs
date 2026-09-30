@@ -99,6 +99,23 @@ defmodule DandelionNew.GenerateTest do
     assert files["lib/platform/web/user_socket.ex"] =~ "def connect"
   end
 
+  test "marker lines never reach a generated project; left-out parts go whole" do
+    for {example?, frontend?} <- [{true, true}, {true, false}, {false, false}] do
+      files = files("my_app", "MyApp", example?, frontend?)
+
+      for {path, contents} <- files do
+        refute contents =~ ~r/@(example|frontend)-(start|end)/, "#{path} keeps a marker"
+      end
+
+      proof = files["deploy/cluster-proof.sh"]
+      assert proof =~ "node failure:"
+      assert proof =~ "database outage:"
+      assert proof =~ "echo \"events:\"" == example?
+      assert proof =~ "serves the Vue app" == frontend?
+      assert files["deploy/README.md"] =~ "PAYMENT_WEBHOOK_TOKEN" == example?
+    end
+  end
+
   describe "mix dandelion.new" do
     @tag :tmp_dir
     test "writes the project and makes the release scripts executable", %{tmp_dir: dir} do
@@ -108,8 +125,9 @@ defmodule DandelionNew.GenerateTest do
 
       assert File.read!(Path.join(path, "mix.exs")) =~ "app: :my_app,"
 
-      assert File.stat!(Path.join(path, "rel/overlays/bin/migrate")).mode |> Bitwise.band(0o111) !=
-               0
+      for bin <- ["rel/overlays/bin/migrate", "deploy/cluster-proof.sh"] do
+        assert File.stat!(Path.join(path, bin)).mode |> Bitwise.band(0o111) != 0, bin
+      end
 
       assert_received {:mix_shell, :info, [msg]}
       assert msg =~ "Created my_app"

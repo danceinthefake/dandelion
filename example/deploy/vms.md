@@ -37,8 +37,9 @@ matter more than on one machine:
 - `NODE_IP`: the VM's **private IP**. The node is named `acme@<NODE_IP>`, and
   other nodes connect to that address on port 9100.
 
-Plus `DATABASE_URL`, `SECRET_KEY_BASE`, `PAYMENT_WEBHOOK_TOKEN` and `PHX_HOST`
-(the same on every VM), and `CLUSTER_DATABASE_URL` if `DATABASE_URL` goes
+Plus `DATABASE_URL`, `SECRET_KEY_BASE` and `PHX_HOST` (the same on every VM),
+and whatever your app adds (the example's payment webhook needs
+`PAYMENT_WEBHOOK_TOKEN`). Add `CLUSTER_DATABASE_URL` if `DATABASE_URL` goes
 through PgBouncer in transaction mode.
 
 ## 3. Run the image
@@ -51,7 +52,7 @@ docker run -d --name acme --restart unless-stopped \
   -p 4000:4000 -p 9100:9100 \
   -e NODE_IP=10.0.0.5 \
   -e RELEASE_COOKIE=… -e DATABASE_URL=… -e SECRET_KEY_BASE=… \
-  -e PAYMENT_WEBHOOK_TOKEN=… -e PHX_HOST=example.com \
+  -e PHX_HOST=example.com \
   registry.example.com/acme:1.4.0
 ```
 

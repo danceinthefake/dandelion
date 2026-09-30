@@ -69,7 +69,7 @@ defmodule Mix.Tasks.Dandelion.New do
       File.write!(target, contents)
     end
 
-    for bin <- ["rel/overlays/bin/server", "rel/overlays/bin/migrate"],
+    for bin <- ["rel/overlays/bin/server", "rel/overlays/bin/migrate", "deploy/cluster-proof.sh"],
         do: File.chmod!(Path.join(path, bin), 0o755)
 
     Mix.shell().info("""
@@ -104,6 +104,7 @@ defmodule Mix.Tasks.Dandelion.New do
       Enum.map_reduce(templates, secrets, fn {file, contents}, secrets ->
         contents = if example?, do: contents, else: without_example(file, contents)
         contents = if frontend?, do: contents, else: without_frontend(file, contents)
+        contents = blocks(contents, example?, frontend?)
         {contents, secrets} = fresh_secrets(contents, secrets)
         {{rename.(file), format(file, rename.(contents))}, secrets}
       end)
@@ -180,6 +181,9 @@ defmodule Mix.Tasks.Dandelion.New do
     )
   end
 
+  defp without_example("deploy/README.md", contents),
+    do: replace!(contents, ~r/\| `PAYMENT_WEBHOOK_TOKEN` \|[^\n]*\n/, "")
+
   defp without_example("lib/platform/cron.ex", contents) do
     replace!(
       contents,
@@ -216,12 +220,28 @@ defmodule Mix.Tasks.Dandelion.New do
 
   defp without_example(_file, contents), do: contents
 
+  # Parts of a file that belong to the example or the frontend sit between
+  # marker lines — `# @example-start` … `# @example-end` (also
+  # `<!-- @frontend-start -->`). Kept, only the marker lines go; left out,
+  # the whole part goes.
+  defp blocks(contents, example?, frontend?) do
+    contents
+    |> block("example", example?)
+    |> block("frontend", frontend?)
+  end
+
+  defp block(contents, tag, keep?) do
+    marker = ~r/^[ \t]*(?:#|<!--) @#{tag}-(?:start|end)(?: -->)?\n/m
+
+    whole =
+      ~r/^[ \t]*(?:#|<!--) @#{tag}-start(?: -->)?\n.*?^[ \t]*(?:#|<!--) @#{tag}-end(?: -->)?\n\n?/ms
+
+    Regex.replace(if(keep?, do: marker, else: whole), contents, "")
+  end
+
   # --no-frontend: no shell page, no Node stage in the Dockerfile.
   defp without_frontend("lib/platform/web/router.ex", contents),
     do: replace!(contents, ~r/  get "\/", Platform.Web.PageHandler, :index\n/, "")
-
-  defp without_frontend("Dockerfile", contents),
-    do: replace!(contents, ~r/# @frontend-start\n.*?# @frontend-end\n\n?/s, "", global: true)
 
   defp without_frontend(".gitignore", contents),
     do: replace!(contents, ~r/\n# Vue app\n.*?\/priv\/static\/app\/\n/s, "")

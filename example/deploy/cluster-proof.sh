@@ -2,7 +2,11 @@
 # Checks what the 3-node cluster promises (compose.cluster.yaml must be up):
 #   - every node sees the other two
 #   - a broadcast on one node reaches a subscriber on another
-#   - requests through the load balancer are answered, and / serves the Vue app
+#   - requests through the load balancer are answered
+# @frontend-start
+#   - / serves the Vue app
+# @frontend-end
+# @example-start
 #   - a queued job runs once, on one node
 #   - a job left behind by a killed node is run again by another node
 #   - each order.created subscriber runs once per order
@@ -10,6 +14,7 @@
 #   - a dead node's unfinished payment job holds back its order, until rescued
 #   - a price changed through one node is seen by the cache on every node
 #   - a node that joins again starts with an empty cache
+# @example-end
 #   - a node killed without warning drops out; started again, it rejoins
 #   - the database going away crashes nothing and splits nothing
 set -eu
@@ -64,12 +69,15 @@ for _ in 1 2 3 4 5 6; do
   [ "$code" = 200 ] || fail "GET /health through nginx: $code"
 done
 ok "6 × GET /health through nginx: 200"
+# @frontend-start
 # the Vue shell (built into the image) and one of its files
 asset=$(curl -s http://localhost:8080/ | sed -n 's/.*src="\(\/app\/assets\/[^"]*\.js\)".*/\1/p')
 [ -n "$asset" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$asset")" = 200 ] ||
   fail "GET / through nginx doesn't serve the Vue app"
 ok "GET / serves the Vue app ($asset: 200)"
+# @frontend-end
 
+# @example-start
 echo "jobs:"
 # Creating an order queues its confirmation; one node runs it, once.
 job=$(rpc node1 '
@@ -198,6 +206,8 @@ for _ in $(seq 1 30); do [ "$(cached_on node1)" = false ] && break; sleep 1; don
 wait_for node1 2 || fail "node1 didn't get its nodes back"
 ok "node1 lost a node and got it back: its cache was emptied"
 
+# @example-end
+
 echo "node failure:"
 compose kill -s KILL node2 >/dev/null 2>&1
 wait_for node1 1 || fail "node1 still sees node2 after it was killed"
@@ -212,6 +222,7 @@ compose start node2 >/dev/null 2>&1
 wait_for node2 2 && wait_for node1 2 || fail "node2 didn't rejoin"
 ok "node2 started again and rejoined"
 
+# @example-start
 echo "job on a killed node:"
 # A killed node leaves its job row `executing`. Write that row by hand (no job
 # here runs long enough to catch one mid-flight), kill node2, and wait for
@@ -239,6 +250,8 @@ done
 ok "order $orphan: job left executing by a killed node was run again, 2nd attempt, completed"
 compose start node2 >/dev/null 2>&1
 wait_for node2 2 && wait_for node1 2 || fail "node2 didn't rejoin"
+
+# @example-end
 
 echo "database outage:"
 restarts() { docker inspect --format '{{.RestartCount}}' $(compose ps -q node1 node2 node3) | awk '{ s += $1 } END { print s }'; }

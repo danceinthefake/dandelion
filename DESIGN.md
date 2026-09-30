@@ -624,5 +624,14 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    Scheduler and Redis locks → Oban Cron, leader and unique jobs; the frontend
    and channels; service mesh → node calls; network splits), pages 02 and 09
    brought up to date, `example/deploy/vms.md` (the N-VM guide), READMEs.
-7. Generator: templates synced, integration test generating with and
-   without the example / frontend.
+7. ✅ Generator (2026-09-30): templates are the example itself (copied at build
+   time); the parts that belong to the example or the frontend sit between
+   `@example-` / `@frontend-start`…`end` marker lines (Dockerfile, cluster
+   proof, deploy README) and go whole with `--no-example` / `--no-frontend`,
+   markers never reach a generated project. Integration tests (`mix test
+   --include integration`, needs Docker, network, Postgres on :55432):
+   default, `--no-frontend` and `--no-example` projects compile with
+   warnings as errors, pass format, tests and credo; the generated frontend
+   builds; the generated cluster proof passes on three containers, with
+   everything and with `--no-example`. Fixed on the way: the generated
+   `deploy/cluster-proof.sh` wasn't executable.

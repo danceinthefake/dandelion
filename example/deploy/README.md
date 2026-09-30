@@ -15,14 +15,18 @@ Postgres, a migration run, three nodes and nginx as the load balancer on
 http://localhost:8080. The proof script checks that:
 
 - every node sees the other two;
+<!-- @frontend-start -->
 - `/` serves the Vue app through the load balancer;
+<!-- @frontend-end -->
 - a broadcast (`Platform.Broadcast`) on one node reaches another;
 - requests through the load balancer are answered, also with a node killed;
+<!-- @example-start -->
 - a new order's confirmation job runs once, on one node;
 - a job left behind by a killed node is run again by another node;
 - each `order.created` subscriber runs once per order;
 - payment events for one order run in arrival order even when three nodes race for them, and a dead node's unfinished payment job holds back only its own order, until rescued;
 - a price changed through one node is read fresh from the cache on every node, and a node that joins again starts with an empty cache;
+<!-- @example-end -->
 - a killed node drops out, and rejoins when started again;
 - 15 seconds without Postgres crashes no node and splits nothing
   (`/health` says 503 meanwhile).
