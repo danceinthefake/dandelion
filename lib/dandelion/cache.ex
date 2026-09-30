@@ -14,8 +14,14 @@ defmodule Dandelion.Cache do
       Cache.delete({:product, sku})
 
     * `fetch/2` returns the cached value, or calls the function, keeps what
-      it returns (`nil` is not kept) and returns that. Concurrent misses for
-      one key call the function once.
+      it returns (`nil` is not kept) and returns that. The function runs **in
+      the caller's process**, so it uses the caller's database connection —
+      inside a transaction it sees that transaction's writes, and it never
+      needs a second connection while holding one. The price: two requests
+      missing the same key at once both call it (like a plain Redis
+      get-then-set). If you need one load for all of them, use `Cachex.fetch/3`
+      on the `Dandelion.Cache` cache directly, and mind that its function runs
+      in another process.
     * `delete/1` clears the key **on every node** (over the PubSub). Call it
       **after** the database change is committed: earlier, another node could
       read the old row and cache it again.
@@ -60,15 +66,15 @@ defmodule Dandelion.Cache do
   @doc "The value for `key`, from the cache or from `fun` (not kept if `nil`)."
   @spec fetch(term(), (-> term())) :: term()
   def fetch(key, fun) do
-    {_status, value} =
-      Cachex.fetch(__MODULE__, key, fn _key ->
-        case fun.() do
-          nil -> {:ignore, nil}
-          value -> {:commit, value}
-        end
-      end)
+    case Cachex.get(__MODULE__, key) do
+      {:ok, nil} ->
+        value = fun.()
+        if value != nil, do: Cachex.put(__MODULE__, key, value)
+        value
 
-    value
+      {:ok, value} ->
+        value
+    end
   end
 
   @doc "Removes `key` on this node and on every other node."

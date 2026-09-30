@@ -1,11 +1,11 @@
-# commit: 73bf8c3 (+ uncommitted changes)
-# recorded: 2026-09-30T12:20Z
+# commit: c6aa6cc
+# recorded: 2026-09-30T12:40Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
 
 jobs:
-12:21:10   ok  order 1: confirmation job completed, 1 attempt
+12:40:19   ok  order 1: confirmation job completed, 1 attempt
 
 job on a killed node:
-12:22:53   ok  order 15: job left executing by a killed node was run again, 2nd attempt, completed
+12:41:41   ok  order 15: job left executing by a killed node was run again, 2nd attempt, completed

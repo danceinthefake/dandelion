@@ -51,4 +51,17 @@ defmodule Dandelion.CacheTest do
     Cache.delete(key)
     refute_receive {:cache_delete, ^key}
   end
+
+  test "the function runs in the caller's process (it can use the caller's connection)" do
+    me = self()
+    Cache.fetch(key(), fn -> send(me, {:ran_in, self()}) end)
+    assert_received {:ran_in, pid}
+    assert pid == me
+  end
+
+  test "an error in the function reaches the caller and nothing is kept" do
+    key = key()
+    assert_raise RuntimeError, "boom", fn -> Cache.fetch(key, fn -> raise "boom" end) end
+    assert Cache.fetch(key, fn -> :fine end) == :fine
+  end
 end

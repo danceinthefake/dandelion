@@ -49,7 +49,7 @@ if err == redis.Nil {
 ```
 
 ```elixir
-Cache.fetch({:product, sku}, fn -> ProductRepo.get(sku) end)   # load once, keep 60 s
+Cache.fetch({:product, sku}, fn -> ProductRepo.get(sku) end)   # load on a miss, keep 60 s
 Cache.delete({:product, sku})                                   # on every node
 ```
 
@@ -65,7 +65,9 @@ What is different from Redis:
   before, another node could read the old row and cache it again.
 - A node that joins (or rejoins after a network split) empties its cache, and
   every entry expires after 60 s, so a missed delete heals itself.
-- Two requests missing the same key at once run the loader once.
+- The loader runs **in your own process**, on your own database connection —
+  inside a transaction it sees that transaction's writes. So two requests
+  missing the same key at once both load it, like a plain Redis get-then-set.
 
 ## Who is online
 
