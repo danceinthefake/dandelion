@@ -2,12 +2,12 @@ defmodule App.Shop.Services.ProductService do
   @moduledoc """
   Products and their prices. ≈ `service/products.go`.
 
-  Reads go through `Platform.Cache`; a price change is saved first, then the
+  Reads go through `Dandelion.Cache`; a price change is saved first, then the
   cached copy is removed on every node, so the next read on any node loads the
   new price.
   """
   alias App.Shop.Models.Product
-  alias Platform.Cache
+  alias Dandelion.Cache
   alias Platform.Database.Repos.ProductRepo
 
   @doc "One product, from the cache when it's there."

@@ -14,7 +14,6 @@ lib/
     queue.ex                ≈ Cloud Tasks: background jobs (Oban)
     cron.ex                 ≈ Cloud Scheduler: recurring jobs, once per cluster
     pubsub.ex, queue/       ≈ Google Pub/Sub topics; the ordered queue per key
-    cache.ex, cache/        ≈ Redis as a cache: in memory, cleared across nodes
     realtime/               ≈ Pusher presence: who is online, across nodes
     release.ex              migrations in production
   app/

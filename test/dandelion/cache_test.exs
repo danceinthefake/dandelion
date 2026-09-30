@@ -1,7 +1,13 @@
-defmodule Platform.CacheTest do
-  use ExUnit.Case, async: true
+defmodule Dandelion.CacheTest do
+  use ExUnit.Case, async: false
 
-  alias Platform.Cache
+  alias Dandelion.Cache
+
+  setup do
+    start_supervised!({Phoenix.PubSub, name: Dandelion.TestPubSub})
+    start_supervised!({Cache, pubsub: Dandelion.TestPubSub})
+    :ok
+  end
 
   defp key, do: {:test, System.unique_integer()}
 
@@ -33,14 +39,14 @@ defmodule Platform.CacheTest do
     assert Cache.fetch(key, fn -> 1 end) == 1
 
     # what another node's Cache.delete/1 sends
-    Phoenix.PubSub.broadcast(Platform.Broadcast, "cache", {:cache_delete, key})
-    :sys.get_state(Platform.Cache.Listener)
+    Phoenix.PubSub.broadcast(Dandelion.TestPubSub, Cache.Listener.topic(), {:cache_delete, key})
+    :sys.get_state(Cache.Listener)
 
     assert Cache.fetch(key, fn -> 2 end) == 2
   end
 
   test "a delete here is sent to other nodes, but not back to this process" do
-    Phoenix.PubSub.subscribe(Platform.Broadcast, "cache")
+    Phoenix.PubSub.subscribe(Dandelion.TestPubSub, Cache.Listener.topic())
     key = key()
     Cache.delete(key)
     refute_receive {:cache_delete, ^key}

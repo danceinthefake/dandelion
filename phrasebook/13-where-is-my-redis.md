@@ -7,7 +7,7 @@ inside the app. No Redis to run, pay for or reconnect to.
 | You used Redis for | Here |
 |---|---|
 | `PUBLISH` / `SUBSCRIBE` | `Platform.Broadcast` ([Phoenix.PubSub](https://hexdocs.pm/phoenix_pubsub)) |
-| `GET` / `SET` with a TTL | `Platform.Cache` ([Cachex](https://hexdocs.pm/cachex)) |
+| `GET` / `SET` with a TTL | `Dandelion.Cache` ([Cachex](https://hexdocs.pm/cachex)) |
 | a set of online users, with expiry | `Platform.Realtime.Presence` |
 
 ## Pub/sub
@@ -54,7 +54,7 @@ Cache.delete({:product, sku})                                   # on every node
 ```
 
 ([`product_service.ex`](../example/lib/app/shop/services/product_service.ex),
-[`lib/platform/cache.ex`](../example/lib/platform/cache.ex).)
+[`Dandelion.Cache`](../lib/dandelion/cache.ex).)
 
 What is different from Redis:
 

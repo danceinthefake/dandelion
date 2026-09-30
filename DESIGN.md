@@ -597,9 +597,9 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    once; 10 orders' payment+refund raced by three nodes all end `refunded`
    (it fails with the order check removed); a dead node's stuck job holds
    its order back until rescued while other orders go on.
-4. ✅ Cache (2026-09-30): `products` table, `Platform.Cache` (Cachex, 60 s
-   TTL; `fetch/2`, `delete/1` clears the key on every node through
-   `Platform.Broadcast`, after the commit), `Platform.Cache.Listener` (applies
+4. ✅ Cache (2026-09-30): `products` table, `Dandelion.Cache` (now in the
+   library; Cachex, 60 s TTL; `fetch/2`, `delete/1` clears the key on every
+   node through the app's PubSub, after the commit), `Dandelion.Cache.Listener` (applies
    other nodes' deletes; empties the cache on `:nodeup`), `GET` / `PUT
    /api/products/:sku`. Proof: a price changed through one node is read
    fresh on all three; a node that loses a node and gets it back starts with
@@ -620,7 +620,7 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    presence counts both and drops one on close. Migrations split so
    `--no-example` has none that touch `orders`.
 6. ✅ Docs (2026-09-30): phrasebook pages 13–17 (Redis → `Platform.Broadcast`
-   / `Platform.Cache` / Presence; Cloud Tasks and asynq → Oban; Google Pub/Sub
+   / `Dandelion.Cache` / Presence; Cloud Tasks and asynq → Oban; Google Pub/Sub
    and Kafka → `Platform.PubSub` with the one-transaction publish; SQS FIFO →
    the ordered queue; "I still need a real broker" → Broadway; Cloud
    Scheduler and Redis locks → Oban Cron, leader and unique jobs; the frontend
@@ -687,7 +687,7 @@ hex.
 
 1. ✅ Library skeleton + `Dandelion.Cluster` (2026-09-30); hex package back to
    `dandelion_new` for the generator; 3-node proof passes with the library.
-2. `Dandelion.Cache`.
+2. ✅ `Dandelion.Cache` (2026-09-30): `{Dandelion.Cache, pubsub: Platform.Broadcast}`; the PubSub name is an option, kept in a `:persistent_term` for `delete/1`; the example's cachex dependency is gone (it comes with the library); proof passes.
 3. `Dandelion.Queue.Ordered` and `Dandelion.Migration`.
 4. `Dandelion.PubSub` and `Dandelion.Queue.config/1`.
 5. Docs: phrasebook links and the hex docs of the library; publish both.

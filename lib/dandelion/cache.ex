@@ -1,8 +1,14 @@
-defmodule Platform.Cache do
+defmodule Dandelion.Cache do
   @moduledoc """
   A cache in memory, on each node. ≈ Redis / Memcached used as a cache —
   but it lives inside the app ([Cachex](https://hexdocs.pm/cachex)), so a
   read costs no network trip.
+
+  Start it in your supervision tree, after your `Phoenix.PubSub`:
+
+      {Dandelion.Cache, pubsub: MyApp.Broadcast}
+
+  then:
 
       Cache.fetch({:product, sku}, fn -> Repo.get(Product, sku) end)
       Cache.delete({:product, sku})
@@ -10,24 +16,32 @@ defmodule Platform.Cache do
     * `fetch/2` returns the cached value, or calls the function, keeps what
       it returns (`nil` is not kept) and returns that. Concurrent misses for
       one key call the function once.
-    * `delete/1` clears the key **on every node** (`Platform.Broadcast`). Call
-      it **after** the database change is committed: earlier, another node
-      could read the old row and cache it again.
-    * Entries expire after #{div(:timer.minutes(1), 1000)} s, so a missed
-      message (a network split) fixes itself quickly. A node that joins or
-      rejoins the cluster clears its whole cache (`Platform.Cache.Listener`).
+    * `delete/1` clears the key **on every node** (over the PubSub). Call it
+      **after** the database change is committed: earlier, another node could
+      read the old row and cache it again.
+    * Entries expire after `:ttl` (default one minute), so a missed message
+      (a network split) fixes itself quickly. A node that joins or rejoins
+      the cluster clears its whole cache (`Dandelion.Cache.Listener`).
+
+  Options: `:pubsub` (required, the name of your `Phoenix.PubSub`) and `:ttl`
+  in milliseconds.
 
   It is a cache: a node that restarts starts empty. Anything that must
-  survive goes in Postgres (DESIGN §10.3, rule 1).
+  survive goes in Postgres.
+
+  One cache per app: the name is `Dandelion.Cache`.
   """
   import Cachex.Spec
 
-  alias Platform.Cache.Listener
+  alias Dandelion.Cache.Listener
 
   @ttl :timer.minutes(1)
 
   @doc false
-  def child_spec(_opts) do
+  def child_spec(opts) do
+    pubsub = Keyword.fetch!(opts, :pubsub)
+    ttl = Keyword.get(opts, :ttl, @ttl)
+
     %{
       id: __MODULE__,
       type: :supervisor,
@@ -35,8 +49,8 @@ defmodule Platform.Cache do
         {Supervisor, :start_link,
          [
            [
-             {Cachex, name: __MODULE__, expiration: expiration(default: @ttl)},
-             Listener
+             {Cachex, name: __MODULE__, expiration: expiration(default: ttl)},
+             {Listener, pubsub: pubsub}
            ],
            [strategy: :one_for_one]
          ]}
@@ -61,12 +75,7 @@ defmodule Platform.Cache do
   @spec delete(term()) :: :ok
   def delete(key) do
     Cachex.del(__MODULE__, key)
-
-    Phoenix.PubSub.broadcast_from(
-      Platform.Broadcast,
-      self(),
-      Listener.topic(),
-      {:cache_delete, key}
-    )
+    pubsub = Listener.pubsub()
+    Phoenix.PubSub.broadcast_from(pubsub, self(), Listener.topic(), {:cache_delete, key})
   end
 end

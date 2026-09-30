@@ -21,7 +21,7 @@ def start(_type, _args) do
       Platform.Database.Repo,                  # the database pool (≈ *sql.DB)
       {Dandelion.Cluster, otp_app: :acme, repo: Platform.Database.Repo},   # nodes finding each other
       {Phoenix.PubSub, name: Platform.Broadcast},
-      Platform.Cache,                          # ≈ Redis as a cache, in memory
+      {Dandelion.Cache, pubsub: Platform.Broadcast},   # ≈ Redis as a cache, in memory
       {Oban, Platform.Queue.config()},         # background jobs and cron (≈ goroutines)
       Endpoint                                 # HTTP, last
     ]

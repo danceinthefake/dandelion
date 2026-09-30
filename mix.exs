@@ -25,7 +25,9 @@ defmodule Dandelion.MixProject do
 
   defp deps do
     [
+      {:cachex, "~> 4.1"},
       {:libcluster, "~> 3.5"},
+      {:phoenix_pubsub, "~> 2.1"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, "~> 0.22"}
     ]

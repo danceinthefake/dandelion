@@ -49,7 +49,6 @@ defmodule Acme.MixProject do
       {:bandit, "~> 1.5"},
       {:oban, "~> 2.24"},
       dandelion(),
-      {:cachex, "~> 4.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

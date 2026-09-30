@@ -24,7 +24,7 @@ defmodule Platform.Application do
         # ≈ Pusher presence: who is connected, across nodes
         Platform.Realtime.Presence,
         # ≈ Redis as a cache: in memory on each node, cleared across nodes
-        Platform.Cache,
+        {Dandelion.Cache, pubsub: Platform.Broadcast},
         # ≈ Cloud Tasks + Cloud Scheduler: background jobs and cron
         {Oban, Platform.Queue.config()},
         # ≈ the web servers

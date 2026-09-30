@@ -182,7 +182,7 @@ echo "cache:"
 sku="PROOF-$(date +%s)"
 rpc node1 "Platform.Database.Repo.insert!(%App.Shop.Models.Product{sku: \"$sku\", name: \"Proof\", price_cents: 1500})" >/dev/null
 price_on() { rpc "$1" "{:ok, p} = App.Shop.Services.ProductService.get(\"$sku\"); IO.write(p.price_cents)"; }
-cached_on() { rpc "$1" "IO.write(elem(Cachex.exists?(Platform.Cache, {:product, \"$sku\"}), 1))"; }
+cached_on() { rpc "$1" "IO.write(elem(Cachex.exists?(Dandelion.Cache, {:product, \"$sku\"}), 1))"; }
 for n in node1 node2 node3; do
   [ "$(price_on $n)" = 1500 ] || fail "$n doesn't read the price"
   [ "$(cached_on $n)" = true ] || fail "$n didn't keep the product in its cache"
