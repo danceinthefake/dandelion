@@ -1,5 +1,5 @@
-# commit: 54ccd7e
-# recorded: 2026-09-30T12:57Z
+# commit: 77e0d24
+# recorded: 2026-09-30T13:13Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # library
@@ -16,97 +16,23 @@ Result: 53 passed
 
 # generator
 ...........
-Finished in 6.6 seconds (6.6s async, 0.00s sync)
+Finished in 0.3 seconds (0.3s async, 0.00s sync)
 
 Result: 11 passed, 6 excluded
 
 # generated projects (integration; Docker, network, ~10 min)
-     │
- 198 │   defp without_example("deploy/README.md", contents),
-     │        ~
-     │
-     └─ lib/mix/tasks/dandelion.new.ex:198:8
-
-Running ExUnit with seed: 538234, max_cases: 1
+Running ExUnit with seed: 825983, max_cases: 1
 Including tags: [:integration]
 
 
 DandelionNew.IntegrationTest [test/integration_test.exs]
-  test a generated project compiles cleanly, passes its tests and credo (without the example) (65.6 s)
-
-  1) test a generated project compiles cleanly, passes its tests and credo (without the example) (DandelionNew.IntegrationTest)
-     test/integration_test.exs:16
-     mix test failed:
-       (mix 1.20.4) lib/mix/tasks/compile.elixir.ex:243: Mix.Tasks.Compile.Elixir.xref_exclude_opts/2
-       (mix 1.20.4) lib/mix/tasks/compile.elixir.ex:142: Mix.Tasks.Compile.Elixir.run/1
-       (mix 1.20.4) lib/mix/task.ex:502: anonymous fn/3 in Mix.Task.run_task/5
-       (mix 1.20.4) lib/mix/task.compiler.ex:299: Mix.Task.Compiler.run_compiler/2
-       (mix 1.20.4) lib/mix/task.compiler.ex:287: Mix.Task.Compiler.run/4
-       (mix 1.20.4) lib/mix/tasks/compile.all.ex:75: Mix.Tasks.Compile.All.do_run/2
-
-       (mix 1.20.4) lib/mix/tasks/compile.elixir.ex:243: Mix.Tasks.Compile.Elixir.xref_exclude_opts/2
-       (mix 1.20.4) lib/mix/tasks/compile.elixir.ex:142: Mix.Tasks.Compile.Elixir.run/1
-       (mix 1.20.4) lib/mix/task.ex:502: anonymous fn/3 in Mix.Task.run_task/5
-       (mix 1.20.4) lib/mix/task.compiler.ex:299: Mix.Task.Compiler.run_compiler/2
-       (mix 1.20.4) lib/mix/task.compiler.ex:287: Mix.Task.Compiler.run/4
-       (mix 1.20.4) lib/mix/tasks/compile.all.ex:75: Mix.Tasks.Compile.All.do_run/2
-
-         │
-      13 │   @type record ::
-         │   ~~~~~~~~~~~~~~~
-         │
-         └─ lib/cachex/spec/validator.ex:13: (file)
-
-         │
-      52 │   require Overseer
-         │   ~
-         │
-         └─ lib/cachex.ex:52:3
-
-
-             schedule(scheduling)
-
-         will always evaluate to:
-
-             dynamic(:ok)
-
-         where "scheduling" was given the types:
-
-             # type: dynamic()
-             # from: lib/cachex/limit/scheduled.ex:54:71
-             {cache, {size, options, scheduling}} = args
-
-             # type: dynamic(empty_list() or non_empty_list(term(), term()))
-             # from: lib/cachex/limit/scheduled.ex:56:5
-             schedule(scheduling)
-
-         type warning found at:
-         │
-      56 │     schedule(scheduling) && {:noreply, args}
-         │     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-         │
-         └─ lib/cachex/limit/scheduled.ex:56: Cachex.Limit.Scheduled.handle_info/2
-
-     ** (Postgrex.Error) ERROR 42P01 (undefined_table) relation "products" does not exist
-
-         query: INSERT INTO "products" ("name","updated_at","sku","price_cents") VALUES ($1,$2,$3,$4),($5,$6,$7,$8),($9,$10,$11,$12) ON CONFLICT DO NOTHING
-         (ecto_sql 3.14.0) lib/ecto/adapters/sql.ex:1121: Ecto.Adapters.SQL.raise_sql_call_error/1
-         (ecto_sql 3.14.0) lib/ecto/adapters/sql.ex:992: Ecto.Adapters.SQL.insert_all/9
-         (ecto 3.14.2) lib/ecto/repo/schema.ex:86: Ecto.Repo.Schema.do_insert_all/7
-         test/test_helper.exs:5: (file)
-
-     code: mix!(path, ["test"], %{"MIX_ENV" => "test"})
-     stacktrace:
-       test/integration_test.exs:102: DandelionNew.IntegrationTest.mix!/3
-       test/integration_test.exs:28: (test)
-
-  test a generated project's cluster proof passes (with everything) (175.7 s)
-  test a generated project compiles cleanly, passes its tests and credo (without the frontend) (44.2 s)
-  test a generated project compiles cleanly, passes its tests and credo (with the example) (41.3 s)
   test the generated frontend builds (1.4 s)
-  test a generated project's cluster proof passes (without the example) (141.1 s)
+  test a generated project compiles cleanly, passes its tests and credo (without the example) (80.7 s)
+  test a generated project compiles cleanly, passes its tests and credo (with the example) (52.9 s)
+  test a generated project's cluster proof passes (with everything) (129.2 s)
+  test a generated project's cluster proof passes (without the example) (121.3 s)
+  test a generated project compiles cleanly, passes its tests and credo (without the frontend) (38.9 s)
 
-Finished in 471.3 seconds (0.00s async, 471.3s sync)
+Finished in 427.5 seconds (0.00s async, 427.5s sync)
 
-Result: 5/6 passed
-Failed: 1 test
+Result: 6 passed
