@@ -1,0 +1,104 @@
+name: Release
+
+# Publishes to hex when a tag is pushed:
+#   dandelion-v0.1.1        → the library   (repo root)
+#   dandelion_new-v0.1.1    → the generator (installer/)
+# The tag's version must match @version in that package's mix.exs, and the
+# library's CHANGELOG.md must have a "## <version>" entry. Publishing waits for
+# an approval on the `hex` environment (Settings → Environments → hex → required
+# reviewers) and uses the HEX_API_KEY secret stored there.
+#
+# To try it without publishing: Actions → Release → Run workflow, leave
+# "dry run" ticked.
+on:
+  push:
+    tags: ["dandelion-v*", "dandelion_new-v*"]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: Which package
+        type: choice
+        options: [dandelion, dandelion_new]
+        default: dandelion
+      dry_run:
+        description: Dry run (build and check, publish nothing)
+        type: boolean
+        default: true
+
+permissions:
+  contents: write # the GitHub release
+
+jobs:
+  publish:
+    runs-on: ubuntu-24.04
+    environment: hex
+    services:
+      postgres: # the library's tests use a database
+        image: postgres:18-alpine
+        env: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres }
+        ports: ["55432:5432"]
+        options: --health-cmd pg_isready --health-interval 2s --health-retries 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Which package, and is the version right?
+        id: pkg
+        run: |
+          if [ "${{ github.event_name }}" = workflow_dispatch ]; then
+            name=${{ inputs.package }}
+            dry=${{ inputs.dry_run }}
+            tag=""
+          else
+            tag=$GITHUB_REF_NAME
+            case "$tag" in
+              dandelion_new-v*) name=dandelion_new ;;
+              dandelion-v*) name=dandelion ;;
+            esac
+            dry=false
+          fi
+          case "$name" in
+            dandelion) dir=. ;;
+            dandelion_new) dir=installer ;;
+          esac
+          version=$(sed -n 's/^  @version "\(.*\)"/\1/p' "$dir/mix.exs")
+          [ -n "$version" ] || { echo "no @version in $dir/mix.exs"; exit 1; }
+          if [ -n "$tag" ] && [ "$tag" != "$name-v$version" ]; then
+            echo "tag $tag doesn't match $name $version in $dir/mix.exs"; exit 1
+          fi
+          if [ "$name" = dandelion ]; then
+            grep -q "^## $version" CHANGELOG.md || { echo "CHANGELOG.md has no '## $version'"; exit 1; }
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "dir=$dir" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "dry=$dry" >> "$GITHUB_OUTPUT"
+          echo "Publishing $name $version from $dir (dry run: $dry)"
+
+      - uses: jdx/mise-action@v4 # Erlang, Elixir from mise.toml
+        with:
+          working_directory: ${{ steps.pkg.outputs.dir }}
+
+      - name: Test
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        run: |
+          mix deps.get
+          mix format --check-formatted
+          mix compile --warnings-as-errors
+          mix test
+
+      - name: Publish to hex
+        working-directory: ${{ steps.pkg.outputs.dir }}
+        env:
+          HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
+        run: |
+          if [ "${{ steps.pkg.outputs.dry }}" = true ]; then
+            mix hex.publish --dry-run --yes
+          else
+            mix hex.publish --yes
+          fi
+
+      - name: GitHub release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" --title "${{ steps.pkg.outputs.name }} ${{ steps.pkg.outputs.version }}" --generate-notes
