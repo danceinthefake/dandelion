@@ -1,22 +1,22 @@
 # control: ordering
 # broken on purpose: the ordered queue never waits (Dandelion.Queue.Ordered.turn/1 always says go)
 # expected: the proof FAILS after 'ordered queue:' and never reaches '10 orders: payment then refund'
-# commit: c6aa6cc, recorded 2026-09-30T12:44Z
+# commit: 54ccd7e, recorded 2026-09-30T12:55Z
 # verdict: ok
 
-12:43:30 cluster:
-12:43:32   ok  node1 sees acme@172.30.0.4 acme@172.30.0.5
-12:43:33   ok  node2 sees acme@172.30.0.3 acme@172.30.0.5
-12:43:33   ok  node3 sees acme@172.30.0.3 acme@172.30.0.4
-12:43:33 broadcast:
-12:43:34   ok  acme@172.30.0.3 -> acme@172.30.0.4
-12:43:34 load balancer:
-12:43:34   ok  6 × GET /health through nginx: 200
-12:43:34   ok  GET / serves the Vue app (/app/assets/index-wy-XAueH.js: 200)
-12:43:34 jobs:
-12:43:35   ok  order 1: confirmation job completed, 1 attempt
-12:43:35 events:
-12:43:35   ok  order 2: both order.created subscribers completed, once each
-12:43:35   ok  webhook without the token: 401
-12:43:35 ordered queue:
-12:44:27 FAIL  order 4 is paid, want refunded
+12:54:06 cluster:
+12:54:08   ok  node1 sees acme@172.30.0.3 acme@172.30.0.5
+12:54:09   ok  node2 sees acme@172.30.0.3 acme@172.30.0.4
+12:54:09   ok  node3 sees acme@172.30.0.4 acme@172.30.0.5
+12:54:09 broadcast:
+12:54:09   ok  acme@172.30.0.4 -> acme@172.30.0.3
+12:54:09 load balancer:
+12:54:09   ok  6 × GET /health through nginx: 200
+12:54:09   ok  GET / serves the Vue app (/app/assets/index-wy-XAueH.js: 200)
+12:54:10 jobs:
+12:54:10   ok  order 1: confirmation job completed, 1 attempt
+12:54:10 events:
+12:54:11   ok  order 2: both order.created subscribers completed, once each
+12:54:11   ok  webhook without the token: 401
+12:54:11 ordered queue:
+12:55:02 FAIL  order 6 is paid, want refunded

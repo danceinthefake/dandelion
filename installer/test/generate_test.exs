@@ -64,6 +64,9 @@ defmodule DandelionNew.GenerateTest do
     refute files["lib/platform/cron.ex"] =~ "ExpireUnpaidOrders"
     refute files["config/runtime.exs"] =~ "ExpireUnpaidOrders"
     refute files["README.md"] =~ "orders"
+    # the test catalogue needs the example's products table
+    refute files["test/test_helper.exs"] =~ "products"
+    assert files["test/test_helper.exs"] =~ "ExUnit.start()"
   end
 
   test "the frontend is part of the default project" do
@@ -103,6 +106,7 @@ defmodule DandelionNew.GenerateTest do
     files = files("my_app", "MyApp")
 
     assert files["mix.exs"] =~ ~s({:dandelion, "~> 0.1"},)
+    assert files["test/test_helper.exs"] =~ "products"
     refute files["mix.exs"] =~ "DANDELION_PATH"
     refute files["Dockerfile"] =~ "vendor/dandelion"
     refute Map.has_key?(files, "deploy/vendor-dandelion.sh")

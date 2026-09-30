@@ -188,15 +188,12 @@ defmodule Mix.Tasks.Dandelion.New do
     )
   end
 
-  # The example takes the library from the checkout (a dev-only `dandelion/0`
-  # in its mix.exs); a generated project takes it from hex.
-  defp hex_dependency("mix.exs", contents),
-    do: replace!(contents, ~r/dandelion\(\),/, ~S({:dandelion, "~> 0.1"},))
-
-  defp hex_dependency(_file, contents), do: contents
-
   defp without_example("deploy/README.md", contents),
     do: replace!(contents, ~r/\| `PAYMENT_WEBHOOK_TOKEN` \|[^\n]*\n/, "")
+
+  # the catalogue the order tests use needs the products table
+  defp without_example("test/test_helper.exs", contents),
+    do: replace!(contents, ~r/# The catalogue.*?\n\nExUnit\.start\(\)/s, "ExUnit.start()")
 
   defp without_example("lib/platform/cron.ex", contents) do
     replace!(
@@ -234,6 +231,13 @@ defmodule Mix.Tasks.Dandelion.New do
   end
 
   defp without_example(_file, contents), do: contents
+
+  # The example takes the library from the checkout (a dev-only `dandelion/0`
+  # in its mix.exs); a generated project takes it from hex.
+  defp hex_dependency("mix.exs", contents),
+    do: replace!(contents, ~r/dandelion\(\),/, ~S({:dandelion, "~> 0.1"},))
+
+  defp hex_dependency(_file, contents), do: contents
 
   # Parts of a file that belong to the example or the frontend sit between
   # marker lines — `# @example-start` … `# @example-end` (also

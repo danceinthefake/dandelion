@@ -1,11 +1,11 @@
-# commit: c6aa6cc
-# recorded: 2026-09-30T12:42Z
+# commit: 54ccd7e
+# recorded: 2026-09-30T12:52Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 
-browser A on acme@172.30.0.3
-browser B on acme@172.30.0.5
+browser A on acme@172.30.0.4
+browser B on acme@172.30.0.3
 presence: both pages show 2 online now
-order from-a-67549@example.com: made in A (acme@172.30.0.3), shown in B (acme@172.30.0.5)
-order from-b-67549@example.com: made in B (acme@172.30.0.5), shown in A (acme@172.30.0.3)
+order from-a-87740@example.com: made in A (acme@172.30.0.4), shown in B (acme@172.30.0.3)
+order from-b-87740@example.com: made in B (acme@172.30.0.3), shown in A (acme@172.30.0.4)
 presence: B closed, A shows 1 online now

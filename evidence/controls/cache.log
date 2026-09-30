@@ -1,27 +1,27 @@
 # control: cache
 # broken on purpose: a cache delete is not sent to the other nodes (Dandelion.Cache.delete/1)
 # expected: the proof FAILS after 'read on all 3 nodes' and never reaches 'every node reads 1600'
-# commit: c6aa6cc, recorded 2026-09-30T12:45Z
+# commit: 54ccd7e, recorded 2026-09-30T12:56Z
 # verdict: ok
 
-12:44:57 cluster:
-12:45:00   ok  node1 sees acme@172.30.0.3 acme@172.30.0.5
-12:45:00   ok  node2 sees acme@172.30.0.3 acme@172.30.0.4
-12:45:01   ok  node3 sees acme@172.30.0.4 acme@172.30.0.5
-12:45:01 broadcast:
-12:45:01   ok  acme@172.30.0.4 -> acme@172.30.0.3
-12:45:01 load balancer:
-12:45:01   ok  6 × GET /health through nginx: 200
-12:45:01   ok  GET / serves the Vue app (/app/assets/index-wy-XAueH.js: 200)
-12:45:01 jobs:
-12:45:02   ok  order 1: confirmation job completed, 1 attempt
-12:45:02 events:
-12:45:03   ok  order 2: both order.created subscribers completed, once each
-12:45:03   ok  webhook without the token: 401
-12:45:03 ordered queue:
-12:45:07   ok  10 orders: payment then refund, each ended refunded (nodes raced, order held)
-12:45:08   ok  order 14 (other order) paid while order 13 waited
-12:45:25   ok  order 13: the dead node's job was rescued, then its refund ran after it
-12:45:25 cache:
-12:45:27   ok  PROOF-1790772325 read on all 3 nodes: each keeps its own copy
-12:45:35 FAIL  node2 still reads the old price: 1500
+12:55:58 cluster:
+12:56:00   ok  node1 sees acme@172.30.0.3 acme@172.30.0.4
+12:56:00   ok  node2 sees acme@172.30.0.3 acme@172.30.0.5
+12:56:01   ok  node3 sees acme@172.30.0.4 acme@172.30.0.5
+12:56:01 broadcast:
+12:56:01   ok  acme@172.30.0.5 -> acme@172.30.0.4
+12:56:01 load balancer:
+12:56:01   ok  6 × GET /health through nginx: 200
+12:56:01   ok  GET / serves the Vue app (/app/assets/index-wy-XAueH.js: 200)
+12:56:04 jobs:
+12:56:04   ok  order 1: confirmation job completed, 1 attempt
+12:56:04 events:
+12:56:05   ok  order 2: both order.created subscribers completed, once each
+12:56:05   ok  webhook without the token: 401
+12:56:05 ordered queue:
+12:56:09   ok  10 orders: payment then refund, each ended refunded (nodes raced, order held)
+12:56:10   ok  order 14 (other order) paid while order 13 waited
+12:56:24   ok  order 13: the dead node's job was rescued, then its refund ran after it
+12:56:24 cache:
+12:56:26   ok  PROOF-1790772984 read on all 3 nodes: each keeps its own copy
+12:56:35 FAIL  node2 still reads the old price: 1500
