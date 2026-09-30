@@ -9,16 +9,28 @@ defmodule DandelionNew.MixProject do
       version: @version,
       elixir: "~> 1.18",
       start_permanent: false,
-      deps: [],
+      deps: deps(),
       description: "mix dandelion.new — an Elixir service laid out the way a Go service is",
       aliases: aliases(),
       package: [
         licenses: ["MIT"],
         files: ~w(lib priv mix.exs README.md LICENSE),
         links: %{"GitHub" => "https://github.com/danceinthefake/dandelion"}
+      ],
+      source_url: "https://github.com/danceinthefake/dandelion",
+      docs: [
+        main: "readme",
+        extras: ["README.md"],
+        source_ref: "v#{@version}",
+        # the generator lives in installer/ of the repository
+        source_url_pattern:
+          "https://github.com/danceinthefake/dandelion/blob/v#{@version}/installer/%{path}#L%{line}"
       ]
     ]
   end
+
+  # The generator has no runtime dependencies (the generated project has its own).
+  defp deps, do: [{:ex_doc, "~> 0.40.4", only: :dev, runtime: false}]
 
   def application, do: [extra_applications: [:eex, :crypto]]
 

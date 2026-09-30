@@ -21,4 +21,4 @@ and change. Orders in the example are priced from its `products` table.
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT — see [LICENSE](https://github.com/danceinthefake/dandelion/blob/main/LICENSE).
