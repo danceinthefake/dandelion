@@ -21,6 +21,8 @@ defmodule Platform.Application do
         Platform.Cluster,
         # ≈ Redis pub/sub: live broadcast, fire-and-forget (on this node, for now)
         {Phoenix.PubSub, name: Platform.Broadcast},
+        # ≈ Redis as a cache: in memory on each node, cleared across nodes
+        Platform.Cache,
         # ≈ Cloud Tasks + Cloud Scheduler: background jobs and cron
         {Oban, Platform.Queue.config()},
         # ≈ the web servers

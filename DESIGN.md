@@ -590,7 +590,14 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    once; 10 orders' payment+refund raced by three nodes all end `refunded`
    (it fails with the order check removed); a dead node's stuck job holds
    its order back until rescued while other orders go on.
-4. Cache: `products` table, Cachex with cross-node clearing.
+4. ✅ Cache (2026-09-30): `products` table, `Platform.Cache` (Cachex, 60 s
+   TTL; `fetch/2`, `delete/1` clears the key on every node through
+   `Platform.Broadcast`, after the commit), `Platform.Cache.Listener` (applies
+   other nodes' deletes; empties the cache on `:nodeup`), `GET` / `PUT
+   /api/products/:sku`. Proof: a price changed through one node is read
+   fresh on all three; a node that loses a node and gets it back starts with
+   an empty cache. Not done: orders still take `price_cents` from the
+   request, not from the products table.
 5. Frontend: Vue + blessing-ui, live feed + presence; `--no-frontend` in
    the generator.
 6. Docs: phrasebook pages (Redis pub/sub → `Platform.Broadcast`, Google

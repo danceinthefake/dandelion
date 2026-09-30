@@ -33,4 +33,17 @@ defmodule App.Shop.Fixtures do
     |> then(&Repo.get!(Order, &1.id))
     |> Repo.preload(:items)
   end
+
+  @doc "A product in the database, under a SKU no other test uses."
+  def product_fixture(attrs \\ %{}) do
+    Repo.insert!(
+      struct!(
+        App.Shop.Models.Product,
+        Map.merge(
+          %{sku: "SKU-#{System.unique_integer([:positive])}", name: "Tea", price_cents: 1500},
+          attrs
+        )
+      )
+    )
+  end
 end

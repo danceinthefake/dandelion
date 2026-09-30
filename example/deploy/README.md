@@ -21,6 +21,7 @@ http://localhost:8080. The proof script checks that:
 - a job left behind by a killed node is run again by another node;
 - each `order.created` subscriber runs once per order;
 - payment events for one order run in arrival order even when three nodes race for them, and a dead node's unfinished payment job holds back only its own order, until rescued;
+- a price changed through one node is read fresh from the cache on every node, and a node that joins again starts with an empty cache;
 - a killed node drops out, and rejoins when started again;
 - 15 seconds without Postgres crashes no node and splits nothing
   (`/health` says 503 meanwhile).

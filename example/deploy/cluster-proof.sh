@@ -8,6 +8,8 @@
 #   - each order.created subscriber runs once per order
 #   - payment events for one order run in arrival order across the nodes
 #   - a dead node's unfinished payment job holds back its order, until rescued
+#   - a price changed through one node is seen by the cache on every node
+#   - a node that joins again starts with an empty cache
 #   - a node killed without warning drops out; started again, it rejoins
 #   - the database going away crashes nothing and splits nothing
 set -eu
@@ -162,6 +164,34 @@ wait_status "$free" paid || fail "another order was held back by the dead node's
 ok "order $free (other order) paid while order $held waited"
 wait_status "$held" refunded || fail "order $held is $(order_status "$held"), want refunded"
 ok "order $held: the dead node's job was rescued, then its refund ran after it"
+
+echo "cache:"
+sku="PROOF-$(date +%s)"
+rpc node1 "Platform.Database.Repo.insert!(%App.Shop.Models.Product{sku: \"$sku\", name: \"Proof\", price_cents: 1500})" >/dev/null
+price_on() { rpc "$1" "{:ok, p} = App.Shop.Services.ProductService.get(\"$sku\"); IO.write(p.price_cents)"; }
+cached_on() { rpc "$1" "IO.write(elem(Cachex.exists?(Platform.Cache, {:product, \"$sku\"}), 1))"; }
+for n in node1 node2 node3; do
+  [ "$(price_on $n)" = 1500 ] || fail "$n doesn't read the price"
+  [ "$(cached_on $n)" = true ] || fail "$n didn't keep the product in its cache"
+done
+ok "$sku read on all 3 nodes: each keeps its own copy"
+code=$(curl -s -o /dev/null -w '%{http_code}' -X PUT "http://localhost:8080/api/products/$sku" \
+  -H 'content-type: application/json' -d '{"price_cents":1600}')
+[ "$code" = 200 ] || fail "PUT through nginx: $code"
+for n in node1 node2 node3; do
+  for _ in $(seq 1 10); do [ "$(cached_on $n)" = false ] && break; sleep 0.5; done
+  [ "$(price_on $n)" = 1600 ] || fail "$n still reads the old price: $(price_on $n)"
+done
+ok "price changed through nginx (some node): every node reads 1600"
+
+# A node that joins (again) may have missed deletes while apart: it empties
+# its cache. node1 drops node2; the cluster strategy connects them again.
+[ "$(price_on node1)" = 1600 ] && [ "$(cached_on node1)" = true ] || fail "node1 didn't keep the product"
+rpc node1 'Node.disconnect(hd(Node.list())); IO.write(:ok)' >/dev/null
+for _ in $(seq 1 30); do [ "$(cached_on node1)" = false ] && break; sleep 1; done
+[ "$(cached_on node1)" = false ] || fail "node1 kept its cache after a node joined again"
+wait_for node1 2 || fail "node1 didn't get its nodes back"
+ok "node1 lost a node and got it back: its cache was emptied"
 
 echo "node failure:"
 compose kill -s KILL node2 >/dev/null 2>&1
