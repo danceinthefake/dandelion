@@ -3,7 +3,8 @@ defmodule DandelionNew.GenerateTest do
 
   alias Mix.Tasks.Dandelion.New
 
-  defp files(app, module, example? \\ true), do: Map.new(New.generate(app, module, example?))
+  defp files(app, module, example? \\ true, frontend? \\ true),
+    do: Map.new(New.generate(app, module, example?, frontend?))
 
   defp secrets(files) do
     files
@@ -56,13 +57,46 @@ defmodule DandelionNew.GenerateTest do
   test "--no-example keeps the layout and drops the orders example" do
     files = files("my_app", "MyApp", false)
 
-    refute Enum.any?(Map.keys(files), &(&1 =~ ~r/order|app\/shop/))
+    refute Enum.any?(Map.keys(files), &(&1 =~ ~r/orders?[._]|app\/shop/))
     assert Map.has_key?(files, "lib/app/.gitkeep")
     assert Map.has_key?(files, "lib/platform/web/fallback_handler.ex")
     refute files["lib/platform/web/router.ex"] =~ "/orders"
     refute files["lib/platform/cron.ex"] =~ "ExpireUnpaidOrders"
     refute files["config/runtime.exs"] =~ "ExpireUnpaidOrders"
     refute files["README.md"] =~ "orders"
+  end
+
+  test "the frontend is part of the default project" do
+    files = files("my_app", "MyApp")
+
+    assert files["assets/package.json"] =~ "my_app-ui"
+    assert files["lib/platform/web/router.ex"] =~ "PageHandler"
+    assert files["Dockerfile"] =~ "AS ui"
+    assert files[".gitignore"] =~ "/priv/static/app/"
+    assert files["README.md"] =~ "assets/"
+  end
+
+  test "--no-frontend drops the Vue app and everything that builds or serves it" do
+    files = files("my_app", "MyApp", true, false)
+
+    refute Enum.any?(Map.keys(files), &String.starts_with?(&1, "assets/"))
+    refute Map.has_key?(files, "lib/platform/web/page_handler.ex")
+    refute files["lib/platform/web/router.ex"] =~ "PageHandler"
+    refute files["Dockerfile"] =~ ~r/AS ui|node:|@frontend/
+    refute files[".gitignore"] =~ "Vue"
+    refute files["README.md"] =~ "Node"
+    # the API, the socket and the example stay
+    assert files["lib/platform/web/router.ex"] =~ "/orders"
+    assert files["lib/platform/web/user_socket.ex"] =~ "OrderFeedChannel"
+  end
+
+  test "--no-example also drops the frontend and the order channel" do
+    files = files("my_app", "MyApp", false)
+
+    refute Enum.any?(Map.keys(files), &String.starts_with?(&1, "assets/"))
+    refute files["lib/platform/web/router.ex"] =~ "PageHandler"
+    refute files["lib/platform/web/user_socket.ex"] =~ "OrderFeedChannel"
+    assert files["lib/platform/web/user_socket.ex"] =~ "def connect"
   end
 
   describe "mix dandelion.new" do

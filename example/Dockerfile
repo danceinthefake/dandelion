@@ -24,6 +24,15 @@ ARG DEBIAN_VERSION=trixie-20260918-slim
 ARG BUILDER_IMAGE="docker.io/hexpm/elixir:${ELIXIR_VERSION}-erlang-${OTP_VERSION}-debian-${DEBIAN_VERSION}"
 ARG RUNNER_IMAGE="docker.io/debian:${DEBIAN_VERSION}"
 
+# @frontend-start
+FROM docker.io/library/node:24-bookworm-slim AS ui
+WORKDIR /app/assets
+COPY assets/package.json assets/package-lock.json ./
+RUN npm ci
+COPY assets/ ./
+RUN npm run build
+# @frontend-end
+
 FROM ${BUILDER_IMAGE} AS builder
 
 # install build dependencies
@@ -53,6 +62,9 @@ COPY config/config.exs config/${MIX_ENV}.exs config/
 RUN mix deps.compile
 
 COPY priv priv
+# @frontend-start
+COPY --from=ui /app/priv/static/app priv/static/app
+# @frontend-end
 
 COPY lib lib
 

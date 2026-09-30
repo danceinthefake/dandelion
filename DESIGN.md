@@ -148,8 +148,8 @@ value without making the rest of the code unfamiliar.
 - Ecto + **Postgres** (what Go services in Indonesian companies mostly use),
   `compose.yaml` for the local database.
 - `mise.toml` pinning Erlang / Elixir.
-- No frontend in the template (a Go developer's service is usually an API);
-  a Vue + blessing-ui add-on comes later.
+- A Vue + blessing-ui frontend (§10.6) in `assets/`, left out with
+  `--no-frontend` — the API and WebSocket work without it.
 
 ## 4. How people get it
 
@@ -598,8 +598,20 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    fresh on all three; a node that loses a node and gets it back starts with
    an empty cache. Not done: orders still take `price_cents` from the
    request, not from the products table.
-5. Frontend: Vue + blessing-ui, live feed + presence; `--no-frontend` in
-   the generator.
+5. ✅ Frontend (2026-09-30): `assets/` (Vue 3 + blessing-ui from npm, Vite,
+   npm) built into `priv/static/app`, served at `/` by
+   `Platform.Web.PageHandler`; the Dockerfile gets a Node stage. Page: new
+   order form, the live order feed and who's online over
+   `Platform.Web.UserSocket` → `App.Shop.Channels.OrderFeedChannel` with
+   `Platform.Realtime.Presence`; order detail with cancel (`#/orders/42`).
+   An order now broadcasts the order itself (`{:order_created, order}`).
+   Generator: `--no-frontend` drops `assets/`, the page, the route and the
+   Dockerfile stage; `--no-example` drops the frontend and the order channel
+   too (generated projects checked: with everything, `--no-frontend`,
+   `--no-example`). Checked in a real browser (Playwright) against the
+   3-node cluster: two browsers, an order made in one appears in the other,
+   presence counts both and drops one on close. Migrations split so
+   `--no-example` has none that touch `orders`.
 6. Docs: phrasebook pages (Redis pub/sub → `Platform.Broadcast`, Google
    Pub/Sub / Kafka topic → `Platform.PubSub` and the one-transaction
    publish, Redis cache → Cachex, Cloud Tasks / asynq → Oban, SQS FIFO →

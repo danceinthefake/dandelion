@@ -5,12 +5,15 @@ defmodule Mix.Tasks.Dandelion.New do
   repos → models, Postgres, tests, a background job and a release
   Dockerfile. See https://github.com/danceinthefake/dandelion.
 
-      mix dandelion.new PATH [--app APP] [--module MODULE] [--no-example]
+      mix dandelion.new PATH [--app APP] [--module MODULE] [--no-example] [--no-frontend]
 
     * `--app` — OTP app name (default: the directory name), e.g. `my_app`
     * `--module` — the project module (default: from the app name), e.g.
       `MyApp` for `MyApp.MixProject`; other modules follow the folders
-    * `--no-example` — leave out the `orders` example; keep the layout
+    * `--no-example` — leave out the `orders` example (and with it the
+      Vue frontend, which is the example's UI); keep the layout
+    * `--no-frontend` — leave out the Vue + blessing-ui frontend (`assets/`),
+      so no Node is needed; the API and the WebSocket stay
 
   The generated project is a copy of dandelion's tested example service with
   its names changed and fresh secrets.
@@ -19,11 +22,21 @@ defmodule Mix.Tasks.Dandelion.New do
 
   alias DandelionNew.Templates
 
-  @switches [app: :string, module: :string, example: :boolean]
+  @switches [app: :string, module: :string, example: :boolean, frontend: :boolean]
 
   # The example domain (`shop`): left out with --no-example.
   @example_prefixes ~w(lib/app/shop/ test/app/shop/ test/support/app/shop/)
-  @example_files ~w(priv/repo/migrations/20260927000001_create_orders.exs)
+  @example_files ~w(
+    priv/repo/migrations/20260927000001_create_orders.exs
+    priv/repo/migrations/20260930000001_refunds_and_customer_stats.exs
+    priv/repo/migrations/20260930000002_create_products.exs
+    test/platform/pubsub_test.exs
+    test/platform/queue/ordered_test.exs
+  )
+
+  # The Vue app: left out with --no-frontend (and --no-example).
+  @frontend_prefixes ~w(assets/)
+  @frontend_files ~w(lib/platform/web/page_handler.ex)
 
   @impl true
   def run(argv) do
@@ -35,17 +48,20 @@ defmodule Mix.Tasks.Dandelion.New do
           path
 
         _ ->
-          Mix.raise("Usage: mix dandelion.new PATH [--app APP] [--module MODULE] [--no-example]")
+          Mix.raise(
+            "Usage: mix dandelion.new PATH [--app APP] [--module MODULE] [--no-example] [--no-frontend]"
+          )
       end
 
     app = opts[:app] || path |> Path.expand() |> Path.basename()
     module = opts[:module] || Macro.camelize(app)
     example? = Keyword.get(opts, :example, true)
+    frontend? = example? and Keyword.get(opts, :frontend, true)
 
     check_names!(app, module)
     check_target!(path)
 
-    files = generate(app, module, example?)
+    files = generate(app, module, example?, frontend?)
 
     for {file, contents} <- files do
       target = Path.join(path, file)
@@ -65,7 +81,7 @@ defmodule Mix.Tasks.Dandelion.New do
         docker compose up -d      # Postgres on localhost:55432
         mix setup                 # dependencies + database
         mix test
-        mix phx.server            # http://localhost:4000
+        #{if frontend?, do: "(cd assets && npm install && npm run build)   # the Vue app, needs Node\n        ", else: ""}mix phx.server            # http://localhost:4000
 
     New to Elixir from Go? Start with the phrasebook:
     https://github.com/danceinthefake/dandelion/tree/main/phrasebook
@@ -74,29 +90,34 @@ defmodule Mix.Tasks.Dandelion.New do
 
   @doc false
   # [{path, contents}] for a new project. Pure — used by the tests.
-  def generate(app, module, example? \\ true) do
+  def generate(app, module, example? \\ true, frontend? \\ true) do
+    frontend? = example? and frontend?
     rename = &rename(&1, app, module)
     secrets = %{}
 
     templates =
-      if example?,
-        do: Templates.all(),
-        else: Enum.reject(Templates.all(), fn {file, _} -> example_file?(file) end)
+      Enum.reject(Templates.all(), fn {file, _} ->
+        (not example? and example_file?(file)) or (not frontend? and frontend_file?(file))
+      end)
 
     {files, _} =
       Enum.map_reduce(templates, secrets, fn {file, contents}, secrets ->
         contents = if example?, do: contents, else: without_example(file, contents)
+        contents = if frontend?, do: contents, else: without_frontend(file, contents)
         {contents, secrets} = fresh_secrets(contents, secrets)
         {{rename.(file), format(file, rename.(contents))}, secrets}
       end)
 
     keep = if example?, do: [], else: [{"lib/app/.gitkeep", ""}]
 
-    files ++ keep ++ [{"README.md", readme(app, example?)}]
+    files ++ keep ++ [{"README.md", readme(app, example?, frontend?)}]
   end
 
   defp example_file?(file),
     do: file in @example_files or String.starts_with?(file, @example_prefixes)
+
+  defp frontend_file?(file),
+    do: file in @frontend_files or String.starts_with?(file, @frontend_prefixes)
 
   # The example's app is `acme` (`Acme.MixProject`); module names elsewhere
   # follow the folders (`Platform.*`, `App.Shop.*`) and don't change. One
@@ -151,6 +172,14 @@ defmodule Mix.Tasks.Dandelion.New do
     )
   end
 
+  defp without_example("lib/platform/web/user_socket.ex", contents) do
+    replace!(
+      contents,
+      ~r/  # domain: shop\n  channel "orders:\*", [\w.]+\n/,
+      "  # domain: things\n  # channel \"things:*\", App.Things.Channels.ThingChannel\n"
+    )
+  end
+
   defp without_example("lib/platform/cron.ex", contents) do
     replace!(
       contents,
@@ -160,14 +189,48 @@ defmodule Mix.Tasks.Dandelion.New do
   end
 
   defp without_example("config/runtime.exs", contents) do
-    replace!(contents, ~r/# ≈ envconfig.*?UNPAID_ORDER_MAX_AGE_SECONDS", "3600"\)\)\n\n/s, "")
+    contents
+    |> replace!(~r/# ≈ envconfig.*?UNPAID_ORDER_MAX_AGE_SECONDS", "3600"\)\)\n\n/s, "")
+    |> replace!(
+      ~r/  config :acme,\n         :payment_webhook_token,\n.*?           """\)\n\n/s,
+      ""
+    )
+  end
+
+  defp without_example("config/dev.exs", contents),
+    do: replace!(contents, ~r/\n# The payment provider's webhook token.*?"dev-token"\n/s, "")
+
+  defp without_example("config/test.exs", contents),
+    do: replace!(contents, ~r/\nconfig :acme, :payment_webhook_token, "test-token"\n/, "")
+
+  defp without_example("deploy/compose.cluster.yaml", contents),
+    do: replace!(contents, ~r/    PAYMENT_WEBHOOK_TOKEN: [\w-]+\n/, "")
+
+  defp without_example("lib/platform/pubsub.ex", contents) do
+    replace!(
+      contents,
+      ~r/    %\{\n      "order.created" => \[.*?\]\n    \}\n/s,
+      "    %{\n      # \"thing.created\" => [App.Things.Workers.SendWelcome]\n    }\n"
+    )
   end
 
   defp without_example(_file, contents), do: contents
 
-  defp replace!(contents, regex, replacement) do
+  # --no-frontend: no shell page, no Node stage in the Dockerfile.
+  defp without_frontend("lib/platform/web/router.ex", contents),
+    do: replace!(contents, ~r/  get "\/", Platform.Web.PageHandler, :index\n/, "")
+
+  defp without_frontend("Dockerfile", contents),
+    do: replace!(contents, ~r/# @frontend-start\n.*?# @frontend-end\n\n?/s, "", global: true)
+
+  defp without_frontend(".gitignore", contents),
+    do: replace!(contents, ~r/\n# Vue app\n.*?\/priv\/static\/app\/\n/s, "")
+
+  defp without_frontend(_file, contents), do: contents
+
+  defp replace!(contents, regex, replacement, opts \\ [global: false]) do
     if Regex.match?(regex, contents),
-      do: Regex.replace(regex, contents, replacement, global: false),
+      do: Regex.replace(regex, contents, replacement, opts),
       else:
         Mix.raise(
           "dandelion.new: the template changed; can't remove the example from it (#{inspect(regex)})"
@@ -190,7 +253,7 @@ defmodule Mix.Tasks.Dandelion.New do
       do: Mix.raise("#{path} already exists and isn't empty")
   end
 
-  defp readme(app, example?) do
+  defp readme(app, example?, frontend?) do
     """
     # #{app}
 
@@ -212,7 +275,7 @@ defmodule Mix.Tasks.Dandelion.New do
 
     Module names follow the folders: `lib/app/shop/services/order_service.ex`
     is `App.Shop.Services.OrderService`.
-    #{if example?, do: "\nThe `shop` domain (`lib/app/shop/`: orders, their handlers, services, repos and a worker) shows every layer; delete it when you don't need it.\n", else: ""}
+    #{if frontend?, do: "\nThe Vue + blessing-ui frontend is in `assets/` (built into `priv/static/app`, served at `/`): a live order feed, who's online, new order, order detail. It needs Node.\n", else: ""}#{if example?, do: "\nThe `shop` domain (`lib/app/shop/`: orders, their handlers, services, repos and a worker) shows every layer; delete it when you don't need it.\n", else: ""}
     ## Run it
 
     ```sh
@@ -223,7 +286,7 @@ defmodule Mix.Tasks.Dandelion.New do
     mix credo --strict
     mix phx.server            # http://localhost:4000
     ```
-
+    #{if frontend?, do: "\nThe frontend: `cd assets && npm install && npm run build` once, then `mix phx.server`; or `npm run dev` (Vite on :5173, forwarding `/api` and `/socket` to Phoenix).\n", else: ""}
     ## Release
 
     ```sh

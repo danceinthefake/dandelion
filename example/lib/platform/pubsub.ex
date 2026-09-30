@@ -39,8 +39,12 @@ defmodule Platform.PubSub do
   def publish(topic, payload) do
     args = %{"topic" => topic, "payload" => payload}
 
-    subscriptions()
-    |> Map.fetch!(topic)
+    # a topic nobody listed is a typo, not "no subscribers"
+    workers =
+      subscriptions()[topic] ||
+        raise ArgumentError, "no subscriptions for topic #{inspect(topic)} (Platform.PubSub)"
+
+    workers
     |> Enum.map(& &1.new(args))
     |> Oban.insert_all()
   end

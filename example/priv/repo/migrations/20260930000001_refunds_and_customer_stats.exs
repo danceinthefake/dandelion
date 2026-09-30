@@ -1,4 +1,4 @@
-defmodule Platform.Database.Repo.Migrations.Events do
+defmodule Platform.Database.Repo.Migrations.RefundsAndCustomerStats do
   use Ecto.Migration
 
   def up do
@@ -15,18 +15,9 @@ defmodule Platform.Database.Repo.Migrations.Events do
       add :orders_count, :integer, null: false
       timestamps(type: :utc_datetime_usec, inserted_at: false)
     end
-
-    # Platform.Queue.Ordered asks "is an earlier job of this key unfinished?"
-    # on every run; this keeps that cheap.
-    create index(:oban_jobs, ["(meta->>'ordered_key')", :id],
-             where:
-               "state IN ('available', 'scheduled', 'executing', 'retryable') AND meta ? 'ordered_key'",
-             name: :oban_jobs_ordered_key_index
-           )
   end
 
   def down do
-    drop index(:oban_jobs, [], name: :oban_jobs_ordered_key_index)
     drop table(:customer_stats)
     drop constraint(:orders, :status_is_known)
 

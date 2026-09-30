@@ -44,7 +44,7 @@ defmodule App.Shop.Services.OrderService do
       end)
 
     with {:ok, order} <- result do
-      Phoenix.PubSub.broadcast(Platform.Broadcast, "orders", {:order_created, order.id})
+      Phoenix.PubSub.broadcast(Platform.Broadcast, "orders", {:order_created, order})
       {:ok, order}
     end
   end

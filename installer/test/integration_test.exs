@@ -8,7 +8,11 @@ defmodule DandelionNew.IntegrationTest do
   @moduletag timeout: 600_000
   @moduletag :tmp_dir
 
-  for {name, flags} <- [{"with the example", []}, {"without the example", ["--no-example"]}] do
+  for {name, flags} <- [
+        {"with the example", []},
+        {"without the frontend", ["--no-frontend"]},
+        {"without the example", ["--no-example"]}
+      ] do
     test "a generated project compiles cleanly, passes its tests and credo (#{name})", %{
       tmp_dir: dir
     } do

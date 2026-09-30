@@ -6,7 +6,8 @@ background job and a release Dockerfile.
 
 ```sh
 mix archive.install hex dandelion_new
-mix dandelion.new my_app            # --no-example to leave out the orders example
+mix dandelion.new my_app            # --no-example: leave out the orders example
+                                    # --no-frontend: leave out the Vue app (no Node)
 ```
 
 - Project, example service and design: https://github.com/danceinthefake/dandelion

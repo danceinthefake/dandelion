@@ -38,7 +38,7 @@ defmodule Platform.PubSubTest do
   test "an order is broadcast live after it is saved" do
     Phoenix.PubSub.subscribe(Platform.Broadcast, "orders")
     {:ok, order} = OrderService.create(order_params())
-    assert_receive {:order_created, id} when id == order.id
+    assert_receive {:order_created, %{id: id}} when id == order.id
   end
 
   test "every topic's subscribers are Oban workers" do

@@ -2,7 +2,7 @@
 # Checks what the 3-node cluster promises (compose.cluster.yaml must be up):
 #   - every node sees the other two
 #   - a broadcast on one node reaches a subscriber on another
-#   - requests through the load balancer are answered
+#   - requests through the load balancer are answered, and / serves the Vue app
 #   - a queued job runs once, on one node
 #   - a job left behind by a killed node is run again by another node
 #   - each order.created subscriber runs once per order
@@ -64,6 +64,11 @@ for _ in 1 2 3 4 5 6; do
   [ "$code" = 200 ] || fail "GET /health through nginx: $code"
 done
 ok "6 × GET /health through nginx: 200"
+# the Vue shell (built into the image) and one of its files
+asset=$(curl -s http://localhost:8080/ | sed -n 's/.*src="\(\/app\/assets\/[^"]*\.js\)".*/\1/p')
+[ -n "$asset" ] && [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:8080$asset")" = 200 ] ||
+  fail "GET / through nginx doesn't serve the Vue app"
+ok "GET / serves the Vue app ($asset: 200)"
 
 echo "jobs:"
 # Creating an order queues its confirmation; one node runs it, once.

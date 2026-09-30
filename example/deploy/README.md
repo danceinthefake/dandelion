@@ -15,6 +15,7 @@ Postgres, a migration run, three nodes and nginx as the load balancer on
 http://localhost:8080. The proof script checks that:
 
 - every node sees the other two;
+- `/` serves the Vue app through the load balancer;
 - a broadcast (`Platform.Broadcast`) on one node reaches another;
 - requests through the load balancer are answered, also with a node killed;
 - a new order's confirmation job runs once, on one node;

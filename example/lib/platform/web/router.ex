@@ -9,6 +9,7 @@ defmodule Platform.Web.Router do
     plug :accepts, ["json"]
   end
 
+  get "/", Platform.Web.PageHandler, :index
   get "/health", Platform.Web.HealthHandler, :show
 
   # domain: shop

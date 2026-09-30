@@ -1,6 +1,10 @@
 defmodule Platform.Web.Endpoint do
   use Phoenix.Endpoint, otp_app: :acme
 
+  socket "/socket", Platform.Web.UserSocket,
+    websocket: true,
+    longpoll: false
+
   # Serve at "/" the static files from "priv/static" directory.
   #
   # When code reloading is disabled (e.g., in production),
