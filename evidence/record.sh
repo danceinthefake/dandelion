@@ -90,8 +90,8 @@ tests() {
     echo "$header"; echo "# library"; (cd "$root" && mix test 2>&1 | tail -4)
     echo; echo "# example"; (cd "$example" && mix test 2>&1 | tail -4)
     echo; echo "# generator"; (cd "$root/installer" && mix test 2>&1 | tail -4)
-    echo; echo "# generated projects (integration; Docker, network, ~10 min)"
-    (cd "$root/installer" && mix test test/integration_test.exs --include integration --trace 2>&1 | grep -vE "warning:|Compiling|Generated|==>|\* (Getting|Resolving)" | python3 "$here/lib/clean_trace.py")
+    echo; echo "# generated projects (integration; Docker, network, ~10 min; dandelion from hex: $(curl -s https://hex.pm/api/packages/dandelion | python3 -c 'import sys,json; print(json.load(sys.stdin)["releases"][0]["version"])'))"
+    (cd "$root/installer" && DANDELION_FROM_HEX=1 mix test test/integration_test.exs --include integration --trace 2>&1 | awk '/Running ExUnit/ { started = 1 } started' | python3 "$here/lib/clean_trace.py")   # everything from the first test on, so a failure keeps its full output
   } > "$here/08-generated-projects/run.log"
 }
 

@@ -17,8 +17,12 @@ with everything, without the frontend, and without the example.
 | the generated cluster proof passes — with everything | builds the Docker image, starts 3 nodes, runs the project's own `deploy/cluster-proof.sh` |
 | … without the example | the same, with the platform-only checks |
 
-**Not shown:** projects generated from the *published* packages (until they
-are on hex, the tests point the generated project at the library in this
-checkout).
+**Which library:** `record.sh tests` builds the generated projects against the
+**published** `dandelion` package from hex (`DANDELION_FROM_HEX=1`); without
+that variable the tests point them at the library in this checkout, which is
+what development uses.
+
+**Not shown:** the published `dandelion_new` archive itself — the tests run the
+generator's code from this repository.
 
 **Re-run:** `evidence/record.sh tests` (about ten minutes)

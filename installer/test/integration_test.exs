@@ -62,11 +62,16 @@ defmodule DandelionNew.IntegrationTest do
     end
   end
 
-  # A generated project takes dandelion from hex; until it's published (and
-  # for testing this checkout), point it at the library in this repo instead.
+  # A generated project takes dandelion from hex. By default the tests point it
+  # at the library in this repo instead (testing a change before it is
+  # released); DANDELION_FROM_HEX=1 leaves the published dependency alone.
   # The Docker build gets the same copy: vendor/dandelion.
   @library Path.expand("../..", __DIR__)
   defp use_local_dandelion(path) do
+    if System.get_env("DANDELION_FROM_HEX"), do: :ok, else: vendor_local_dandelion(path)
+  end
+
+  defp vendor_local_dandelion(path) do
     vendor = Path.join(path, "vendor/dandelion")
     File.mkdir_p!(vendor)
     File.cp!(Path.join(@library, "mix.exs"), Path.join(vendor, "mix.exs"))

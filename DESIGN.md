@@ -239,8 +239,8 @@ every Go library's equivalent.
    compiles with warnings as errors, passes `mix format --check-formatted`,
    its tests and `credo --strict`; the built archive installs and generates
    from outside the repo.
-4. **Release** (hex `dandelion_new`) — pending, needs the maintainer's hex
-   account. (The Bahasa Indonesia translation done here was removed
+4. ✅ **Release** — `dandelion` and `dandelion_new` 0.1.0 are on hex (the
+   library and the generator, §11). (The Bahasa Indonesia translation done here was removed
    2026-09-27: it read unnaturally.)
 5. ✅ **Review fixes** (done 2026-09-27) — unpaid-order expiry is one
    `UPDATE … WHERE status = 'pending'` (a list-then-cancel could cancel an
@@ -690,7 +690,7 @@ hex.
 2. ✅ `Dandelion.Cache` (2026-09-30): `{Dandelion.Cache, pubsub: Platform.Broadcast}`; the PubSub name is an option, kept in a `:persistent_term` for `delete/1`; the example's cachex dependency is gone (it comes with the library); proof passes. *Changed the same day, found by recording the evidence:* `fetch/2` first used `Cachex.fetch`, whose loader runs in another process; a caller already inside a transaction then made that process wait for a second connection (a 1 s failure in tests, pool deadlock risk in production) and it couldn't see the caller's uncommitted writes. `fetch/2` now loads in the caller's process, so concurrent misses each load (no stampede protection; documented, with `Cachex.fetch/3` as the way out).
 3. ✅ `Dandelion.Queue.Ordered` and `Dandelion.Migration` (2026-09-30): the ordered queue asks Oban's repo (`Oban.Repo` with `Oban.config(Oban)`), so it needs no repo option and works with the default Oban instance; the index migration is `Dandelion.Migration.up/0`, called from the project's migration like `Oban.Migration`. The library now has a test repo (Postgres on :55432, `priv/test_repo`) and tests the queue with its own worker; the example's ordered-queue tests moved there.
 4. ✅ `Dandelion.PubSub` and `Dandelion.Queue.config/1` (2026-09-30): `Dandelion.PubSub.publish(subscriptions, topic, payload)` takes the topic → workers map from the app, so the list stays in the project (`Platform.PubSub`, a 15-line module) and the library only holds the mechanism; a topic not in the map raises. `Dandelion.Queue.config(otp_app:, repo:, crontab:)` holds the queue defaults (`default`, `ordered`), the lifeline and the pruner, and merges `config :app, Oban`; `Platform.Queue.config/0` is one call to it. Both have library tests.
-5. Docs, then publish. ✅ Docs (2026-09-30): the root README is now the library's hex page (what the six modules are and replace, one wiring example, the rules, links to the rest on GitHub), CHANGELOG, ex_doc (`mix docs`, modules grouped, no warnings), `mix hex.build` checked. Open: publish `dandelion` first, then `dandelion_new` (needs the maintainer's hex account); phrasebook links into `../lib/` stay valid on GitHub.
+5. Docs, then publish. ✅ Both done. ✅ Docs (2026-09-30): the root README is now the library's hex page (what the six modules are and replace, one wiring example, the rules, links to the rest on GitHub), CHANGELOG, ex_doc (`mix docs`, modules grouped, no warnings), `mix hex.build` checked. Published: `dandelion` 0.1.0 and `dandelion_new` 0.1.0 (docs on hexdocs). The integration tests can build generated projects against the published library (`DANDELION_FROM_HEX=1`, what `evidence/record.sh tests` does).
 
 ### 10.11 Orders are priced from the products table
 

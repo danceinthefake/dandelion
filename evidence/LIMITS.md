@@ -29,8 +29,11 @@ Said plainly, so nobody has to find out the hard way.
   happened. If you need the latter, send a sequence number.
 - **One application.** The claims are checked on the example service and on
   projects generated from it, not on arbitrary code.
-- **Packages not yet on hex.** Generated projects are tested against the
-  library in this checkout, not the published release.
+- **The generator is tested from this checkout, the library from hex.** The
+  integration tests run the generator's code in this repository and build the
+  generated projects against the **published** `dandelion` package. The
+  published `dandelion_new` archive itself is not exercised by them (install it
+  and run `mix dandelion.new` for that).
 
 If you find a way to break a claim that isn't listed here, that is a bug: open
 an issue.

@@ -1,12 +1,12 @@
-# commit: 77e0d24
-# recorded: 2026-09-30T13:13Z
+# commit: 0419fb9 (+ uncommitted changes)
+# recorded: 2026-09-30T16:13Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # library
-.......................
-Finished in 0.2 seconds (0.1s async, 0.1s sync)
+..........................
+Finished in 1.9 seconds (1.8s async, 0.1s sync)
 
-Result: 23 passed
+Result: 26 passed
 
 # example
 .....................................................
@@ -16,23 +16,23 @@ Result: 53 passed
 
 # generator
 ...........
-Finished in 0.3 seconds (0.3s async, 0.00s sync)
+Finished in 0.4 seconds (0.4s async, 0.00s sync)
 
 Result: 11 passed, 6 excluded
 
-# generated projects (integration; Docker, network, ~10 min)
-Running ExUnit with seed: 825983, max_cases: 1
+# generated projects (integration; Docker, network, ~10 min; dandelion from hex: 0.1.0)
+Running ExUnit with seed: 947341, max_cases: 1
 Including tags: [:integration]
 
 
 DandelionNew.IntegrationTest [test/integration_test.exs]
-  test the generated frontend builds (1.4 s)
-  test a generated project compiles cleanly, passes its tests and credo (without the example) (80.7 s)
-  test a generated project compiles cleanly, passes its tests and credo (with the example) (52.9 s)
-  test a generated project's cluster proof passes (with everything) (129.2 s)
-  test a generated project's cluster proof passes (without the example) (121.3 s)
-  test a generated project compiles cleanly, passes its tests and credo (without the frontend) (38.9 s)
+  test a generated project compiles cleanly, passes its tests and credo (without the frontend) (65.2 s)
+  test a generated project's cluster proof passes (with everything) (141.9 s)
+  test a generated project compiles cleanly, passes its tests and credo (without the example) (41.4 s)
+  test the generated frontend builds (1.8 s)
+  test a generated project's cluster proof passes (without the example) (124.7 s)
+  test a generated project compiles cleanly, passes its tests and credo (with the example) (41.0 s)
 
-Finished in 427.5 seconds (0.00s async, 427.5s sync)
+Finished in 418.4 seconds (0.00s async, 418.4s sync)
 
 Result: 6 passed
