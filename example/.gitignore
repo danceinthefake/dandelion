@@ -29,3 +29,4 @@ acme-*.tar
 # Vue app
 /assets/node_modules/
 /priv/static/app/
+/vendor/

@@ -11,7 +11,6 @@ lib/
     application.ex          what starts, in order (≈ main.go)
     database/repo.ex        ≈ the *sql.DB pool
     web/                    ≈ the web server: endpoint, router (every route), health, errors
-    cluster.ex, cluster/    ≈ service discovery: nodes find each other through Postgres
     queue.ex                ≈ Cloud Tasks: background jobs (Oban)
     cron.ex                 ≈ Cloud Scheduler: recurring jobs, once per cluster
     pubsub.ex, queue/       ≈ Google Pub/Sub topics; the ordered queue per key

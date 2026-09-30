@@ -9,6 +9,9 @@ system. Every seed carries the whole plant. Only the load balancer, Postgres
 and file storage stay outside. ([DESIGN.md §10](DESIGN.md); a proof script
 checks the cluster claims on three local nodes.)
 
+- [`lib/`](lib) — the `dandelion` library (hex `dandelion`, being extracted:
+  clustering first): the cloud pieces that are the same in every project.
+  See [DESIGN.md §11](DESIGN.md).
 - [`example/`](example) — `acme`: `lib/platform/` (what every app runs on:
   cluster, queue, cron, durable and live pub/sub, cache, presence) and
   `lib/app/shop/` (one domain, laid out as handlers → services → repos →

@@ -219,7 +219,7 @@ dandelion defines that layer, and fumehood adopts it for the audit log later.
 
 ## 7. Not goals
 
-A new framework or runtime library · replacing Phoenix's generators for
+A new framework · a wrapper API over Oban, Cachex or Phoenix (§11 keeps the library thin) · replacing Phoenix's generators for
 people who already know Phoenix · LiveView or HTML front ends · covering
 every Go library's equivalent.
 
@@ -267,7 +267,7 @@ Decided 2026-09-27:
 7. ✅ Scope — a whole cloud in one app: every cloud piece but the load
    balancer, Postgres and object storage runs inside the release (§10).
 8. ✅ Name — stays *dandelion*: every seed carries the whole plant.
-9. ✅ Libraries used directly, no dandelion runtime library (§10.2).
+9. ✅ Libraries used directly, no `Cloud.*` wrappers (§10.2). *Changed 2026-09-30:* the parts that are the same in every project become the `dandelion` library (§11).
 10. ✅ Postgres decides; memory only makes things faster (§10.3).
 11. ✅ Every node runs everything; no roles.
 12. ✅ Discovery — through Postgres, with our own libcluster strategy
@@ -322,7 +322,7 @@ Only three things stay outside: the **load balancer**, **Postgres** and
 | Leader / "only one does it" | Redis lock, etcd | Oban's leader (the `oban_peers` table) and unique jobs | yes | yes (Postgres) |
 | WebSockets | Pusher, socket server + Redis | Phoenix Channels + Presence | yes | reconnects |
 | Sessions | Redis | signed cookies (no store) | — | — |
-| Service discovery | Consul, k8s DNS | libcluster + `Platform.Cluster.Postgres` | — | — |
+| Service discovery | Consul, k8s DNS | libcluster + `Dandelion.Cluster.Postgres` | — | — |
 | Service-to-service calls | HTTP / gRPC + mesh | direct calls between nodes | yes | — |
 | Metrics | Prometheus exporters | PromEx (`/metrics`) | per node | — |
 | Database | Cloud SQL | **outside**: Postgres | — | — |
@@ -333,9 +333,11 @@ Each piece gets its folder in `lib/platform/` — `cluster/`, `queue/`,
 the jobs and subscribers themselves live in their domain's `workers/`
 (§3.1).
 
-The generated project uses these libraries **directly** — no dandelion
-runtime library, no `Cloud.*` wrappers. The phrasebook maps each one to the
-product it replaces ("where is my Redis?").
+The generated project uses these libraries **directly** — no `Cloud.*`
+wrappers. The pieces that are identical in every project (clustering, the
+cache's cross-node clearing, the ordered queue, durable pub/sub) live in the
+`dandelion` library (§11), thin over those libraries. The phrasebook maps each
+one to the product it replaces ("where is my Redis?").
 
 ### 10.3 Rules
 
@@ -366,8 +368,8 @@ product it replaces ("where is my Redis?").
 
 ### 10.4 Finding each other
 
-`libcluster` with our own strategy, `Platform.Cluster.Postgres`
-(`lib/platform/cluster/postgres.ex`, ~60 lines): each node sends its name
+`libcluster` with our own strategy, `Dandelion.Cluster.Postgres`
+(`lib/dandelion/cluster/postgres.ex` in the library, ~60 lines): each node sends its name
 with `pg_notify` every 5 s and `LISTEN`s on the channel, connecting to the
 names it hears. Nothing extra to run — Postgres is already there.
 
@@ -392,7 +394,7 @@ cookie, visible to anyone who can see the database's queries.
 - Only when the node runs distributed (a release, `iex --name`);
   `mix phx.server` and tests stay single.
 - Alternatives, if Postgres discovery doesn't fit: DNS (`dns_cluster`) or
-  a static host list — one line in `Platform.Cluster.topologies/0`.
+  a static host list — one line in `Dandelion.Cluster.topologies/1`.
 
 Release config (`rel/env.sh.eex`, `rel/vm.args.eex`): the node is
 `<app>@$NODE_IP` (or the container's IP); `RELEASE_COOKIE` must come from
@@ -570,7 +572,7 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
 
 ### 10.10 Steps
 
-1. ✅ Clustering (2026-09-27): libcluster + `Platform.Cluster.Postgres`,
+1. ✅ Clustering (2026-09-27; moved into the library 2026-09-30): libcluster + `Dandelion.Cluster.Postgres`,
    release node / cookie / port config, `deploy/compose.cluster.yaml` with
    3 nodes + nginx, `deploy/cluster-proof.sh` (nodes connect, a broadcast
    crosses nodes, a killed node drops out and rejoins, a database outage
@@ -635,3 +637,57 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    builds; the generated cluster proof passes on three containers, with
    everything and with `--no-example`. Fixed on the way: the generated
    `deploy/cluster-proof.sh` wasn't executable.
+
+## 11. The library
+
+Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:
+
+| Package | Is | Used as |
+|---|---|---|
+| `dandelion` | the library: the cloud pieces that are the same in every project | `{:dandelion, "~> 0.1"}` in a project's deps |
+| `dandelion_new` | the generator | `mix archive.install hex dandelion_new`, then `mix dandelion.new` |
+
+A generated project depends on the library and keeps, in its own repo, what is
+shaped by the app: router, endpoint, sockets, Presence (it needs the app's
+`otp_app`), the cron schedule, the subscription list, `application.ex`, the
+repo, and every `lib/app/<domain>/`. The library is thin over Oban, Cachex,
+Phoenix.PubSub and libcluster — not a new API on top of them.
+
+Why: a fix (the libcluster crash-loop was one) reaches every project through
+`mix deps.update dandelion`; today each project would carry its own copy. The
+cost is that these modules are read in `deps/`, not in `lib/` — so they stay
+small and documented, and the phrasebook points at them.
+
+| Was (`lib/platform/…`) | Library module | The project passes |
+|---|---|---|
+| `cluster.ex`, `cluster/postgres.ex` | `Dandelion.Cluster` | `otp_app:`, `repo:`; `config :app, Dandelion.Cluster, database_url:` |
+| `cache.ex`, `cache/listener.ex` | `Dandelion.Cache` | — |
+| `queue/ordered.ex` | `Dandelion.Queue.Ordered` | — |
+| `pubsub.ex` | `Dandelion.PubSub` | the topic → subscribers list (config) |
+| `queue.ex` | `Dandelion.Queue.config/1` | Oban overrides, cron schedule |
+| the ordered-queue index migration | `Dandelion.Migration.up/0` | called from the project's migration |
+
+### 11.1 Layout and working in the checkout
+
+```
+dandelion/          mix.exs, lib/   the library (hex: dandelion)
+  installer/        the generator (hex: dandelion_new)
+  example/          depends on the library by path ("..")
+```
+
+`example/mix.exs` has a dev-only `dandelion/0`: the library from `..` (or
+`DANDELION_PATH`) in a checkout, hex elsewhere. The generator writes the plain
+hex line and drops the function. The Docker build can't see `..`, so
+`deploy/vendor-dandelion.sh` copies the library into `example/vendor/dandelion`
+first (gitignored; a named build context would do it but needs buildx).
+Integration tests do the same for generated projects until the library is on
+hex.
+
+### 11.2 Steps
+
+1. ✅ Library skeleton + `Dandelion.Cluster` (2026-09-30); hex package back to
+   `dandelion_new` for the generator; 3-node proof passes with the library.
+2. `Dandelion.Cache`.
+3. `Dandelion.Queue.Ordered` and `Dandelion.Migration`.
+4. `Dandelion.PubSub` and `Dandelion.Queue.config/1`.
+5. Docs: phrasebook links and the hex docs of the library; publish both.

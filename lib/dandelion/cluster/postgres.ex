@@ -1,4 +1,4 @@
-defmodule Platform.Cluster.Postgres do
+defmodule Dandelion.Cluster.Postgres do
   @moduledoc """
   A libcluster strategy: nodes find each other through a Postgres channel.
 

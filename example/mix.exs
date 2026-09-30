@@ -48,7 +48,7 @@ defmodule Acme.MixProject do
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       {:oban, "~> 2.24"},
-      {:libcluster, "~> 3.5"},
+      dandelion(),
       {:cachex, "~> 4.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
@@ -69,4 +69,17 @@ defmodule Acme.MixProject do
       precommit: ["compile --warnings-as-errors", "deps.unlock --unused", "format", "test"]
     ]
   end
+
+  # @dev-start
+  # In a dandelion checkout the library is the directory above (or
+  # DANDELION_PATH, as in the Docker build); a project of your own takes it from
+  # hex, and `mix dandelion.new` writes that line for you.
+  defp dandelion do
+    case System.get_env("DANDELION_PATH") || (File.dir?("../lib/dandelion") && "..") do
+      path when is_binary(path) -> {:dandelion, path: path}
+      _ -> {:dandelion, "~> 0.1"}
+    end
+  end
+
+  # @dev-end
 end

@@ -45,8 +45,8 @@ if config_env() == :prod do
 
   maybe_ipv6 = if System.get_env("ECTO_IPV6") in ~w(true 1), do: [:inet6], else: []
 
-  # Clustering needs a direct connection (not through PgBouncer); see Platform.Cluster.
-  config :acme, Platform.Cluster, database_url: System.get_env("CLUSTER_DATABASE_URL")
+  # Clustering needs a direct connection (not through PgBouncer); see Dandelion.Cluster.
+  config :acme, Dandelion.Cluster, database_url: System.get_env("CLUSTER_DATABASE_URL")
 
   config :acme, Platform.Database.Repo,
     # ssl: true,

@@ -99,12 +99,22 @@ defmodule DandelionNew.GenerateTest do
     assert files["lib/platform/web/user_socket.ex"] =~ "def connect"
   end
 
+  test "a generated project takes dandelion from hex, and has no checkout-only parts" do
+    files = files("my_app", "MyApp")
+
+    assert files["mix.exs"] =~ ~s({:dandelion, "~> 0.1"},)
+    refute files["mix.exs"] =~ "DANDELION_PATH"
+    refute files["Dockerfile"] =~ "vendor/dandelion"
+    refute Map.has_key?(files, "deploy/vendor-dandelion.sh")
+    refute files["deploy/compose.cluster.yaml"] =~ "vendor-dandelion"
+  end
+
   test "marker lines never reach a generated project; left-out parts go whole" do
     for {example?, frontend?} <- [{true, true}, {true, false}, {false, false}] do
       files = files("my_app", "MyApp", example?, frontend?)
 
       for {path, contents} <- files do
-        refute contents =~ ~r/@(example|frontend)-(start|end)/, "#{path} keeps a marker"
+        refute contents =~ ~r/@(example|frontend|dev)-(start|end)/, "#{path} keeps a marker"
       end
 
       proof = files["deploy/cluster-proof.sh"]

@@ -1,4 +1,7 @@
 # Three nodes of the same release behind a load balancer, on one machine:
+# @dev-start
+#   ./deploy/vendor-dandelion.sh       # dandelion checkout only: copies the library in
+# @dev-end
 #   docker compose -f deploy/compose.cluster.yaml up -d --build
 #   ./deploy/cluster-proof.sh          # checks what the cluster promises
 # http://localhost:8080 goes through nginx to any node.

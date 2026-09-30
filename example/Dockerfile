@@ -50,6 +50,13 @@ RUN mix local.hex --force \
 # set build ENV
 ENV MIX_ENV="prod"
 
+# @dev-start
+# In a dandelion checkout the library is built in from vendor/dandelion
+# (deploy/vendor-dandelion.sh copies it there).
+COPY vendor/dandelion /dandelion
+ENV DANDELION_PATH=/dandelion
+# @dev-end
+
 # install mix dependencies
 COPY mix.exs mix.lock ./
 RUN mix deps.get --only $MIX_ENV

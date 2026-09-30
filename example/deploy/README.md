@@ -2,7 +2,7 @@
 
 Every node runs the same release and does everything; start more nodes and
 they join one cluster. Nodes find each other through Postgres
-(`lib/platform/cluster.ex`), so there's nothing else to run.
+(`Dandelion.Cluster`, from the dandelion library), so there's nothing else to run.
 
 ## Three nodes on one machine
 

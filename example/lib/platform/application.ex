@@ -18,7 +18,7 @@ defmodule Platform.Application do
         # ≈ Cloud SQL connection pool
         Platform.Database.Repo,
         # ≈ service discovery: nodes find each other through Postgres
-        Platform.Cluster,
+        {Dandelion.Cluster, otp_app: :acme, repo: Platform.Database.Repo},
         # ≈ Redis pub/sub: live broadcast, fire-and-forget, reaches every node
         {Phoenix.PubSub, name: Platform.Broadcast},
         # ≈ Pusher presence: who is connected, across nodes

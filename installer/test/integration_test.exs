@@ -20,6 +20,7 @@ defmodule DandelionNew.IntegrationTest do
       path = Path.join(dir, app)
       Mix.shell(Mix.Shell.Quiet)
       Mix.Tasks.Dandelion.New.run([path | unquote(flags)])
+      use_local_dandelion(path)
 
       mix!(path, ["deps.get"])
       mix!(path, ["compile", "--warnings-as-errors"])
@@ -34,6 +35,7 @@ defmodule DandelionNew.IntegrationTest do
     path = Path.join(dir, "gen_ui")
     Mix.shell(Mix.Shell.Quiet)
     Mix.Tasks.Dandelion.New.run([path])
+    use_local_dandelion(path)
 
     assets = Path.join(path, "assets")
     cmd!(assets, "npm", ["ci"])
@@ -48,6 +50,7 @@ defmodule DandelionNew.IntegrationTest do
       path = Path.join(dir, "gen_cluster")
       Mix.shell(Mix.Shell.Quiet)
       Mix.Tasks.Dandelion.New.run([path | unquote(flags)])
+      use_local_dandelion(path)
 
       compose = ["compose", "-f", "deploy/compose.cluster.yaml"]
       on_exit(fn -> System.cmd("docker", compose ++ ["down", "-v"], cd: path) end)
@@ -57,6 +60,33 @@ defmodule DandelionNew.IntegrationTest do
       out = cmd!(path, Path.join(path, "deploy/cluster-proof.sh"), [])
       assert out =~ "all good"
     end
+  end
+
+  # A generated project takes dandelion from hex; until it's published (and
+  # for testing this checkout), point it at the library in this repo instead.
+  # The Docker build gets the same copy: vendor/dandelion.
+  @library Path.expand("../..", __DIR__)
+  defp use_local_dandelion(path) do
+    vendor = Path.join(path, "vendor/dandelion")
+    File.mkdir_p!(vendor)
+    File.cp!(Path.join(@library, "mix.exs"), Path.join(vendor, "mix.exs"))
+    File.cp_r!(Path.join(@library, "lib"), Path.join(vendor, "lib"))
+
+    edit!(path, "mix.exs", ~s({:dandelion, "~> 0.1"}), ~s({:dandelion, path: "vendor/dandelion"}))
+
+    edit!(
+      path,
+      "Dockerfile",
+      "COPY mix.exs mix.lock ./",
+      "COPY vendor/dandelion vendor/dandelion\nCOPY mix.exs mix.lock ./"
+    )
+  end
+
+  defp edit!(path, file, from, to) do
+    file = Path.join(path, file)
+    contents = File.read!(file)
+    assert contents =~ from, "#{file} has no #{inspect(from)}"
+    File.write!(file, String.replace(contents, from, to))
   end
 
   defp cmd!(path, cmd, args) do

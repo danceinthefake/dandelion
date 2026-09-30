@@ -8,6 +8,17 @@ on:
 # Postgres 18 on :55432, as compose.yaml gives it locally
 # (postgres / postgres, what config/dev.exs and config/test.exs expect).
 jobs:
+  # The library (hex: dandelion), at the repo root.
+  library:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: jdx/mise-action@v4
+      - run: mix deps.get
+      - run: mix format --check-formatted
+      - run: mix compile --warnings-as-errors
+      - run: mix test
+
   example:
     runs-on: ubuntu-24.04
     defaults:

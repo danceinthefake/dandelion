@@ -2,7 +2,7 @@
 
 A dandelion service is the same release whether you run one copy or ten.
 Nodes join by themselves (through Postgres,
-[`lib/platform/cluster.ex`](../example/lib/platform/cluster.ex)) and then
+[`Dandelion.Cluster`](../lib/dandelion/cluster.ex)) and then
 the pieces from 13–15 work across them. Nothing in your domain code changes.
 
 ## "My service mesh"

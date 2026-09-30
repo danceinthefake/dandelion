@@ -34,6 +34,9 @@ defmodule Mix.Tasks.Dandelion.New do
     test/platform/queue/ordered_test.exs
   )
 
+  # Only for working inside a dandelion checkout: never in a generated project.
+  @dev_files ~w(deploy/vendor-dandelion.sh)
+
   # The Vue app: left out with --no-frontend (and --no-example).
   @frontend_prefixes ~w(assets/)
   @frontend_files ~w(lib/platform/web/page_handler.ex)
@@ -97,14 +100,15 @@ defmodule Mix.Tasks.Dandelion.New do
 
     templates =
       Enum.reject(Templates.all(), fn {file, _} ->
-        (not example? and example_file?(file)) or (not frontend? and frontend_file?(file))
+        file in @dev_files or (not example? and example_file?(file)) or
+          (not frontend? and frontend_file?(file))
       end)
 
     {files, _} =
       Enum.map_reduce(templates, secrets, fn {file, contents}, secrets ->
         contents = if example?, do: contents, else: without_example(file, contents)
         contents = if frontend?, do: contents, else: without_frontend(file, contents)
-        contents = blocks(contents, example?, frontend?)
+        contents = hex_dependency(file, contents) |> blocks(example?, frontend?)
         {contents, secrets} = fresh_secrets(contents, secrets)
         {{rename.(file), format(file, rename.(contents))}, secrets}
       end)
@@ -181,6 +185,13 @@ defmodule Mix.Tasks.Dandelion.New do
     )
   end
 
+  # The example takes the library from the checkout (a dev-only `dandelion/0`
+  # in its mix.exs); a generated project takes it from hex.
+  defp hex_dependency("mix.exs", contents),
+    do: replace!(contents, ~r/dandelion\(\),/, ~S({:dandelion, "~> 0.1"},))
+
+  defp hex_dependency(_file, contents), do: contents
+
   defp without_example("deploy/README.md", contents),
     do: replace!(contents, ~r/\| `PAYMENT_WEBHOOK_TOKEN` \|[^\n]*\n/, "")
 
@@ -228,6 +239,7 @@ defmodule Mix.Tasks.Dandelion.New do
     contents
     |> block("example", example?)
     |> block("frontend", frontend?)
+    |> block("dev", false)
   end
 
   defp block(contents, tag, keep?) do
