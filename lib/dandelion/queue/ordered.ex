@@ -1,4 +1,4 @@
-defmodule Platform.Queue.Ordered do
+defmodule Dandelion.Queue.Ordered do
   @moduledoc """
   A queue that keeps order **per key**. ≈ SQS FIFO message groups, Kafka
   partitions, Pub/Sub ordering keys.
@@ -18,20 +18,21 @@ defmodule Platform.Queue.Ordered do
     * **A failing job blocks its key** while it retries, like a Kafka
       partition. Once it is discarded (out of attempts) it stops blocking.
     * A node that dies mid-job leaves it `executing`, which blocks the key
-      until Oban's lifeline gives the job back (`Platform.Queue`).
+      until Oban's lifeline gives the job back — set `rescue_after` short
+      enough for you.
+    * Needs the index from `Dandelion.Migration`, and the default `Oban`
+      instance (the one started as `{Oban, …}`).
     * Use an ordered queue (`queue: :ordered`) for the worker. One fixed key
       makes a global queue: one job at a time for the whole cluster.
   """
   import Ecto.Query
-
-  alias Platform.Database.Repo
 
   @unfinished ~w(available scheduled executing retryable)
 
   @doc "Adds the job to the line for `key`. Call inside a transaction."
   @spec insert(Ecto.Changeset.t(), String.t()) :: {:ok, Oban.Job.t()} | {:error, term()}
   def insert(job_changeset, key) do
-    Repo.query!("SELECT pg_advisory_xact_lock(hashtext($1))", [key])
+    Oban.Repo.query!(Oban.config(Oban), "SELECT pg_advisory_xact_lock(hashtext($1))", [key])
 
     job_changeset
     |> Ecto.Changeset.change(meta: %{"ordered_key" => key})
@@ -42,10 +43,11 @@ defmodule Platform.Queue.Ordered do
   @spec turn(Oban.Job.t()) :: :ok | {:snooze, pos_integer()}
   def turn(%Oban.Job{id: id, meta: %{"ordered_key" => key}}) do
     earlier =
-      from j in Oban.Job,
+      from(j in Oban.Job,
         where: fragment("?->>'ordered_key' = ?", j.meta, ^key),
         where: j.id < ^id and j.state in @unfinished
+      )
 
-    if Repo.exists?(earlier), do: {:snooze, 1}, else: :ok
+    if Oban.Repo.exists?(Oban.config(Oban), earlier), do: {:snooze, 1}, else: :ok
   end
 end

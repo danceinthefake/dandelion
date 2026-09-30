@@ -21,7 +21,7 @@ defmodule Platform.PubSub do
 
   Not this: `Platform.Broadcast` is for live views — fast, memory only, lost
   if nobody is listening. Order between events isn't kept; a subscriber that
-  needs it uses `Platform.Queue.Ordered`.
+  needs it uses `Dandelion.Queue.Ordered`.
   """
 
   @doc "Topic → subscribers. One place, like the crontab in `Platform.Cron`."

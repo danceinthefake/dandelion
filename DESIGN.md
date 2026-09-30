@@ -588,8 +588,8 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    list; one Oban job per subscriber, in the caller's transaction),
    `order.created` with two subscribers (`SendOrderConfirmation`,
    `UpdateCustomerStats` — a recount, so safe to run twice), a live
-   broadcast on `Platform.Broadcast` after the commit, `Platform.Queue.Ordered`
-   (advisory lock on the key at enqueue, "is an earlier job unfinished?" at
+   broadcast on `Platform.Broadcast` after the commit, `Dandelion.Queue.Ordered`
+   (now in the library; advisory lock on the key at enqueue, "is an earlier job unfinished?" at
    run, partial index), `POST /api/payments/webhook` (token in
    `x-callback-token`; unique on `event_id`) → `ProcessPaymentEvent` on the
    `ordered` queue: `payment.succeeded` → `paid`, `payment.refunded` →
@@ -688,6 +688,6 @@ hex.
 1. ✅ Library skeleton + `Dandelion.Cluster` (2026-09-30); hex package back to
    `dandelion_new` for the generator; 3-node proof passes with the library.
 2. ✅ `Dandelion.Cache` (2026-09-30): `{Dandelion.Cache, pubsub: Platform.Broadcast}`; the PubSub name is an option, kept in a `:persistent_term` for `delete/1`; the example's cachex dependency is gone (it comes with the library); proof passes.
-3. `Dandelion.Queue.Ordered` and `Dandelion.Migration`.
+3. ✅ `Dandelion.Queue.Ordered` and `Dandelion.Migration` (2026-09-30): the ordered queue asks Oban's repo (`Oban.Repo` with `Oban.config(Oban)`), so it needs no repo option and works with the default Oban instance; the index migration is `Dandelion.Migration.up/0`, called from the project's migration like `Oban.Migration`. The library now has a test repo (Postgres on :55432, `priv/test_repo`) and tests the queue with its own worker; the example's ordered-queue tests moved there.
 4. `Dandelion.PubSub` and `Dandelion.Queue.config/1`.
 5. Docs: phrasebook links and the hex docs of the library; publish both.

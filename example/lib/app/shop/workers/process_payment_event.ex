@@ -1,7 +1,7 @@
 defmodule App.Shop.Workers.ProcessPaymentEvent do
   @moduledoc """
   Applies one payment event from the provider to its order, on the ordered
-  queue (`Platform.Queue.Ordered`): the events of one order run in the order
+  queue (`Dandelion.Queue.Ordered`): the events of one order run in the order
   they arrived, events of other orders in parallel.
 
     * `payment.succeeded` → the order becomes `paid`
@@ -20,7 +20,7 @@ defmodule App.Shop.Workers.ProcessPaymentEvent do
   require Logger
 
   alias App.Shop.Services.OrderService
-  alias Platform.Queue.Ordered
+  alias Dandelion.Queue.Ordered
 
   @impl Oban.Worker
   def perform(%Oban.Job{args: args} = job) do

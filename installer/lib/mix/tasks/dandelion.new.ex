@@ -31,7 +31,6 @@ defmodule Mix.Tasks.Dandelion.New do
     priv/repo/migrations/20260930000001_refunds_and_customer_stats.exs
     priv/repo/migrations/20260930000002_create_products.exs
     test/platform/pubsub_test.exs
-    test/platform/queue/ordered_test.exs
   )
 
   # Only for working inside a dandelion checkout: never in a generated project.

@@ -11,7 +11,7 @@ defmodule Platform.Queue do
   Workers live in their domain (`App.<Domain>.Workers.*`, `use Oban.Worker`);
   enqueue one with `Oban.insert(MyWorker.new(args))`. The schedule for
   recurring jobs is in `Platform.Cron`. One event for several workers:
-  `Platform.PubSub`. Order per key: `Platform.Queue.Ordered`.
+  `Platform.PubSub`. Order per key: `Dandelion.Queue.Ordered`.
   """
 
   @doc "The Oban config; `config :acme, Oban` overrides it (tests use `testing: :manual`)."
@@ -20,7 +20,7 @@ defmodule Platform.Queue do
       [
         repo: Platform.Database.Repo,
         # queue name: how many of its jobs run at once, on each node
-        # `ordered` is for Platform.Queue.Ordered workers
+        # `ordered` is for Dandelion.Queue.Ordered workers
         queues: [default: 10, ordered: 10],
         cron: [crontab: Platform.Cron.schedule()],
         # A job left `executing` by a node that died is run again after this.

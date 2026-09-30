@@ -8,8 +8,8 @@ defmodule App.Shop.Services.PaymentService do
   provider doesn't time out and resend.
   """
   alias App.Shop.Workers.ProcessPaymentEvent
+  alias Dandelion.Queue.Ordered
   alias Platform.Database.Repo
-  alias Platform.Queue.Ordered
 
   @types ~w(payment.succeeded payment.refunded)
   @max_order_id 9_223_372_036_854_775_807

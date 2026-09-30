@@ -9,7 +9,7 @@ the Postgres you already have, run by [Oban](https://hexdocs.pm/oban).
 |---|---|
 | Cloud Tasks, asynq, a RabbitMQ queue | an Oban worker (`App.<Domain>.Workers.*`) |
 | Google Pub/Sub topic + subscriptions, Kafka consumer groups | `Platform.PubSub`: one job per subscriber |
-| SQS FIFO message group, Kafka partition key, Pub/Sub ordering key | `Platform.Queue.Ordered`: order per key |
+| SQS FIFO message group, Kafka partition key, Pub/Sub ordering key | `Dandelion.Queue.Ordered`: order per key |
 
 ## A queue: work to do later
 
@@ -99,7 +99,7 @@ end
 
 ([`payment_handler.ex`](../example/lib/app/shop/handlers/payment_handler.ex),
 [`process_payment_event.ex`](../example/lib/app/shop/workers/process_payment_event.ex),
-[`lib/platform/queue/ordered.ex`](../example/lib/platform/queue/ordered.ex).)
+[`Dandelion.Queue.Ordered`](../lib/dandelion/queue/ordered.ex).)
 
 ## "I still need a real broker"
 
