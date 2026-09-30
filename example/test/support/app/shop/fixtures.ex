@@ -10,8 +10,8 @@ defmodule App.Shop.Fixtures do
       %{
         "customer_email" => "sari@example.com",
         "items" => [
-          %{"sku" => "TEA-01", "quantity" => 2, "price_cents" => 1500},
-          %{"sku" => "CUP-02", "quantity" => 1, "price_cents" => 4000}
+          %{"sku" => "TEA-01", "quantity" => 2},
+          %{"sku" => "CUP-02", "quantity" => 1}
         ]
       },
       overrides

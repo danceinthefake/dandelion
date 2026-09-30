@@ -135,7 +135,11 @@ defmodule DandelionNew.GenerateTest do
 
       assert File.read!(Path.join(path, "mix.exs")) =~ "app: :my_app,"
 
-      for bin <- ["rel/overlays/bin/migrate", "deploy/cluster-proof.sh"] do
+      for bin <- [
+            "rel/overlays/bin/migrate",
+            "deploy/cluster-proof.sh",
+            "deploy/seed-products.sh"
+          ] do
         assert File.stat!(Path.join(path, bin)).mode |> Bitwise.band(0o111) != 0, bin
       end
 

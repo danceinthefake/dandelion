@@ -6,6 +6,7 @@ defmodule App.Shop.Services.OrderService do
   returns `{:ok, value}` or `{:error, reason}` — Elixir's `(value, err)`.
   """
   alias App.Shop.Models.Order
+  alias App.Shop.Services.ProductService
   alias Platform.Database.Repo
   alias Platform.Database.Repos.OrderRepo
   alias Platform.PubSub
@@ -26,11 +27,21 @@ defmodule App.Shop.Services.OrderService do
   event are saved together, or neither is. Validation errors come back as a
   changeset.
 
+  Each item is `%{"sku" => …, "quantity" => …}`; the **price comes from the
+  products table** (through the cache), never from the request — a
+  `"price_cents"` in an item is ignored. The price is copied onto the order
+  line, so a later price change doesn't rewrite old orders. A SKU that isn't a
+  product is `{:error, {:invalid, "unknown product: …"}}`.
+
   After the commit the event also goes out live on `Platform.Broadcast`, for
   whoever is watching right now (every node).
   """
   @spec create(map()) :: {:ok, Order.t()} | {:error, error()}
   def create(params) do
+    with {:ok, params} <- price_items(params), do: insert_order(params)
+  end
+
+  defp insert_order(params) do
     result =
       Repo.transact(fn ->
         with {:ok, order} <- params |> Order.create_changeset() |> OrderRepo.insert() do
@@ -121,6 +132,32 @@ defmodule App.Shop.Services.OrderService do
   end
 
   # -- helpers -----------------------------------------------------------------
+
+  # Puts each item's price from its product. Items that aren't `%{"sku" => text}`
+  # are left alone: the changeset reports what's wrong with them.
+  defp price_items(%{"items" => items} = params) when is_list(items) do
+    products =
+      for %{"sku" => sku} <- items, is_binary(sku), uniq: true, into: %{} do
+        {sku, ProductService.get(sku)}
+      end
+
+    case for({sku, {:error, :not_found}} <- products, do: sku) do
+      [] ->
+        {:ok, %{params | "items" => Enum.map(items, &price_item(&1, products))}}
+
+      unknown ->
+        {:error, {:invalid, "unknown product: #{unknown |> Enum.sort() |> Enum.join(", ")}"}}
+    end
+  end
+
+  defp price_items(params), do: {:ok, params}
+
+  defp price_item(%{"sku" => sku} = item, products) when is_binary(sku) do
+    {:ok, product} = Map.fetch!(products, sku)
+    Map.put(item, "price_cents", product.price_cents)
+  end
+
+  defp price_item(item, _products), do: item
 
   # Moves the order to `to` if it is in one of `from` (or already there),
   # with the row locked, like `cancel/1`.

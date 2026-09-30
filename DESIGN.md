@@ -603,8 +603,8 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    other nodes' deletes; empties the cache on `:nodeup`), `GET` / `PUT
    /api/products/:sku`. Proof: a price changed through one node is read
    fresh on all three; a node that loses a node and gets it back starts with
-   an empty cache. Not done: orders still take `price_cents` from the
-   request, not from the products table.
+   an empty cache. Orders are priced from this table too (2026-09-30, see
+   below).
 5. ✅ Frontend (2026-09-30): `assets/` (Vue 3 + blessing-ui from npm, Vite,
    npm) built into `priv/static/app`, served at `/` by
    `Platform.Web.PageHandler`; the Dockerfile gets a Node stage. Page: new
@@ -691,6 +691,19 @@ hex.
 3. ✅ `Dandelion.Queue.Ordered` and `Dandelion.Migration` (2026-09-30): the ordered queue asks Oban's repo (`Oban.Repo` with `Oban.config(Oban)`), so it needs no repo option and works with the default Oban instance; the index migration is `Dandelion.Migration.up/0`, called from the project's migration like `Oban.Migration`. The library now has a test repo (Postgres on :55432, `priv/test_repo`) and tests the queue with its own worker; the example's ordered-queue tests moved there.
 4. ✅ `Dandelion.PubSub` and `Dandelion.Queue.config/1` (2026-09-30): `Dandelion.PubSub.publish(subscriptions, topic, payload)` takes the topic → workers map from the app, so the list stays in the project (`Platform.PubSub`, a 15-line module) and the library only holds the mechanism; a topic not in the map raises. `Dandelion.Queue.config(otp_app:, repo:, crontab:)` holds the queue defaults (`default`, `ordered`), the lifeline and the pruner, and merges `config :app, Oban`; `Platform.Queue.config/0` is one call to it. Both have library tests.
 5. Docs, then publish. ✅ Docs (2026-09-30): the root README is now the library's hex page (what the six modules are and replace, one wiring example, the rules, links to the rest on GitHub), CHANGELOG, ex_doc (`mix docs`, modules grouped, no warnings), `mix hex.build` checked. Open: publish `dandelion` first, then `dandelion_new` (needs the maintainer's hex account); phrasebook links into `../lib/` stay valid on GitHub.
+
+### 10.11 Orders are priced from the products table
+
+Decided 2026-09-30 (it was the one thing step 4 left open). `OrderService.create/1`
+reads each item's price from `ProductService.get/1` — the cache, so a hot
+product costs no query — and **ignores any `price_cents` in the request**: a
+client must not set its own prices. The price is copied onto the order line
+(`order_items.price_cents`), so a later price change doesn't rewrite old
+orders. An unknown SKU is `400 unknown product: …` (every unknown SKU named).
+Product prices are capped at the same ceiling as an order line (10¹² cents) so a
+price can't fail the line's validation. The UI sends only `sku` and `quantity`.
+The Docker cluster has no products until `deploy/seed-products.sh` puts some in
+(`mix setup` seeds two for local development).
 
 ### 11.3 Evidence
 

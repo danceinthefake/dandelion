@@ -39,7 +39,6 @@ const feed = ref<InstanceType<typeof OrderFeed>>();
 const email = ref("");
 const sku = ref("TEA-01");
 const quantity = ref(1);
-const price = ref(15);
 const creating = ref(false);
 const createError = ref("");
 
@@ -48,7 +47,8 @@ async function create() {
   createError.value = "";
   const res = await api.createOrder({
     customer_email: email.value,
-    items: [{ sku: sku.value, quantity: Number(quantity.value), price_cents: Math.round(Number(price.value) * 100) }],
+    // the server prices the order from its products
+    items: [{ sku: sku.value, quantity: Number(quantity.value) }],
   });
   creating.value = false;
   if (res.ok) toast.success({ title: `Order #${res.data.id} created` });
@@ -109,7 +109,6 @@ const itemColumns = [
         </BlessField>
         <BlessField label="SKU" required><BlessInput v-model="sku" required /></BlessField>
         <BlessField label="Quantity"><BlessInput v-model="quantity" type="number" min="1" /></BlessField>
-        <BlessField label="Price"><BlessInput v-model="price" type="number" min="0" step="0.01" /></BlessField>
         <BlessButton type="submit" color="accent" :loading="creating">New order</BlessButton>
       </form>
       <BlessAlert v-if="createError" color="danger" title="Not created">{{ createError }}</BlessAlert>

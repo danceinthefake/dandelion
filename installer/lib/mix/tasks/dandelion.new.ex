@@ -30,6 +30,7 @@ defmodule Mix.Tasks.Dandelion.New do
     priv/repo/migrations/20260927000001_create_orders.exs
     priv/repo/migrations/20260930000001_refunds_and_customer_stats.exs
     priv/repo/migrations/20260930000002_create_products.exs
+    deploy/seed-products.sh
     test/platform/pubsub_test.exs
   )
 
@@ -71,7 +72,10 @@ defmodule Mix.Tasks.Dandelion.New do
       File.write!(target, contents)
     end
 
-    for bin <- ["rel/overlays/bin/server", "rel/overlays/bin/migrate", "deploy/cluster-proof.sh"],
+    # (the example's scripts are left out with --no-example)
+    for bin <- ~w(rel/overlays/bin/server rel/overlays/bin/migrate
+                  deploy/cluster-proof.sh deploy/seed-products.sh),
+        File.exists?(Path.join(path, bin)),
         do: File.chmod!(Path.join(path, bin), 0o755)
 
     Mix.shell().info("""

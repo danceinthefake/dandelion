@@ -2,6 +2,8 @@
 // to { ok: true, data } or { ok: false, error } — errors are values here too.
 
 export type OrderItem = { sku: string; quantity: number; price_cents: number };
+// what you send: the price is the server's (its products table)
+export type NewOrderItem = { sku: string; quantity: number };
 export type Order = {
   id: number;
   customer_email: string;
@@ -32,7 +34,7 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<Re
 
 export const api = {
   order: (id: number) => call<Order>("GET", `/orders/${id}`),
-  createOrder: (order: { customer_email: string; items: OrderItem[] }) =>
+  createOrder: (order: { customer_email: string; items: NewOrderItem[] }) =>
     call<Order>("POST", "/orders", order),
   cancelOrder: (id: number) => call<Order>("POST", `/orders/${id}/cancel`),
 };

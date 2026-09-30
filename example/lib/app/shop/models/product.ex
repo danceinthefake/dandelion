@@ -3,7 +3,8 @@ defmodule App.Shop.Models.Product do
   use Ecto.Schema
   import Ecto.Changeset
 
-  @max_price 9_223_372_036_854_775_807
+  # the same ceiling an order line has (OrderItem)
+  @max_price 1_000_000_000_000
 
   @primary_key {:sku, :string, autogenerate: false}
   @timestamps_opts [type: :utc_datetime_usec]

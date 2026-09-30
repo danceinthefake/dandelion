@@ -67,6 +67,7 @@ live() {
     [ "$n" = 2 ] && break
     sleep 2
   done
+  "$example/deploy/seed-products.sh" >/dev/null   # the page orders TEA-01
   node "$here/browser/live-feed.mjs" "$here/02-live-feed"
   { sed 's/^/# /' "$work/STAMP.txt"; echo; cat "$here/02-live-feed/browser.log"; } > "$here/02-live-feed/run.log"
   rm "$here/02-live-feed/browser.log"

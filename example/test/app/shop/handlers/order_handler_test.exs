@@ -19,28 +19,35 @@ defmodule App.Shop.Handlers.OrderHandlerTest do
       post(
         conn,
         "/api/orders",
-        order_params(%{"customer_email" => "", "items" => [%{"sku" => "A"}]})
+        order_params(%{"customer_email" => "", "items" => [%{"sku" => "TEA-01"}]})
       )
 
     assert json_response(conn, 422) == %{
              "errors" => %{
                "customer_email" => ["can't be blank"],
-               "items" => [
-                 %{"quantity" => ["can't be blank"], "price_cents" => ["can't be blank"]}
-               ]
+               "items" => [%{"quantity" => ["can't be blank"]}]
              }
            }
   end
 
+  test "POST /api/orders takes prices from the products, not the request", %{conn: conn} do
+    items = [%{"sku" => "TEA-01", "quantity" => 1, "price_cents" => 1}]
+    conn = post(conn, "/api/orders", order_params(%{"items" => items}))
+
+    assert %{"total_cents" => 1500, "items" => [%{"price_cents" => 1500}]} =
+             json_response(conn, 201)
+  end
+
+  test "POST /api/orders with an unknown product is 400", %{conn: conn} do
+    items = [%{"sku" => "NOPE", "quantity" => 1}]
+    conn = post(conn, "/api/orders", order_params(%{"items" => items}))
+    assert %{"error" => "unknown product: NOPE"} = json_response(conn, 400)
+  end
+
   test "POST /api/orders refuses numbers too big to store", %{conn: conn} do
     for {items, field} <- [
-          {[%{"sku" => "A", "quantity" => 3_000_000_000, "price_cents" => 1}], "items"},
-          {[%{"sku" => "A", "quantity" => 1, "price_cents" => 9_000_000_000_000_000_000}],
-           "items"},
-          {List.duplicate(
-             %{"sku" => "A", "quantity" => 1_000_000, "price_cents" => 1_000_000_000_000},
-             2
-           ), "total_cents"}
+          {[%{"sku" => "TEA-01", "quantity" => 3_000_000_000}], "items"},
+          {List.duplicate(%{"sku" => "BIG-99", "quantity" => 1_000_000}, 2), "total_cents"}
         ] do
       conn = post(conn, "/api/orders", order_params(%{"items" => items}))
       assert %{"errors" => %{^field => _}} = json_response(conn, 422)

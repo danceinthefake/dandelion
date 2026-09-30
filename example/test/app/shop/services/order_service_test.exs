@@ -3,7 +3,7 @@ defmodule App.Shop.Services.OrderServiceTest do
 
   import App.Shop.Fixtures
 
-  alias App.Shop.Services.OrderService
+  alias App.Shop.Services.{OrderService, ProductService}
 
   defp errors(changeset), do: Ecto.Changeset.traverse_errors(changeset, fn {msg, _} -> msg end)
 
@@ -22,16 +22,52 @@ defmodule App.Shop.Services.OrderServiceTest do
         {"bad email", %{"customer_email" => "sari"},
          %{customer_email: ["must be an email address"]}},
         {"no items", %{"items" => []}, %{items: ["can't be blank"]}},
-        {"zero quantity", %{"items" => [%{"sku" => "A", "quantity" => 0, "price_cents" => 1}]},
+        {"zero quantity", %{"items" => [%{"sku" => "TEA-01", "quantity" => 0}]},
          %{items: [%{quantity: ["must be greater than %{number}"]}]}},
-        {"negative price", %{"items" => [%{"sku" => "A", "quantity" => 1, "price_cents" => -5}]},
-         %{items: [%{price_cents: ["must be greater than or equal to %{number}"]}]}}
+        {"no quantity", %{"items" => [%{"sku" => "TEA-01"}]},
+         %{items: [%{quantity: ["can't be blank"]}]}},
+        {"no sku", %{"items" => [%{"quantity" => 1}]},
+         %{items: [%{sku: ["can't be blank"], price_cents: ["can't be blank"]}]}}
       ]
 
       for {name, overrides, expected} <- cases do
         assert {:error, changeset} = OrderService.create(order_params(overrides)), name
         assert errors(changeset) == expected, name
       end
+    end
+  end
+
+  describe "prices" do
+    test "come from the products table, and a price in the request is ignored" do
+      items = [%{"sku" => "TEA-01", "quantity" => 2, "price_cents" => 1}]
+      assert {:ok, order} = OrderService.create(order_params(%{"items" => items}))
+      assert [%{price_cents: 1500}] = order.items
+      assert order.total_cents == 3000
+    end
+
+    test "are copied onto the order: a later price change doesn't rewrite it" do
+      product = product_fixture(%{price_cents: 700})
+      items = [%{"sku" => product.sku, "quantity" => 1}]
+      assert {:ok, order} = OrderService.create(order_params(%{"items" => items}))
+
+      assert {:ok, _} =
+               ProductService.update_price(product.sku, %{"price_cents" => 900})
+
+      assert {:ok, %{total_cents: 700, items: [%{price_cents: 700}]}} = OrderService.get(order.id)
+
+      assert {:ok, %{total_cents: 900}} =
+               OrderService.create(order_params(%{"items" => items}))
+    end
+
+    test "an unknown SKU is refused, naming every unknown one" do
+      items = [
+        %{"sku" => "TEA-01", "quantity" => 1},
+        %{"sku" => "NOPE-2", "quantity" => 1},
+        %{"sku" => "NOPE-1", "quantity" => 1}
+      ]
+
+      assert {:error, {:invalid, "unknown product: NOPE-1, NOPE-2"}} =
+               OrderService.create(order_params(%{"items" => items}))
     end
   end
 

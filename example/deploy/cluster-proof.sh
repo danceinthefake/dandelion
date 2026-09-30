@@ -78,12 +78,15 @@ ok "GET / serves the Vue app ($asset: 200)"
 # @frontend-end
 
 # @example-start
+# the products the orders below are made of (prices come from this table)
+./seed-products.sh >/dev/null
+
 echo "jobs:"
 # Creating an order queues its confirmation; one node runs it, once.
 job=$(rpc node1 '
   {:ok, order} = App.Shop.Services.OrderService.create(%{
     "customer_email" => "proof@example.com",
-    "items" => [%{"sku" => "PROOF", "quantity" => 1, "price_cents" => 100}]
+    "items" => [%{"sku" => "PROOF", "quantity" => 1}]
   })
   IO.write(order.id)
 ')
@@ -104,7 +107,7 @@ ok "order $job: confirmation job completed, 1 attempt"
 
 echo "events:"
 oid=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
-  -d '{"customer_email":"events@example.com","items":[{"sku":"A","quantity":1,"price_cents":100}]}' |
+  -d '{"customer_email":"events@example.com","items":[{"sku":"A","quantity":1}]}' |
   sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ -n "$oid" ] || fail "POST /api/orders through nginx didn't return an order"
 subs() { # ORDER_ID -> how many order.created jobs for it are completed
@@ -141,7 +144,7 @@ rpc node1 'Oban.pause_queue(queue: :ordered)' >/dev/null
 ids=""
 for i in $(seq 1 10); do
   id=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
-    -d '{"customer_email":"order@example.com","items":[{"sku":"A","quantity":1,"price_cents":100}]}' |
+    -d '{"customer_email":"order@example.com","items":[{"sku":"A","quantity":1}]}' |
     sed -n 's/.*"id":\([0-9]*\).*/\1/p')
   [ "$(webhook "$id" "pay-$id" payment.succeeded)" = 202 ] || fail "webhook refused payment.succeeded for $id"
   [ "$(webhook "$id" "refund-$id" payment.refunded)" = 202 ] || fail "webhook refused payment.refunded for $id"
@@ -155,7 +158,7 @@ ok "10 orders: payment then refund, each ended refunded (nodes raced, order held
 # order, until the lifeline gives it back; other orders aren't held.
 rpc node1 'Oban.pause_queue(queue: :ordered)' >/dev/null
 held=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
-  -d '{"customer_email":"held@example.com","items":[{"sku":"A","quantity":1,"price_cents":100}]}' |
+  -d '{"customer_email":"held@example.com","items":[{"sku":"A","quantity":1}]}' |
   sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ "$(webhook "$held" "pay-$held" payment.succeeded)" = 202 ] || fail "webhook refused the payment"
 rpc node1 "
@@ -169,7 +172,7 @@ rpc node1 "
 " >/dev/null
 [ "$(webhook "$held" "refund-$held" payment.refunded)" = 202 ] || fail "webhook refused the refund"
 free=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
-  -d '{"customer_email":"free@example.com","items":[{"sku":"A","quantity":1,"price_cents":100}]}' |
+  -d '{"customer_email":"free@example.com","items":[{"sku":"A","quantity":1}]}' |
   sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ "$(webhook "$free" "pay-$free" payment.succeeded)" = 202 ] || fail "webhook refused the payment"
 rpc node1 'Oban.resume_queue(queue: :ordered)' >/dev/null
@@ -230,7 +233,7 @@ echo "job on a killed node:"
 orphan=$(rpc node1 '
   {:ok, order} = App.Shop.Services.OrderService.create(%{
     "customer_email" => "orphan@example.com",
-    "items" => [%{"sku" => "PROOF", "quantity" => 1, "price_cents" => 100}]
+    "items" => [%{"sku" => "PROOF", "quantity" => 1}]
   })
   import Ecto.Query
   {1, _} =

@@ -12,7 +12,8 @@ defmodule App.Shop.Handlers.OrderHandler do
   action_fallback Platform.Web.FallbackHandler
 
   # POST /api/orders
-  # {"customer_email": "sari@example.com", "items": [{"sku": "TEA-01", "quantity": 2, "price_cents": 1500}]}
+  # {"customer_email": "sari@example.com", "items": [{"sku": "TEA-01", "quantity": 2}]}
+  # (prices come from the products table; see OrderService.create/1)
   def create(conn, params) do
     with {:ok, order} <- OrderService.create(params) do
       conn |> put_status(:created) |> json(OrderJSON.order(order))
