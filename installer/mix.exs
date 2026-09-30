@@ -5,7 +5,7 @@ defmodule DandelionNew.MixProject do
 
   def project do
     [
-      app: :dandelion,
+      app: :dandelion_new,
       version: @version,
       elixir: "~> 1.18",
       start_permanent: false,

@@ -155,7 +155,7 @@ value without making the rest of the code unfamiliar.
 
 | Option | How | Pros | Cons |
 |---|---|---|---|
-| **A. Generator** ← decided | `mix archive.install hex dandelion` then `mix dandelion.new my_app` | one command, project named correctly, like `phx.new` | a generator to maintain; must track Phoenix releases |
+| **A. Generator** ← decided | `mix archive.install hex dandelion_new` then `mix dandelion.new my_app` | one command, project named correctly, like `phx.new` | a generator to maintain; must track Phoenix releases |
 | B. Template repository | "Use this template" on GitHub, then rename | no code to maintain | renaming modules by hand (`MyApp` everywhere) is a bad first experience |
 
 Decided: **A**. *Changed while building (milestone 3):* the plan was to run
@@ -239,7 +239,7 @@ every Go library's equivalent.
    compiles with warnings as errors, passes `mix format --check-formatted`,
    its tests and `credo --strict`; the built archive installs and generates
    from outside the repo.
-4. **Release** (hex `dandelion`) — pending, needs the maintainer's hex
+4. **Release** (hex `dandelion_new`) — pending, needs the maintainer's hex
    account. (The Bahasa Indonesia translation done here was removed
    2026-09-27: it read unnaturally.)
 5. ✅ **Review fixes** (done 2026-09-27) — unpaid-order expiry is one
