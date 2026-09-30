@@ -56,10 +56,39 @@ defmodule Dandelion.Cluster do
     repo_config = repo_config || Keyword.fetch!(opts, :repo).config()
 
     url = Application.get_env(otp_app, __MODULE__)[:database_url] || repo_config[:url]
-    conn = if url, do: Ecto.Repo.Supervisor.parse_url(url), else: repo_config
+    conn = if url, do: parse_url(url), else: repo_config
 
     conn
     |> Keyword.take([:hostname, :port, :username, :password, :database, :ssl, :socket_options])
     |> Keyword.merge(channel_name: "#{otp_app}_cluster", heartbeat_interval: 5_000)
+  end
+
+  # "ecto://user:password@host:port/database?ssl=true" → connection options.
+  # (Ecto's own parser is an internal module, so we don't depend on it.)
+  defp parse_url(url) do
+    uri = URI.parse(url)
+    {user, password} = credentials(uri.userinfo)
+    query = URI.decode_query(uri.query || "")
+
+    Enum.reject(
+      [
+        hostname: uri.host,
+        port: uri.port || 5432,
+        username: user,
+        password: password,
+        database: uri.path && uri.path |> String.trim_leading("/") |> URI.decode(),
+        ssl: if(query["ssl"] in ["true", "1"], do: true)
+      ],
+      fn {_key, value} -> value in [nil, ""] end
+    )
+  end
+
+  defp credentials(nil), do: {nil, nil}
+
+  defp credentials(userinfo) do
+    case String.split(userinfo, ":", parts: 2) do
+      [user, password] -> {URI.decode(user), URI.decode(password)}
+      [user] -> {URI.decode(user), nil}
+    end
   end
 end

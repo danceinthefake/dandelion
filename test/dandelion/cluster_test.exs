@@ -38,4 +38,26 @@ defmodule Dandelion.ClusterTest do
 
     assert {conn[:hostname], conn[:port]} == {"direct", 5432}
   end
+
+  describe "URLs" do
+    defp conn(url), do: Cluster.postgres(@opts, url: url)
+
+    test "host, port, user, password and database, the port defaulting to 5432" do
+      c = conn("ecto://u:p@db.internal/orders")
+
+      assert {c[:hostname], c[:port], c[:username], c[:password], c[:database]} ==
+               {"db.internal", 5432, "u", "p", "orders"}
+    end
+
+    test "percent-encoded characters in the password and database" do
+      c = conn("ecto://u:p%40ss%3Aword@h:5433/my%20db")
+      assert {c[:password], c[:database]} == {"p@ss:word", "my db"}
+    end
+
+    test "ssl=true, and no user at all" do
+      assert conn("ecto://h/d?ssl=true")[:ssl] == true
+      refute Keyword.has_key?(conn("ecto://h/d"), :ssl)
+      refute Keyword.has_key?(conn("ecto://h/d"), :username)
+    end
+  end
 end
