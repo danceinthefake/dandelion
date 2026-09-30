@@ -15,10 +15,11 @@ defmodule App.Shop.Channels.OrderFeedChannelTest do
     subscribe_and_join(socket, "orders:live", %{})
   end
 
-  test "joining replies with the latest orders" do
+  test "joining replies with the latest orders, and the node it is connected to" do
     order = order_fixture()
-    assert {:ok, %{orders: [%{id: id} | _]}, _socket} = join_feed()
+    assert {:ok, %{orders: [%{id: id} | _], node: node}, _socket} = join_feed()
     assert id == order.id
+    assert node == Atom.to_string(node())
   end
 
   test "an order made after joining is pushed" do

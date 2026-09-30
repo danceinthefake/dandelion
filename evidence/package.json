@@ -1,0 +1,9 @@
+{
+  "name": "dandelion-evidence",
+  "private": true,
+  "type": "module",
+  "description": "Records the browser and terminal evidence (GIFs). Needs Chromium: npx playwright install chromium",
+  "devDependencies": {
+    "playwright": "^1.63.0"
+  }
+}

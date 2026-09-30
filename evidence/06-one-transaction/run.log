@@ -1,0 +1,32 @@
+# commit: 73bf8c3 (+ uncommitted changes)
+# recorded: 2026-09-30T12:13Z
+# machine: Linux 7.2.7-arch1-1, docker 29.8.1
+# runtime: 1.20.4, OTP 29
+# library: test/dandelion/pubsub_test.exs
+Running ExUnit with seed: 614257, max_cases: 1
+
+
+Dandelion.PubSubTest [test/dandelion/pubsub_test.exs]
+  test one job per subscriber, each with the topic and payload (34 ms)
+  test a topic that isn't listed is an error (1 ms)
+  test the events are saved with the caller's transaction, or not at all (8 ms)
+  test a topic with no subscribers queues nothing (0 ms)
+
+Finished in 0.08 seconds (0.08s async, 0.00s sync)
+
+Result: 4 passed
+
+# example: test/platform/pubsub_test.exs (order + event in one transaction)
+Running ExUnit with seed: 961020, max_cases: 1
+
+
+Platform.PubSubTest [test/platform/pubsub_test.exs]
+  test an invalid order publishes nothing (21 ms)
+  test an order is published to every subscriber of order.created (26 ms)
+  test every topic's subscribers are Oban workers (0 ms)
+  test the event is saved with the order or not at all (8 ms)
+  test an order is broadcast live after it is saved (5 ms)
+
+Finished in 0.09 seconds (0.09s async, 0.00s sync)
+
+Result: 5 passed

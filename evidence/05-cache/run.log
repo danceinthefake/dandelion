@@ -1,0 +1,10 @@
+# commit: 73bf8c3 (+ uncommitted changes)
+# recorded: 2026-09-30T12:20Z
+# machine: Linux 7.2.7-arch1-1, docker 29.8.1
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
+
+cache:
+12:21:41   ok  PROOF-1790770899 read on all 3 nodes: each keeps its own copy
+12:21:43   ok  price changed through nginx (some node): every node reads 1600
+12:21:49   ok  node1 lost a node and got it back: its cache was emptied

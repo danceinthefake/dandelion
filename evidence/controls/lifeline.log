@@ -1,0 +1,24 @@
+# control: lifeline
+# broken on purpose: a dead node's job is given back after a day, not 10 seconds (OBAN_RESCUE_AFTER_SECONDS=86400)
+# expected: the proof FAILS after '(other order) paid while' and never reaches 'the dead node's job was rescued'
+# commit: 73bf8c3, recorded 2026-09-30T12:13Z
+# verdict: ok
+
+12:11:59 cluster:
+12:12:01   ok  node1 sees acme@172.30.0.4 acme@172.30.0.5
+12:12:02   ok  node2 sees acme@172.30.0.3 acme@172.30.0.4
+12:12:02   ok  node3 sees acme@172.30.0.3 acme@172.30.0.5
+12:12:02 broadcast:
+12:12:03   ok  acme@172.30.0.3 -> acme@172.30.0.4
+12:12:03 load balancer:
+12:12:03   ok  6 × GET /health through nginx: 200
+12:12:03   ok  GET / serves the Vue app (/app/assets/index-EwU6x2lw.js: 200)
+12:12:03 jobs:
+12:12:03   ok  order 1: confirmation job completed, 1 attempt
+12:12:03 events:
+12:12:04   ok  order 2: both order.created subscribers completed, once each
+12:12:04   ok  webhook without the token: 401
+12:12:04 ordered queue:
+12:12:10   ok  10 orders: payment then refund, each ended refunded (nodes raced, order held)
+12:12:11   ok  order 14 (other order) paid while order 13 waited
+12:13:09 FAIL  order 13 is pending, want refunded

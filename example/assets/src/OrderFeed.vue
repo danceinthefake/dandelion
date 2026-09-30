@@ -13,6 +13,7 @@ const emit = defineEmits<{ online: [count: number] }>();
 
 const orders = ref<Order[]>([]);
 const live = ref(false);
+const node = ref(""); // the server node this browser is connected to
 let channel: Channel | null = null;
 
 const columns = [
@@ -43,8 +44,9 @@ onMounted(() => {
   // a rejoin (after a dropped connection) replies with the list again
   channel
     .join()
-    .receive("ok", ({ orders: latest }: { orders: Order[] }) => {
+    .receive("ok", ({ orders: latest, node: name }: { orders: Order[]; node: string }) => {
       orders.value = latest;
+      node.value = name;
       live.value = true;
     })
     .receive("error", () => (live.value = false));
@@ -60,6 +62,7 @@ onUnmounted(() => channel?.leave());
     <BlessText as="p" size="sm" muted>
       <BlessBadge :color="live ? 'success' : 'warning'">{{ live ? "live" : "connecting" }}</BlessBadge>
       every order made on any node shows up here at once
+      <span v-if="node" data-testid="node">— connected to {{ node }}</span>
     </BlessText>
     <BlessTable :columns="columns" :rows="rows" row-key="id" striped caption="Latest orders">
       <template #cell-id="{ row }">

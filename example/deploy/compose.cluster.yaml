@@ -19,7 +19,7 @@ x-node: &node
     RELEASE_COOKIE: local-only-cookie-local-only-cookie
     PHX_HOST: localhost
     PAYMENT_WEBHOOK_TOKEN: local-only-webhook-token
-    OBAN_RESCUE_AFTER_SECONDS: "10"
+    OBAN_RESCUE_AFTER_SECONDS: "${OBAN_RESCUE_AFTER_SECONDS:-10}"
   restart: unless-stopped
 
 services:

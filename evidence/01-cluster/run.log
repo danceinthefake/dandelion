@@ -1,0 +1,22 @@
+# commit: 73bf8c3 (+ uncommitted changes)
+# recorded: 2026-09-30T12:20Z
+# machine: Linux 7.2.7-arch1-1, docker 29.8.1
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
+
+cluster:
+12:21:08   ok  node1 sees acme@172.30.0.4 acme@172.30.0.5
+12:21:08   ok  node2 sees acme@172.30.0.3 acme@172.30.0.5
+12:21:09   ok  node3 sees acme@172.30.0.3 acme@172.30.0.4
+
+broadcast:
+12:21:09   ok  acme@172.30.0.3 -> acme@172.30.0.4
+
+load balancer:
+12:21:09   ok  6 × GET /health through nginx: 200
+12:21:09   ok  GET / serves the Vue app (/app/assets/index-EwU6x2lw.js: 200)
+
+node failure:
+12:21:50   ok  node2 killed; node1 now sees 1 other node
+12:22:29   ok  6 × GET /health with node2 down: 200
+12:22:32   ok  node2 started again and rejoined

@@ -1,0 +1,8 @@
+# commit: 73bf8c3 (+ uncommitted changes)
+# recorded: 2026-09-30T12:20Z
+# machine: Linux 7.2.7-arch1-1, docker 29.8.1
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
+
+broadcast:
+12:21:09   ok  acme@172.30.0.3 -> acme@172.30.0.4

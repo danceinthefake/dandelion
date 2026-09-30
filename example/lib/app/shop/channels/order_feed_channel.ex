@@ -2,7 +2,7 @@ defmodule App.Shop.Channels.OrderFeedChannel do
   @moduledoc """
   The live order feed (`orders:live`). ≈ a WebSocket handler in Go.
 
-    * Joining replies with the latest orders.
+    * Joining replies with the latest orders and the name of this node.
     * Every order made on **any node** is pushed as `"order"` the moment it's
       saved (`Platform.Broadcast`, sent by `OrderService.create/1`). It is
       live only: a browser that was disconnected reloads the list on
@@ -21,7 +21,9 @@ defmodule App.Shop.Channels.OrderFeedChannel do
     {:ok, %{orders: orders}} = OrderService.list(%{"per_page" => "20"})
     Phoenix.PubSub.subscribe(Platform.Broadcast, "orders")
     send(self(), :after_join)
-    {:ok, %{orders: Enum.map(orders, &OrderJSON.order/1)}, socket}
+    # `node`: which node this browser is connected to (the page shows it, so a
+    # demo can show two browsers on two nodes)
+    {:ok, %{orders: Enum.map(orders, &OrderJSON.order/1), node: Atom.to_string(node())}, socket}
   end
 
   def join(_topic, _params, _socket), do: {:error, %{reason: "unknown feed"}}

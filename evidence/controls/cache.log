@@ -1,0 +1,27 @@
+# control: cache
+# broken on purpose: a cache delete is not sent to the other nodes (Dandelion.Cache.delete/1)
+# expected: the proof FAILS after 'read on all 3 nodes' and never reaches 'every node reads 1600'
+# commit: 73bf8c3, recorded 2026-09-30T12:11Z
+# verdict: ok
+
+12:11:11 cluster:
+12:11:13   ok  node1 sees acme@172.30.0.3 acme@172.30.0.4
+12:11:13   ok  node2 sees acme@172.30.0.3 acme@172.30.0.5
+12:11:14   ok  node3 sees acme@172.30.0.4 acme@172.30.0.5
+12:11:14 broadcast:
+12:11:14   ok  acme@172.30.0.5 -> acme@172.30.0.3
+12:11:14 load balancer:
+12:11:14   ok  6 × GET /health through nginx: 200
+12:11:14   ok  GET / serves the Vue app (/app/assets/index-EwU6x2lw.js: 200)
+12:11:14 jobs:
+12:11:15   ok  order 1: confirmation job completed, 1 attempt
+12:11:15 events:
+12:11:16   ok  order 2: both order.created subscribers completed, once each
+12:11:16   ok  webhook without the token: 401
+12:11:16 ordered queue:
+12:11:21   ok  10 orders: payment then refund, each ended refunded (nodes raced, order held)
+12:11:22   ok  order 14 (other order) paid while order 13 waited
+12:11:38   ok  order 13: the dead node's job was rescued, then its refund ran after it
+12:11:38 cache:
+12:11:40   ok  PROOF-1790770298 read on all 3 nodes: each keeps its own copy
+12:11:48 FAIL  node2 still reads the old price: 1500

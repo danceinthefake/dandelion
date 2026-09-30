@@ -16,6 +16,22 @@ mix archive.install hex dandelion_new
 mix dandelion.new my_app          # a service that already depends on this library
 ```
 
+## Proof
+
+Every claim is recorded, not just written down — [`evidence/`](https://github.com/danceinthefake/dandelion/tree/main/evidence)
+has a log, a GIF and a page for each, and [what is *not* proven](https://github.com/danceinthefake/dandelion/blob/main/evidence/LIMITS.md).
+
+**An order made on one node appears in a browser on another** (two browsers,
+two different nodes, real Chromium):
+
+![two browsers on two different nodes; an order made in one shows in the other](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/02-live-feed/live-feed.gif)
+
+**A job left by a killed node is run again by another**, and payment events
+keep their order while three nodes race for them — with negative controls that
+show the same checks **fail** when the feature is switched off:
+
+![the cluster proof](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/04-ordered-queue/ordered-queue.gif)
+
 ## The library
 
 Thin over [Oban](https://hex.pm/packages/oban), [Cachex](https://hex.pm/packages/cachex),
