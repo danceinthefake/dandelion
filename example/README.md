@@ -5,15 +5,21 @@ and `lib/app/<domain>/`, the business, laid out the way a Go service is
 (handlers → services → repos → models). It is what `mix dandelion.new`
 generates; see [../DESIGN.md](../DESIGN.md).
 
+The parts that are the same in every project — `Dandelion.Cluster`,
+`Dandelion.Cache`, `Dandelion.Queue`, `Dandelion.Queue.Ordered`,
+`Dandelion.PubSub` — come from the [`dandelion`](../lib) library; `platform/`
+wires them up and holds what belongs to *this* app (router, endpoint, cron
+schedule, subscriptions).
+
 ```
 lib/
   platform/                 same in every dandelion project
     application.ex          what starts, in order (≈ main.go)
     database/repo.ex        ≈ the *sql.DB pool
     web/                    ≈ the web server: endpoint, router (every route), health, errors
-    queue.ex                ≈ Cloud Tasks: background jobs (Oban)
+    queue.ex                ≈ Cloud Tasks: background jobs (Oban, set up by Dandelion.Queue)
     cron.ex                 ≈ Cloud Scheduler: recurring jobs, once per cluster
-    pubsub.ex, queue/       ≈ Google Pub/Sub topics; the ordered queue per key
+    pubsub.ex               ≈ Google Pub/Sub topics: who subscribes to what (mechanism: Dandelion.PubSub)
     realtime/               ≈ Pusher presence: who is online, across nodes
     release.ex              migrations in production
   app/
@@ -66,3 +72,17 @@ left alone. If other services call yours over plain HTTP inside the network
 `SECRET_KEY_BASE`: `mix phx.gen.secret`. `PAYMENT_WEBHOOK_TOKEN`: the secret the payment provider sends in `x-callback-token`. Unpaid orders are cancelled after
 `UNPAID_ORDER_MAX_AGE_SECONDS` (default 3600), checked every minute
 (`lib/platform/cron.ex`).
+
+## Try the API
+
+`mix setup` seeds two products (`TEA-01`, `CUP-02`). Orders are **priced from the
+products table** — send only the SKU and the quantity; a `price_cents` in the
+request is ignored, and an unknown SKU is a 400:
+
+```sh
+curl -X POST localhost:4000/api/orders -H 'content-type: application/json' \
+  -d '{"customer_email":"sari@example.com","items":[{"sku":"TEA-01","quantity":2}]}'
+curl -X PUT localhost:4000/api/products/TEA-01 -H 'content-type: application/json' \
+  -d '{"price_cents":1600}'          # the next order pays 1600; old orders keep their price
+```
+
