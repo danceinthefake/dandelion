@@ -20,5 +20,13 @@ The pages follow the path of a request, from `mix` to a crash:
 11. [Config and releases](11-config-and-releases.md) — env config + Dockerfile vs `runtime.exs` + `mix release`
 12. [When it crashes](12-when-it-crashes.md) — `panic` / `recover` vs supervisors
 
+**The rest of the cloud** — what you'd otherwise run next to the service:
+
+13. [Where is my Redis?](13-where-is-my-redis.md) — pub/sub, cache and presence, in the app
+14. [Queues and topics](14-queues-and-topics.md) — Cloud Tasks / asynq, Google Pub/Sub / Kafka, SQS FIFO, and "I still need a real broker"
+15. [Cron, and "only one does it"](15-cron-and-leaders.md) — Cloud Scheduler, Redis locks
+16. [Frontend and live updates](16-frontend-and-live.md) — a Vue app on the same release, WebSockets, who's online
+17. [One node or many](17-one-node-or-many.md) — service mesh, node failure, network splits
+
 Reading order: 1–7 are enough to change the example; 8, 9 and 12 are where
 Elixir differs most from Go, and why it's worth learning.

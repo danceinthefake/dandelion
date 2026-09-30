@@ -201,6 +201,11 @@ request:
 10. Tests (vs `testing`, table-driven)
 11. Config and releases (vs env + Dockerfile)
 12. When it crashes: supervisors (vs `panic`/`recover`)
+13. Where is my Redis? pub/sub, cache, presence
+14. Queues and topics: Cloud Tasks / asynq, Pub/Sub / Kafka, SQS FIFO, a real broker (Broadway)
+15. Cron, and "only one does it": Cloud Scheduler, Redis locks
+16. Frontend and live updates: the Vue app, channels, presence
+17. One node or many: the service mesh, node failure, network splits
 
 Written in English. (A Bahasa Indonesia translation was removed 2026-09-27:
 it read unnaturally.)
@@ -612,11 +617,12 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    3-node cluster: two browsers, an order made in one appears in the other,
    presence counts both and drops one on close. Migrations split so
    `--no-example` has none that touch `orders`.
-6. Docs: phrasebook pages (Redis pub/sub → `Platform.Broadcast`, Google
-   Pub/Sub / Kafka topic → `Platform.PubSub` and the one-transaction
-   publish, Redis cache → Cachex, Cloud Tasks / asynq → Oban, SQS FIFO →
-   the ordered queue, Cloud Scheduler → Oban Cron, "I still need a real
-   broker" → Broadway, leader lock → Oban leader, "my service mesh" → node
-   calls), the N-VM guide, README.
+6. ✅ Docs (2026-09-30): phrasebook pages 13–17 (Redis → `Platform.Broadcast`
+   / `Platform.Cache` / Presence; Cloud Tasks and asynq → Oban; Google Pub/Sub
+   and Kafka → `Platform.PubSub` with the one-transaction publish; SQS FIFO →
+   the ordered queue; "I still need a real broker" → Broadway; Cloud
+   Scheduler and Redis locks → Oban Cron, leader and unique jobs; the frontend
+   and channels; service mesh → node calls; network splits), pages 02 and 09
+   brought up to date, `example/deploy/vms.md` (the N-VM guide), READMEs.
 7. Generator: templates synced, integration test generating with and
    without the example / frontend.

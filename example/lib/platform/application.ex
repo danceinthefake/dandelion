@@ -19,7 +19,7 @@ defmodule Platform.Application do
         Platform.Database.Repo,
         # ≈ service discovery: nodes find each other through Postgres
         Platform.Cluster,
-        # ≈ Redis pub/sub: live broadcast, fire-and-forget (on this node, for now)
+        # ≈ Redis pub/sub: live broadcast, fire-and-forget, reaches every node
         {Phoenix.PubSub, name: Platform.Broadcast},
         # ≈ Pusher presence: who is connected, across nodes
         Platform.Realtime.Presence,

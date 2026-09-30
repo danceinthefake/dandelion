@@ -29,6 +29,8 @@ http://localhost:8080. The proof script checks that:
 
 The secrets in `compose.cluster.yaml` are fixed and public: local only.
 
+On real machines: [vms.md](vms.md).
+
 ## What each node needs
 
 | Variable | |

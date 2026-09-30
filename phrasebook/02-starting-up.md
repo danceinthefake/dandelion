@@ -19,8 +19,12 @@ def start(_type, _args) do
     [
       Platform.Web.Telemetry,
       Platform.Database.Repo,                  # the database pool (≈ *sql.DB)
-      {Phoenix.PubSub, name: Platform.Broadcast}
-    ] ++ jobs() ++ [Endpoint]                  # jobs (≈ goroutines), then HTTP
+      Platform.Cluster,                        # nodes finding each other
+      {Phoenix.PubSub, name: Platform.Broadcast},
+      Platform.Cache,                          # ≈ Redis as a cache, in memory
+      {Oban, Platform.Queue.config()},         # background jobs and cron (≈ goroutines)
+      Endpoint                                 # HTTP, last
+    ]
 
   opts = [strategy: :one_for_one, name: Platform.Supervisor]
   Supervisor.start_link(children, opts)
@@ -31,5 +35,5 @@ Each child is a process started in that order; the HTTP endpoint comes last,
 so requests only arrive once the database pool and jobs are up.
 
 **Why:** in Go, `main` starts things and hopes they keep running. A
-supervisor *watches* them: if one dies (the job, a database connection), it
+supervisor *watches* them: if one dies (the job queue, a database connection), it
 starts it again — see [12. When it crashes](12-when-it-crashes.md).

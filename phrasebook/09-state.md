@@ -33,7 +33,7 @@ It handles one message at a time, so there is no race to lock against.
 
 The example itself has no `GenServer` of its own, on purpose: its shared
 state lives in Postgres. What it runs on is full of them — Oban's queues and
-its cron, the live broadcast (Phoenix.PubSub), the database pool — each one process owning its state.
+its cron, the live broadcast (Phoenix.PubSub), the cache, the database pool — each one process owning its state.
 
 | Go | Elixir |
 |---|---|
