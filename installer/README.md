@@ -1,11 +1,11 @@
-# dandelion_new
+# dandelion
 
 `mix dandelion.new` — creates an Elixir service laid out the way a Go service is
 (router → handlers → services → repos → models), with Postgres, tests, a
 background job and a release Dockerfile.
 
 ```sh
-mix archive.install hex dandelion_new
+mix archive.install hex dandelion
 mix dandelion.new my_app            # --no-example: leave out the orders example
                                     # --no-frontend: leave out the Vue app (no Node)
 ```

@@ -20,8 +20,8 @@ checks the cluster claims on three local nodes.)
   the cloud (where is my Redis, queues and topics, cron, live updates, many
   nodes).
 - [`installer/`](installer) — the `mix dandelion.new` generator (hex package
-  `dandelion_new`). Until it's published:
-  `cd installer && mix archive.build && mix archive.install dandelion_new-0.1.0.ez`,
+  `dandelion`). Until it's published:
+  `cd installer && mix archive.build && mix archive.install dandelion-0.1.0.ez`,
   then `mix dandelion.new my_app` anywhere (`--no-frontend`, `--no-example`).
 - [`DESIGN.md`](DESIGN.md) — why it's built this way.
 
