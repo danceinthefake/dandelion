@@ -3,6 +3,8 @@
 #   - every node sees the other two
 #   - a broadcast on one node reaches a subscriber on another
 #   - requests through the load balancer are answered
+#   - a queued job runs once, on one node
+#   - a job left behind by a killed node is run again by another node
 #   - a node killed without warning drops out; started again, it rejoins
 #   - the database going away crashes nothing and splits nothing
 set -eu
@@ -58,6 +60,30 @@ for _ in 1 2 3 4 5 6; do
 done
 ok "6 × GET /health through nginx: 200"
 
+echo "jobs:"
+# Creating an order queues its confirmation; one node runs it, once.
+job=$(rpc node1 '
+  {:ok, order} = App.Shop.Services.OrderService.create(%{
+    "customer_email" => "proof@example.com",
+    "items" => [%{"sku" => "PROOF", "quantity" => 1, "price_cents" => 100}]
+  })
+  IO.write(order.id)
+')
+job_state() { # ORDER_ID -> "state attempt attempts-by-node-count"
+  rpc node1 "
+    import Ecto.Query
+    [j] = Platform.Database.Repo.all(from j in Oban.Job, where: fragment(\"args->>'order_id' = ?\", ^\"$1\"), select: {j.state, j.attempt, j.attempted_by})
+    {state, attempt, by} = j
+    IO.write(inspect({state, attempt, length(by)}))
+  "
+}
+for _ in $(seq 1 30); do
+  [ "$(job_state "$job")" = '{"completed", 1, 2}' ] && break
+  sleep 1
+done
+[ "$(job_state "$job")" = '{"completed", 1, 2}' ] || fail "the confirmation job didn't complete once: $(job_state "$job")"
+ok "order $job: confirmation job completed, 1 attempt"
+
 echo "node failure:"
 compose kill -s KILL node2 >/dev/null 2>&1
 wait_for node1 1 || fail "node1 still sees node2 after it was killed"
@@ -71,6 +97,34 @@ ok "6 × GET /health with node2 down: 200"
 compose start node2 >/dev/null 2>&1
 wait_for node2 2 && wait_for node1 2 || fail "node2 didn't rejoin"
 ok "node2 started again and rejoined"
+
+echo "job on a killed node:"
+# A killed node leaves its job row `executing`. Write that row by hand (no job
+# here runs long enough to catch one mid-flight), kill node2, and wait for
+# Oban's lifeline on another node to give the job back and have it run.
+orphan=$(rpc node1 '
+  {:ok, order} = App.Shop.Services.OrderService.create(%{
+    "customer_email" => "orphan@example.com",
+    "items" => [%{"sku" => "PROOF", "quantity" => 1, "price_cents" => 100}]
+  })
+  import Ecto.Query
+  {1, _} =
+    Platform.Database.Repo.update_all(
+      from(j in Oban.Job, where: fragment("args->>\x27order_id\x27 = ?", ^"#{order.id}")),
+      set: [state: "executing", attempt: 1, attempted_at: DateTime.utc_now(),
+            attempted_by: ["acme@killed-node", "0"]]
+    )
+  IO.write(order.id)
+')
+compose kill -s KILL node2 >/dev/null 2>&1
+for _ in $(seq 1 40); do
+  [ "$(job_state "$orphan")" = '{"completed", 2, 2}' ] && break
+  sleep 1
+done
+[ "$(job_state "$orphan")" = '{"completed", 2, 2}' ] || fail "the orphaned job wasn't run again: $(job_state "$orphan")"
+ok "order $orphan: job left executing by a killed node was run again, 2nd attempt, completed"
+compose start node2 >/dev/null 2>&1
+wait_for node2 2 && wait_for node1 2 || fail "node2 didn't rejoin"
 
 echo "database outage:"
 restarts() { docker inspect --format '{{.RestartCount}}' $(compose ps -q node1 node2 node3) | awk '{ s += $1 } END { print s }'; }

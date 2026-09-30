@@ -27,6 +27,14 @@ config :acme, Platform.Web.Endpoint,
 config :acme, App.Shop.Workers.ExpireUnpaidOrders,
   max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600"))
 
+# A job left `executing` by a node that died is run again after this many
+# seconds (Platform.Queue), checked every 5 s when this is set. The cluster
+# proof sets it low.
+if rescue_after = System.get_env("OBAN_RESCUE_AFTER_SECONDS") do
+  config :acme, Oban,
+    lifeline: [rescue_after: {String.to_integer(rescue_after), :second}, interval: 5_000]
+end
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

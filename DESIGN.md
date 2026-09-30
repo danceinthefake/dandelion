@@ -570,9 +570,13 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    3 nodes + nginx, `deploy/cluster-proof.sh` (nodes connect, a broadcast
    crosses nodes, a killed node drops out and rejoins, a database outage
    crashes nothing).
-2. Oban: ✅ Oban in (`Platform.Queue`, `Platform.Cron`), expiry via Oban
-   Cron — the per-node timer is gone (2026-09-27); still to do: the
-   confirmation job, the kill-a-node proof.
+2. ✅ Oban (2026-09-30): `Platform.Queue`, `Platform.Cron`, expiry via Oban
+   Cron (the per-node timer is gone), `SendOrderConfirmation` queued by
+   `OrderService.create/1` in the order's transaction (step 3 moves it
+   behind `Platform.PubSub`), and the cluster proof: a job runs once; a job
+   left `executing` by a killed node is run again by another node
+   (`OBAN_RESCUE_AFTER_SECONDS=10` in the compose file; the orphan row is
+   written by hand — no job runs long enough to catch one mid-flight).
 3. Events: `Platform.PubSub.publish/2` and its subscriptions (a job per
    subscriber, in the caller's transaction), the `order.created` subscribers; the ordered queue per
    key (§10.7.1) and the payment webhook on it.

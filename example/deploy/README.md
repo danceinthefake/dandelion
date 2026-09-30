@@ -17,6 +17,8 @@ http://localhost:8080. The proof script checks that:
 - every node sees the other two;
 - a broadcast (`Platform.Broadcast`) on one node reaches another;
 - requests through the load balancer are answered, also with a node killed;
+- a new order's confirmation job runs once, on one node;
+- a job left behind by a killed node is run again by another node;
 - a killed node drops out, and rejoins when started again;
 - 15 seconds without Postgres crashes no node and splits nothing
   (`/health` says 503 meanwhile).

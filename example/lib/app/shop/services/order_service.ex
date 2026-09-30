@@ -6,6 +6,7 @@ defmodule App.Shop.Services.OrderService do
   returns `{:ok, value}` or `{:error, reason}` — Elixir's `(value, err)`.
   """
   alias App.Shop.Models.Order
+  alias App.Shop.Workers.SendOrderConfirmation
   alias Platform.Database.Repo
   alias Platform.Database.Repos.OrderRepo
 
@@ -19,10 +20,19 @@ defmodule App.Shop.Services.OrderService do
   # keeps OFFSET well inside Postgres's bigint
   @max_page 1_000_000
 
-  @doc "Creates an order with its items. Validation errors come back as a changeset."
+  @doc """
+  Creates an order with its items and queues its confirmation, in one
+  transaction: either both are saved, or neither. Validation errors come
+  back as a changeset.
+  """
   @spec create(map()) :: {:ok, Order.t()} | {:error, error()}
   def create(params) do
-    params |> Order.create_changeset() |> OrderRepo.insert()
+    Repo.transact(fn ->
+      with {:ok, order} <- params |> Order.create_changeset() |> OrderRepo.insert(),
+           {:ok, _job} <- Oban.insert(SendOrderConfirmation.new(%{order_id: order.id})) do
+        {:ok, order}
+      end
+    end)
   end
 
   @doc "One order with its items."

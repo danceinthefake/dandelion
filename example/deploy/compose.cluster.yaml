@@ -15,6 +15,7 @@ x-node: &node
     SECRET_KEY_BASE: local-only-secret-key-base-local-only-secret-key-base-local-only-0000
     RELEASE_COOKIE: local-only-cookie-local-only-cookie
     PHX_HOST: localhost
+    OBAN_RESCUE_AFTER_SECONDS: "10"
   restart: unless-stopped
 
 services:
