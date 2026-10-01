@@ -77,7 +77,12 @@ defmodule DandelionNew.IntegrationTest do
     File.cp!(Path.join(@library, "mix.exs"), Path.join(vendor, "mix.exs"))
     File.cp_r!(Path.join(@library, "lib"), Path.join(vendor, "lib"))
 
-    edit!(path, "mix.exs", ~s({:dandelion, "~> 0.1"}), ~s({:dandelion, path: "vendor/dandelion"}))
+    edit!(
+      path,
+      "mix.exs",
+      ~s({:dandelion, "~> 0.1.1"}),
+      ~s({:dandelion, path: "vendor/dandelion"})
+    )
 
     edit!(
       path,

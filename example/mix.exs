@@ -77,7 +77,7 @@ defmodule Acme.MixProject do
   defp dandelion do
     case System.get_env("DANDELION_PATH") || (File.dir?("../lib/dandelion") && "..") do
       path when is_binary(path) -> {:dandelion, path: path}
-      _ -> {:dandelion, "~> 0.1"}
+      _ -> {:dandelion, "~> 0.1.1"}
     end
   end
 

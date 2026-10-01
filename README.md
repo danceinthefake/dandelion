@@ -40,7 +40,7 @@ new API on top of them. You need Postgres and a `Phoenix.PubSub`.
 
 ```elixir
 def deps do
-  [{:dandelion, "~> 0.1"}]
+  [{:dandelion, "~> 0.1.1"}]
 end
 ```
 

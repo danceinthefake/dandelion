@@ -105,7 +105,7 @@ defmodule DandelionNew.GenerateTest do
   test "a generated project takes dandelion from hex, and has no checkout-only parts" do
     files = files("my_app", "MyApp")
 
-    assert files["mix.exs"] =~ ~s({:dandelion, "~> 0.1"},)
+    assert files["mix.exs"] =~ ~s({:dandelion, "~> 0.1.1"},)
     assert files["test/test_helper.exs"] =~ "products"
     refute files["mix.exs"] =~ "DANDELION_PATH"
     refute files["Dockerfile"] =~ "vendor/dandelion"

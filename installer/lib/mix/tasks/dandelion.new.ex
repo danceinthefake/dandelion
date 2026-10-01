@@ -236,7 +236,7 @@ defmodule Mix.Tasks.Dandelion.New do
   # The example takes the library from the checkout (a dev-only `dandelion/0`
   # in its mix.exs); a generated project takes it from hex.
   defp hex_dependency("mix.exs", contents),
-    do: replace!(contents, ~r/dandelion\(\),/, ~S({:dandelion, "~> 0.1"},))
+    do: replace!(contents, ~r/dandelion\(\),/, ~S({:dandelion, "~> 0.1.1"},))
 
   defp hex_dependency(_file, contents), do: contents
 
