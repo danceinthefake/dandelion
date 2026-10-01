@@ -16,18 +16,21 @@ compose="docker compose -f $example/deploy/compose.cluster.yaml"
 
 stamped() { while IFS= read -r line; do printf '%s %s\n' "$(date -u +%T)" "$line"; done; }
 
-# control NAME "what is broken" PRESENT ABSENT [ENV=VALUE]
+# ONLY=name runs just that control (the others' logs stay as they are).
+selected() { [ -z "${ONLY:-}" ] || [ "$ONLY" = "$1" ]; }
+
+# control NAME "what is broken" PRESENT ABSENT [ENV=VALUE] [SCRIPT]
 #   PRESENT: a line the log must contain (the proof got this far)
 #   ABSENT:  a line it must NOT contain (the step that depends on the feature)
 control() {
-  local name=$1 what=$2 present=$3 absent=$4 env=${5:-}
+  local name=$1 what=$2 present=$3 absent=$4 env=${5:-} script=${6:-cluster-proof.sh}
   echo "== control: $name — $what"
   "$example/deploy/vendor-dandelion.sh" >/dev/null
   "patch_$name"
   $compose down -v >/dev/null 2>&1 || true
   env $env $compose up -d --build >/dev/null 2>&1
   set +e
-  "$example/deploy/cluster-proof.sh" 2>&1 | stamped > "$out/$name.log"
+  "$example/deploy/$script" 2>&1 | stamped > "$out/$name.log"
   local status=${PIPESTATUS[0]}
   set -e
   $compose down -v >/dev/null 2>&1 || true
@@ -68,15 +71,28 @@ assert a in s; open(p, "w").write(s.replace(a, "_ = pubsub\n    :ok"))
 PY
 }
 
+# A node that rejoins keeps its cache (it should empty it: it may have missed deletes).
+patch_rejoin() {
+  python3 - "$vendor/lib/dandelion/cache/listener.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "    Cachex.clear(Dandelion.Cache)\n    {:noreply, state}"
+assert a in s; open(p, "w").write(s.replace(a, "    {:noreply, state}"))
+PY
+}
+
 # A job left by a dead node is given back after a day, not 10 seconds.
 patch_lifeline() { :; }
 
-control ordering "the ordered queue never waits (Dandelion.Queue.Ordered.turn/1 always says go)" \
+selected ordering && control ordering "the ordered queue never waits (Dandelion.Queue.Ordered.turn/1 always says go)" \
   "ordered queue:" "10 orders: payment then refund"
-control cache "a cache delete is not sent to the other nodes (Dandelion.Cache.delete/1)" \
+selected cache && control cache "a cache delete is not sent to the other nodes (Dandelion.Cache.delete/1)" \
   "read on all 3 nodes" "every node reads 1600"
-control lifeline "a dead node's job is given back after a day, not 10 seconds (OBAN_RESCUE_AFTER_SECONDS=86400)" \
+selected lifeline && control lifeline "a dead node's job is given back after a day, not 10 seconds (OBAN_RESCUE_AFTER_SECONDS=86400)" \
   "(other order) paid while" "the dead node's job was rescued" "OBAN_RESCUE_AFTER_SECONDS=86400"
 
+selected rejoin && control rejoin "a node that rejoins after a split keeps its cache (Dandelion.Cache.Listener no longer clears on :nodeup)" \
+  "split: node1 alone" "node1's cache was emptied when it rejoined" "" partition-proof.sh
+
 "$example/deploy/vendor-dandelion.sh" >/dev/null   # leave the copy unbroken
-echo "all three controls fail where they should"
+echo "the controls run fail where they should"

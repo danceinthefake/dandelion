@@ -715,3 +715,16 @@ must fail), and a `LIMITS.md` that says what is not proven. The page shows which
 node each browser is connected to so a recording can show two browsers on two
 nodes. See `evidence/README.md`.
 
+### 11.4 The partition proof
+
+2026-10-01. `example/deploy/partition-proof.sh` splits the 3-node cluster into
+`node1 | node2 + node3` (a different wrong cookie on each side, then a
+disconnect; healed by restoring the cookie) with both halves still reaching
+Postgres, and checks §10.3's table: a live broadcast doesn't cross; a cut-off
+cache goes stale and is emptied on the heal (checked on an entry cached just
+before the heal, so it can't be a TTL expiry); jobs, events and ordered
+payments still run exactly once; one cron leader throughout; presence is split
+during and merged after. Evidence: `evidence/09-network-partition/`, with a
+negative control (the clear-on-`:nodeup` removed) in `evidence/controls/`.
+Not covered: a half cut off from Postgres, an asymmetric or flapping split.
+

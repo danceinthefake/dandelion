@@ -5,7 +5,9 @@
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
+#   partition a network split and its heal → 09
 #   controls  the proof with one thing broken on purpose → controls/
+#             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
 #
 # Needs: Docker, Node (+ `npm install` and `npx playwright install chromium`
@@ -74,6 +76,30 @@ live() {
   cluster_down
 }
 
+partition() {
+  stamp
+  cluster_up
+  for _ in $(seq 1 40); do
+    n=$(docker compose -f "$example/deploy/compose.cluster.yaml" exec -T node1 bin/acme rpc 'IO.write(length(Node.list()))' 2>/dev/null || true)
+    [ "$n" = 2 ] && break
+    sleep 2
+  done
+  set +e
+  "$example/deploy/partition-proof.sh" 2>&1 | stamped > "$work/partition.log"
+  status=${PIPESTATUS[0]}
+  set -e
+  cluster_down
+  [ "$status" = 0 ] || { echo "the partition proof failed, see $work/partition.log" >&2; exit 1; }
+  grep -q "all good" "$work/partition.log"
+  {
+    sed 's/^/# /' "$work/STAMP.txt"
+    echo "# source: example/deploy/partition-proof.sh (3 containers; node1 | node2 + node3, both halves reach Postgres)"
+    echo
+    grep -v "all good" "$work/partition.log"
+  } > "$here/09-network-partition/run.log"
+  gif "$here/09-network-partition" partition.gif "09 — a network split: node1 | node2 + node3, then healed"
+}
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -100,6 +126,7 @@ case "${1:-all}" in
   live) live ;;
   controls) controls ;;
   tests) tests ;;
-  all) proof; live; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|controls|tests]" >&2; exit 2 ;;
+  partition) partition ;;
+  all) proof; live; partition; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|controls|tests]" >&2; exit 2 ;;
 esac

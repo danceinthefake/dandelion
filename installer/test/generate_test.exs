@@ -142,7 +142,8 @@ defmodule DandelionNew.GenerateTest do
       for bin <- [
             "rel/overlays/bin/migrate",
             "deploy/cluster-proof.sh",
-            "deploy/seed-products.sh"
+            "deploy/seed-products.sh",
+            "deploy/partition-proof.sh"
           ] do
         assert File.stat!(Path.join(path, bin)).mode |> Bitwise.band(0o111) != 0, bin
       end

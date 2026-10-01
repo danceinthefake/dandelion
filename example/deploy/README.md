@@ -27,6 +27,12 @@ http://localhost:8080. The proof script checks that:
 - payment events for one order run in arrival order even when three nodes race for them, and a dead node's unfinished payment job holds back only its own order, until rescued;
 - a price changed through one node is read fresh from the cache on every node, and a node that joins again starts with an empty cache;
 <!-- @example-end -->
+<!-- @example-start -->
+- `./deploy/partition-proof.sh`: a network split (`node1 | node2 + node3`, both
+  halves still reach Postgres): a live broadcast doesn't cross it, a cut-off
+  cache goes stale and is emptied on the heal, jobs and ordered payments still
+  run exactly once, one cron leader, presence merges after the heal;
+<!-- @example-end -->
 - a killed node drops out, and rejoins when started again;
 - 15 seconds without Postgres crashes no node and splits nothing
   (`/health` says 503 meanwhile).

@@ -11,10 +11,13 @@ Said plainly, so nobody has to find out the hard way.
   No job is slow enough to catch mid-flight, so the proof plants the state a
   crash leaves behind and then kills a node. It shows the cluster gives such a
   job back and runs it; it does not show the exact instant of a crash.
-- **No true network partition.** What is tested: a node killed with `SIGKILL`,
-  a node disconnected and reconnected, Postgres stopped for 15 seconds. A
-  partition where both halves keep running and can't see each other is argued
-  in DESIGN §10.3 but not reproduced.
+- **One kind of partition.** [09](09-network-partition/) splits the cluster into
+  `node1 | node2 + node3`, both halves keeping their Postgres connection, made
+  by giving each side a wrong Erlang cookie for the other. Not tested: a half
+  that is *also* cut off from Postgres, an asymmetric split (A reaches B but B
+  can't reach A), a split that flaps on and off, or one long enough to outlast
+  the cache TTL. The split is simulated at the Erlang layer, not by dropping
+  packets, so it doesn't exercise TCP timeouts (`net_ticktime`).
 - **A short database outage only** (15 seconds), not a long one, and not one
   that drops connections one at a time.
 - **Nothing about performance.** No throughput, latency or load numbers. The
