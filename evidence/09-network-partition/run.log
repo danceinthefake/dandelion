@@ -1,0 +1,27 @@
+# commit: 775f06f
+# recorded: 2026-10-01T03:07Z
+# machine: Linux 7.2.7-arch1-1, docker 29.8.1
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/partition-proof.sh (3 containers; node1 | node2 + node3, both halves reach Postgres)
+
+03:07:36 before the split:
+03:07:37   ok  three nodes, each sees the other two
+03:07:39   ok  presence: 3 viewers (one per node), visible on every node
+03:07:40   ok  exactly one cron leader (Oban, through Postgres)
+03:07:41   ok  SPLIT-1790824055 read on all 3 nodes: each caches 1500
+03:07:41 during the split:
+03:07:42   ok  split: node1 alone | node2 + node3 together (both halves still reach Postgres)
+03:07:45   ok  a live broadcast on node1 did not reach node2 (fire and forget: lost across a split)
+03:07:46   ok  price changed on node2's side: node2 and node3 read 1700, cut-off node1 still serves the old 1500
+03:07:48   ok  10 orders made on both sides: 20 subscriber jobs, each completed once (1 attempt)
+03:07:49   ok  still exactly one cron leader during the split
+03:07:52   ok  order 11: payment sent on node1's side, refund on node2's side: ran in that order (refunded)
+03:07:52 presence during the split:
+03:08:10   ok  each half sees only its own viewers: node1 1, node2 2, node3 2
+03:08:10 after the heal:
+03:08:13   ok  the halves found each other again (3 s after the cookies were restored)
+03:08:13   ok  node1's cache was emptied when it rejoined (a fresh entry, not an expired one, was gone)
+03:08:14   ok  node1 now reads the current price: 1700
+03:08:28   ok  presence merged: every node sees all 3 viewers again (18 s after the heal)
+03:08:29   ok  exactly one cron leader after the heal
+03:08:29   ok  the two payment events each completed exactly once

@@ -1,0 +1,23 @@
+# control: rejoin
+# broken on purpose: a node that rejoins after a split keeps its cache (Dandelion.Cache.Listener no longer clears on :nodeup)
+# expected: the proof FAILS after 'split: node1 alone' and never reaches 'node1's cache was emptied when it rejoined'
+# commit: 775f06f, recorded 2026-10-01T03:10Z
+# verdict: ok
+
+03:09:05 before the split:
+03:09:06   ok  three nodes, each sees the other two
+03:09:09   ok  presence: 3 viewers (one per node), visible on every node
+03:09:10   ok  exactly one cron leader (Oban, through Postgres)
+03:09:10   ok  SPLIT-1790824141 read on all 3 nodes: each caches 1500
+03:09:10 during the split:
+03:09:16   ok  split: node1 alone | node2 + node3 together (both halves still reach Postgres)
+03:09:18   ok  a live broadcast on node1 did not reach node2 (fire and forget: lost across a split)
+03:09:19   ok  price changed on node2's side: node2 and node3 read 1700, cut-off node1 still serves the old 1500
+03:09:22   ok  10 orders made on both sides: 20 subscriber jobs, each completed once (1 attempt)
+03:09:23   ok  still exactly one cron leader during the split
+03:09:25   ok  order 11: payment sent on node1's side, refund on node2's side: ran in that order (refunded)
+03:09:26 presence during the split:
+03:09:40   ok  each half sees only its own viewers: node1 1, node2 2, node3 2
+03:09:40 after the heal:
+03:09:46   ok  the halves found each other again (6 s after the cookies were restored)
+03:10:11 FAIL  node1 kept SPLIT2-1790824141 in its cache after rejoining
