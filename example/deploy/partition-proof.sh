@@ -21,6 +21,14 @@ rpc() { compose exec -T "$1" bin/acme rpc "$2"; }
 ok() { printf '  ok  %s\n' "$1"; }
 fail() { printf 'FAIL  %s\n' "$1" >&2; exit 1; }
 
+# wait until all three nodes answer, and have found each other (90 s at most)
+for n in node1 node2 node3; do
+  for _ in $(seq 1 90); do
+    [ "$(rpc $n 'IO.write(length(Node.list()))' 2>/dev/null)" = 2 ] && break
+    sleep 1
+  done
+done
+
 # the node names, and the product used by the cache checks
 N1=$(rpc node1 'IO.write(node())')
 N2=$(rpc node2 'IO.write(node())')
