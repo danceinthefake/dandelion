@@ -1,38 +1,38 @@
-# commit: 0419fb9 (+ uncommitted changes)
-# recorded: 2026-09-30T16:13Z
+# commit: 0084bf2
+# recorded: 2026-10-01T11:08Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # library
-..........................
-Finished in 1.9 seconds (1.8s async, 0.1s sync)
+...........................
+Finished in 0.2 seconds (0.1s async, 0.1s sync)
 
-Result: 26 passed
+Result: 27 passed
 
 # example
-.....................................................
-Finished in 0.2 seconds (0.2s async, 0.02s sync)
+.........................................................
+Finished in 0.2 seconds (0.2s async, 0.03s sync)
 
-Result: 53 passed
+Result: 57 passed
 
 # generator
 ...........
-Finished in 0.4 seconds (0.4s async, 0.00s sync)
+Finished in 2.9 seconds (2.9s async, 0.00s sync)
 
 Result: 11 passed, 6 excluded
 
-# generated projects (integration; Docker, network, ~10 min; dandelion from hex: 0.1.0)
-Running ExUnit with seed: 947341, max_cases: 1
+# generated projects (integration; Docker, network, ~10 min; dandelion from hex: 0.1.1)
+Running ExUnit with seed: 415879, max_cases: 1
 Including tags: [:integration]
 
 
 DandelionNew.IntegrationTest [test/integration_test.exs]
-  test a generated project compiles cleanly, passes its tests and credo (without the frontend) (65.2 s)
-  test a generated project's cluster proof passes (with everything) (141.9 s)
-  test a generated project compiles cleanly, passes its tests and credo (without the example) (41.4 s)
-  test the generated frontend builds (1.8 s)
-  test a generated project's cluster proof passes (without the example) (124.7 s)
-  test a generated project compiles cleanly, passes its tests and credo (with the example) (41.0 s)
+  test a generated project's cluster proof passes (without the example) (252.4 s)
+  test a generated project compiles cleanly, passes its tests and credo (without the example) (44.2 s)
+  test a generated project's cluster proof passes (with everything) (229.6 s)
+  test a generated project compiles cleanly, passes its tests and credo (without the frontend) (39.3 s)
+  test the generated frontend builds (1.6 s)
+  test a generated project compiles cleanly, passes its tests and credo (with the example) (39.8 s)
 
-Finished in 418.4 seconds (0.00s async, 418.4s sync)
+Finished in 610.0 seconds (0.00s async, 610.0s sync)
 
 Result: 6 passed

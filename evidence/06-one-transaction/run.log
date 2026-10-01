@@ -1,31 +1,34 @@
-# commit: 77ac3a2
-# recorded: 2026-10-01T08:12Z
+# commit: 0084bf2
+# recorded: 2026-10-01T11:08Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # library: test/dandelion/pubsub_test.exs
-Running ExUnit with seed: 856581, max_cases: 1
+Running ExUnit with seed: 643900, max_cases: 1
 
 
 Dandelion.PubSubTest [test/dandelion/pubsub_test.exs]
-  test a topic with no subscribers queues nothing (5 ms)
-  test one job per subscriber, each with the topic and payload (38 ms)
-  test the events are saved with the caller's transaction, or not at all (9 ms)
-  test a topic that isn't listed is an error (1 ms)
+  test a topic that isn't listed is an error (3 ms)
+  test the events are saved with the caller's transaction, or not at all (46 ms)
+  test a topic with no subscribers queues nothing (0 ms)
+  test one job per subscriber, each with the topic and payload (11 ms)
 
-Finished in 0.09 seconds (0.09s async, 0.00s sync)
+Finished in 0.1 seconds (0.1s async, 0.00s sync)
 
 Result: 4 passed
 
 # example: test/platform/pubsub_test.exs (order + event in one transaction)
-Running ExUnit with seed: 795208, max_cases: 1
+==> dandelion
+Generated dandelion app
+==> acme
+Running ExUnit with seed: 876698, max_cases: 1
 
 
 Platform.PubSubTest [test/platform/pubsub_test.exs]
-  test every topic's subscribers are Oban workers (2 ms)
-  test the event is saved with the order or not at all (39 ms)
-  test an order is broadcast live after it is saved (6 ms)
-  test an invalid order publishes nothing (7 ms)
-  test an order is published to every subscriber of order.created (10 ms)
+  test an order is broadcast live after it is saved (36 ms)
+  test an invalid order publishes nothing (10 ms)
+  test an order is published to every subscriber of order.created (9 ms)
+  test every topic's subscribers are Oban workers (0 ms)
+  test the event is saved with the order or not at all (9 ms)
 
 Finished in 0.09 seconds (0.09s async, 0.00s sync)
 

@@ -17,10 +17,8 @@ with everything, without the frontend, and without the example.
 | the generated cluster proof passes — with everything | builds the Docker image, starts 3 nodes, runs the project's own `deploy/cluster-proof.sh` |
 | … without the example | the same, with the platform-only checks |
 
-**Status:** the committed log is from the run against the published `dandelion`
-0.1.0. The example has since started to use `dandelion` 0.1.1 (the cache
-emits telemetry events for the metrics), so a hex-mode run today fails until
-0.1.1 is published; the log is re-recorded after that release.
+**Status:** the committed log is the run against the published `dandelion` 0.1.1
+(the log header names the version it found on hex), all 6 passing.
 
 **Which library:** `record.sh tests` builds the generated projects against the
 **published** `dandelion` package from hex (`DANDELION_FROM_HEX=1`); without
