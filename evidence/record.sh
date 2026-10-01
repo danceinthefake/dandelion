@@ -3,7 +3,7 @@
 #
 #   ./record.sh [all | proof | live | controls | tests]
 #
-#   proof     the 3-node cluster proof → 01, 03, 04, 05, 07 (run.log + GIFs)
+#   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
 #   partition a network split and its heal → 09
 #   controls  the proof with one thing broken on purpose → controls/
@@ -57,6 +57,7 @@ proof() {
   gif "$here/01-cluster" cluster.gif "01 — the nodes find each other, and survive a kill"
   gif "$here/03-killed-node-job" killed-node-job.gif "03 — a job left by a killed node is run again by another node"
   gif "$here/04-ordered-queue" ordered-queue.gif "04 — payment events keep their order while three nodes race for them"
+  gif "$here/10-metrics" metrics.gif "10 — /metrics, and the cluster size it reports follows the nodes"
   gif "$here/05-cache" cache.gif "05 — a price changed on one node is read fresh on all three"
 }
 

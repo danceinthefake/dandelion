@@ -64,4 +64,24 @@ defmodule Dandelion.CacheTest do
     assert_raise RuntimeError, "boom", fn -> Cache.fetch(key, fn -> raise "boom" end) end
     assert Cache.fetch(key, fn -> :fine end) == :fine
   end
+
+  test "fetch emits a telemetry event for each hit and miss" do
+    key = key()
+    id = {:cache_telemetry_test, make_ref()}
+    me = self()
+
+    :telemetry.attach(
+      id,
+      [:dandelion, :cache, :fetch],
+      fn _event, measurements, meta, _ -> send(me, {:fetch, measurements, meta}) end,
+      nil
+    )
+
+    on_exit(fn -> :telemetry.detach(id) end)
+
+    Cache.fetch(key, fn -> 1 end)
+    assert_receive {:fetch, %{count: 1}, %{result: :miss}}
+    Cache.fetch(key, fn -> 1 end)
+    assert_receive {:fetch, %{count: 1}, %{result: :hit}}
+  end
 end

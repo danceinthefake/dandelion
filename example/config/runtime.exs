@@ -23,6 +23,9 @@ end
 config :acme, Platform.Web.Endpoint,
   http: [port: String.to_integer(System.get_env("PORT", "4000"))]
 
+# Optional: with METRICS_TOKEN set, GET /metrics needs `Authorization: Bearer <token>`.
+config :acme, :metrics_token, System.get_env("METRICS_TOKEN")
+
 # ≈ envconfig: settings from environment variables, read at boot.
 config :acme, App.Shop.Workers.ExpireUnpaidOrders,
   max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600"))

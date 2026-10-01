@@ -324,7 +324,7 @@ Only three things stay outside: the **load balancer**, **Postgres** and
 | Sessions | Redis | signed cookies (no store) | — | — |
 | Service discovery | Consul, k8s DNS | libcluster + `Dandelion.Cluster.Postgres` | — | — |
 | Service-to-service calls | HTTP / gRPC + mesh | direct calls between nodes | yes | — |
-| Metrics | Prometheus exporters | PromEx (`/metrics`) | per node | — |
+| Metrics | Prometheus exporters | `GET /metrics` (`telemetry_metrics_prometheus_core`) | each node reports itself; Prometheus scrapes them all | counters restart with the node |
 | Database | Cloud SQL | **outside**: Postgres | — | — |
 | File storage | GCS, S3 | **outside** | — | — |
 
@@ -565,7 +565,7 @@ cloud budget):
 
 - **Cache**: Cachex per node plus PubSub invalidation (simple, one
   library) — Nebulex's distributed modes only if a real need shows up.
-- **Metrics**: PromEx on `/metrics`, or telemetry only.
+- **Metrics** (decided and built 2026-10-01): `telemetry_metrics_prometheus_core` and a handler at `GET /metrics`, not PromEx — PromEx brings dashboards and plugins nothing here needs, and the app already defines its metrics with `Telemetry.Metrics`. What is reported: request duration by status and handler duration by route (histograms), channel joins and socket connections, database query and pool-queue time, Oban job duration by queue/worker/outcome and job exceptions, the dandelion cache's hits and misses (the library emits `[:dandelion, :cache, :fetch]`), the cluster size as this node sees it, and VM memory and run queue. `METRICS_TOKEN` (optional) makes the endpoint need a bearer token; the endpoint belongs on a private network either way.
 
 Not in the template: **rate limiting** — until a service is very large, the
 load balancer does it (Cloud Armor, nginx `limit_req`).

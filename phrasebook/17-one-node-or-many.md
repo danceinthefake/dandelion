@@ -36,6 +36,7 @@ leader). There are no roles. To scale, start another copy.
 | Jobs, ordered queue, cron | work spreads over nodes | its job is run again by another |
 | `Platform.Broadcast`, presence | reaches every node | the others drop its presence; in-flight broadcasts are lost |
 | Cache | one copy per node, cleared together | that copy is gone (it is a cache) |
+| Metrics (`/metrics`) | each node reports itself; Prometheus scrapes them all | its counters start again from zero |
 
 ## A network split
 

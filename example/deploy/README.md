@@ -64,3 +64,23 @@ Nodes talk to each other on **one port, 9100** (no epmd; `rel/vm.args.eex`).
 A node that dies is noticed at once when its connection drops (a crash, a
 stop); if the network just goes silent, within Erlang's `net_ticktime`
 (60 s).
+
+## Metrics
+
+Each node serves `GET /metrics` (Prometheus text) about itself; point Prometheus
+at **every** node, not at the load balancer, and add the series up:
+
+```yaml
+scrape_configs:
+  - job_name: acme
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["10.0.0.5:4000", "10.0.0.6:4000", "10.0.0.7:4000"]
+    # with METRICS_TOKEN set on the nodes:
+    # authorization: { credentials: "the-token" }
+```
+
+`platform_cluster_nodes_count` is the cluster size as each node sees it: all
+nodes report the same number while the cluster is whole, and a node that is cut
+off reports less — a good alert.
+

@@ -11,6 +11,7 @@ defmodule Platform.Web.Router do
 
   get "/", Platform.Web.PageHandler, :index
   get "/health", Platform.Web.HealthHandler, :show
+  get "/metrics", Platform.Web.MetricsHandler, :show
 
   # domain: shop
   scope "/api" do

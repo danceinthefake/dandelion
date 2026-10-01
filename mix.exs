@@ -47,6 +47,7 @@ defmodule Dandelion.MixProject do
       {:libcluster, "~> 3.5"},
       {:oban, "~> 2.24"},
       {:phoenix_pubsub, "~> 2.1"},
+      {:telemetry, "~> 1.0"},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, "~> 0.22"},
       {:ex_doc, "~> 0.40.4", only: :dev, runtime: false}

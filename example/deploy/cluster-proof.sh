@@ -16,6 +16,7 @@
 #   - a node that joins again starts with an empty cache
 # @example-end
 #   - a node killed without warning drops out; started again, it rejoins
+#   - /metrics is Prometheus text, and the cluster size it reports follows the nodes
 #   - the database going away crashes nothing and splits nothing
 set -eu
 cd "$(dirname "$0")"
@@ -224,6 +225,28 @@ ok "6 × GET /health with node2 down: 200"
 compose start node2 >/dev/null 2>&1
 wait_for node2 2 && wait_for node1 2 || fail "node2 didn't rejoin"
 ok "node2 started again and rejoined"
+
+echo "metrics:"
+for _ in 1 2 3; do curl -s -o /dev/null http://localhost:8080/health; done
+code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/metrics)
+[ "$code" = 200 ] || fail "GET /metrics through nginx: $code"
+curl -s http://localhost:8080/metrics | grep -q '^# TYPE http_request_duration histogram' ||
+  fail "GET /metrics isn't Prometheus text with the request histogram"
+ok "GET /metrics through nginx: 200, Prometheus text (histograms, counters, gauges)"
+# the cluster size is a gauge refreshed every 10 s, so allow a little time
+cluster_size_on() { rpc "$1" 'IO.write(Platform.Web.Telemetry.scrape())' | sed -n 's/^platform_cluster_nodes_count //p'; }
+for n in node1 node2 node3; do
+  until_size() { for _ in $(seq 1 30); do [ "$(cluster_size_on "$1")" = "$2" ] && return 0; sleep 1; done; return 1; }
+  until_size $n 3 || fail "$n reports $(cluster_size_on $n) nodes in /metrics, want 3"
+done
+ok "every node reports platform_cluster_nodes_count 3"
+compose kill -s KILL node3 >/dev/null 2>&1
+until_size node1 2 || fail "node1 reports $(cluster_size_on node1) nodes after node3 was killed, want 2"
+ok "node3 killed: node1's metric drops to 2"
+compose start node3 >/dev/null 2>&1
+wait_for node3 2 && wait_for node1 2 || fail "node3 didn't rejoin"
+until_size node1 3 || fail "node1 reports $(cluster_size_on node1) nodes after node3 came back, want 3"
+ok "node3 back: node1's metric is 3 again"
 
 # @example-start
 echo "job on a killed node:"

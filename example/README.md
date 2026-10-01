@@ -86,3 +86,13 @@ curl -X PUT localhost:4000/api/products/TEA-01 -H 'content-type: application/jso
   -d '{"price_cents":1600}'          # the next order pays 1600; old orders keep their price
 ```
 
+## Metrics
+
+`GET /metrics` is Prometheus text: request and handler durations, database
+query and pool-queue time, Oban jobs (duration by queue, worker and outcome;
+exceptions), the cache's hits and misses, the number of nodes in the cluster as
+this node sees it, and VM memory. What is reported is the list in
+[`lib/platform/web/telemetry.ex`](lib/platform/web/telemetry.ex): add a line
+to add a metric. Keep the endpoint on your private network; setting
+`METRICS_TOKEN` also requires `Authorization: Bearer <token>`.
+

@@ -63,16 +63,25 @@ defmodule Dandelion.Cache do
     }
   end
 
-  @doc "The value for `key`, from the cache or from `fun` (not kept if `nil`)."
+  @doc """
+  The value for `key`, from the cache or from `fun` (not kept if `nil`).
+
+  Emits `[:dandelion, :cache, :fetch]` with `%{count: 1}` and `%{result: :hit}`
+  or `%{result: :miss}`, for a counter of hits and misses:
+
+      counter("dandelion.cache.fetch.count", tags: [:result])
+  """
   @spec fetch(term(), (-> term())) :: term()
   def fetch(key, fun) do
     case Cachex.get(__MODULE__, key) do
       {:ok, nil} ->
+        :telemetry.execute([:dandelion, :cache, :fetch], %{count: 1}, %{result: :miss})
         value = fun.()
         if value != nil, do: Cachex.put(__MODULE__, key, value)
         value
 
       {:ok, value} ->
+        :telemetry.execute([:dandelion, :cache, :fetch], %{count: 1}, %{result: :hit})
         value
     end
   end
