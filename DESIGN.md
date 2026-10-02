@@ -206,6 +206,7 @@ request:
 15. Cron, and "only one does it": Cloud Scheduler, Redis locks
 16. Frontend and live updates: the Vue app, channels, presence
 17. One node or many: the service mesh, node failure, network splits
+18. Metrics and traces: `promhttp` / `otel-go` vs telemetry events, a trace that crosses nodes
 
 Written in English. (A Bahasa Indonesia translation was removed 2026-09-27:
 it read unnaturally.)
@@ -754,4 +755,34 @@ Decisions:
   66 tests, credo), and an integration test that adds two resources to a
   generated project, with and without the example, and runs compile / format /
   tests / credo.
+
+### 11.6 Tracing
+
+2026-10-02. OpenTelemetry, with the same shape as the metrics: the libraries
+already emit `:telemetry` events, and tracing is another reader of them.
+
+- **Example:** `opentelemetry_bandit` (the request), `opentelemetry_phoenix`
+  (the route), `opentelemetry_ecto` (each query), `opentelemetry_oban` (each job,
+  as a child of what queued it), set up in four lines in `Platform.Application`.
+  Spans go out over OTLP/HTTP when `OTEL_EXPORTER_OTLP_ENDPOINT` is set; without
+  it the exporter is `:none`, so dev and tests don't try to connect. Each node
+  tags its spans with `service.instance.id` (`rel/env.sh.eex`), so a trace says
+  which node did what. The compose file starts Jaeger (`jaegertracing/jaeger`, in
+  memory, UI on :16686).
+- **Library:** the one thing an app can't do for itself is carry a trace into a
+  job queued by library code. `Dandelion.Trace.propagate/1` (internal) puts the
+  current `traceparent` into the job's `meta` in `Dandelion.PubSub.publish/3` and
+  `Dandelion.Queue.Ordered.insert/2`; `opentelemetry_oban` reads it when the job
+  starts. `opentelemetry_api` is an optional dependency: without OpenTelemetry
+  nothing changes. (Also fixed: `Ordered.insert/2` replaced a job's `meta` with
+  its key; it now merges.)
+- **Not in the library:** the SDK, exporters and instrumentations stay the
+  project's choice, like Phoenix and Ecto themselves.
+- **Every span is kept.** Fine to try things; production should sample
+  (`OTEL_TRACES_SAMPLER=parentbased_traceidratio`). The example README says so.
+- **Proof:** a request sent with our own `traceparent` is one trace in Jaeger
+  under that id (a caller's trace goes through the load balancer and a node); an
+  order's trace has the request on one node, its database queries, and the
+  subscribers' jobs on another node, in the same trace.
+- **Ships in dandelion 0.2.0** with `mix dandelion.gen.domain`.
 

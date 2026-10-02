@@ -49,6 +49,9 @@ defmodule Dandelion.MixProject do
       {:oban, "~> 2.24"},
       {:phoenix_pubsub, "~> 2.1"},
       {:telemetry, "~> 1.0"},
+      # optional: with it, a job continues the trace of what queued it (Dandelion.Trace)
+      {:opentelemetry_api, "~> 1.4", optional: true},
+      {:opentelemetry, "~> 1.5", only: :test},
       {:ecto_sql, "~> 3.13"},
       {:postgrex, "~> 0.22"},
       {:ex_doc, "~> 0.40.4", only: :dev, runtime: false}

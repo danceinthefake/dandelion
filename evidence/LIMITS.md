@@ -20,6 +20,10 @@ Said plainly, so nobody has to find out the hard way.
   packets, so it doesn't exercise TCP timeouts (`net_ticktime`).
 - **A short database outage only** (15 seconds), not a long one, and not one
   that drops connections one at a time.
+- **Tracing is checked against Jaeger only**, with every span kept. Spans are
+  standard OTLP, so other backends should work, but none was tried. Sampling
+  isn't exercised, and propagation through the ordered queue is unit-tested, not
+  run in the cluster proof.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

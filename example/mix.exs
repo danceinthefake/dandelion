@@ -10,6 +10,7 @@ defmodule Acme.MixProject do
       start_permanent: Mix.env() == :prod,
       aliases: aliases(),
       deps: deps(),
+      releases: releases(),
       listeners: [Phoenix.CodeReloader]
     ]
   end
@@ -22,6 +23,11 @@ defmodule Acme.MixProject do
       mod: {Platform.Application, []},
       extra_applications: [:logger, :runtime_tools]
     ]
+  end
+
+  # The OpenTelemetry exporter starts before the SDK, which starts before the app.
+  defp releases do
+    [acme: [applications: [opentelemetry_exporter: :permanent, opentelemetry: :temporary]]]
   end
 
   def cli do
@@ -50,6 +56,14 @@ defmodule Acme.MixProject do
       {:bandit, "~> 1.5"},
       {:oban, "~> 2.24"},
       dandelion(),
+      # tracing: the SDK and exporter, and a span for each request, query and job
+      {:opentelemetry, "~> 1.5"},
+      {:opentelemetry_exporter, "~> 1.8"},
+      {:opentelemetry_api, "~> 1.4"},
+      {:opentelemetry_bandit, "~> 0.3"},
+      {:opentelemetry_phoenix, "~> 2.0"},
+      {:opentelemetry_ecto, "~> 1.2"},
+      {:opentelemetry_oban, "~> 1.1"},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
   end

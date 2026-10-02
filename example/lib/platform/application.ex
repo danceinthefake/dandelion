@@ -11,6 +11,14 @@ defmodule Platform.Application do
 
   @impl true
   def start(_type, _args) do
+    # Tracing: a span for each request (Bandit, then the Phoenix route), each
+    # database query and each job. A job continues the trace of what queued it
+    # (`:child`), on whichever node runs it. Where the spans go: config/runtime.exs.
+    OpentelemetryBandit.setup()
+    OpentelemetryPhoenix.setup(adapter: :bandit)
+    OpentelemetryEcto.setup([:platform, :database, :repo])
+    OpentelemetryOban.setup(job: [span_relationship: :child])
+
     children =
       [
         # metrics

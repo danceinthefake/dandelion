@@ -20,6 +20,8 @@ x-node: &node
     PHX_HOST: localhost
     PAYMENT_WEBHOOK_TOKEN: local-only-webhook-token
     OBAN_RESCUE_AFTER_SECONDS: "${OBAN_RESCUE_AFTER_SECONDS:-10}"
+    # traces go to Jaeger below; its UI is http://localhost:16686
+    OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
   restart: unless-stopped
 
 services:
@@ -44,6 +46,12 @@ services:
   node1: *node
   node2: *node
   node3: *node
+
+  # ≈ a tracing backend (Jaeger, Tempo, Honeycomb …): where the nodes send spans.
+  # In memory, for trying things out; the UI is http://localhost:16686.
+  jaeger:
+    image: jaegertracing/jaeger:2.21.0
+    ports: ["16686:16686"]
 
   # ≈ the cloud load balancer
   nginx:

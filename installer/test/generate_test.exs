@@ -113,6 +113,22 @@ defmodule DandelionNew.GenerateTest do
     refute files["deploy/compose.cluster.yaml"] =~ "vendor-dandelion"
   end
 
+  test "tracing is part of every project, renamed with it" do
+    for example? <- [true, false] do
+      files = files("my_app", "MyApp", example?, example?)
+
+      assert files["mix.exs"] =~ ~S({:opentelemetry_phoenix, "~> 2.0"})
+      assert files["mix.exs"] =~ "[my_app: [applications: [opentelemetry_exporter: :permanent"
+      assert files["lib/platform/application.ex"] =~ "OpentelemetryOban.setup"
+      assert files["config/runtime.exs"] =~ ~S[System.get_env("OTEL_SERVICE_NAME", "my_app")]
+      assert files["rel/env.sh.eex"] =~ "service.instance.id"
+      assert files["deploy/compose.cluster.yaml"] =~ "jaegertracing/jaeger"
+      assert files["deploy/cluster-proof.sh"] =~ ~s(echo "traces:")
+      # the cross-node trace needs orders: only with the example
+      assert files["deploy/cluster-proof.sh"] =~ "one trace, two nodes" == example?
+    end
+  end
+
   test "marker lines never reach a generated project; left-out parts go whole" do
     for {example?, frontend?} <- [{true, true}, {true, false}, {false, false}] do
       files = files("my_app", "MyApp", example?, frontend?)

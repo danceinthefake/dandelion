@@ -33,6 +33,10 @@ http://localhost:8080. The proof script checks that:
   cache goes stale and is emptied on the heal, jobs and ordered payments still
   run exactly once, one cron leader, presence merges after the heal;
 <!-- @example-end -->
+- a request is a trace in Jaeger under the trace id it was sent;
+<!-- @example-start -->
+- an order's jobs, run on another node, are spans of the same trace;
+<!-- @example-end -->
 - a killed node drops out, and rejoins when started again;
 - 15 seconds without Postgres crashes no node and splits nothing
   (`/health` says 503 meanwhile).
@@ -83,4 +87,13 @@ scrape_configs:
 `platform_cluster_nodes_count` is the cluster size as each node sees it: all
 nodes report the same number while the cluster is whole, and a node that is cut
 off reports less — a good alert.
+
+## Tracing
+
+The compose file starts [Jaeger](https://www.jaegertracing.io) and points the
+nodes at it (`OTEL_EXPORTER_OTLP_ENDPOINT=http://jaeger:4318`); its UI is
+http://localhost:16686. On your own VMs, point `OTEL_EXPORTER_OTLP_ENDPOINT` at
+your collector or backend. A request that arrives with a `traceparent` header
+keeps its trace id, so a caller's trace goes through the load balancer, a node,
+and the jobs it queues, wherever they run.
 

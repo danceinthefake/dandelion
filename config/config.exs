@@ -15,5 +15,7 @@ if config_env() == :test do
     pool_size: 10,
     priv: "priv/test_repo"
 
+  config :opentelemetry, traces_exporter: :none
+
   config :logger, level: :warning
 end

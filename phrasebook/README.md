@@ -27,6 +27,7 @@ The pages follow the path of a request, from `mix` to a crash:
 15. [Cron, and "only one does it"](15-cron-and-leaders.md) — Cloud Scheduler, Redis locks
 16. [Frontend and live updates](16-frontend-and-live.md) — a Vue app on the same release, WebSockets, who's online
 17. [One node or many](17-one-node-or-many.md) — service mesh, node failure, network splits
+18. [Metrics and traces](18-metrics-and-traces.md) — `promhttp` and `otel-go` vs telemetry events, and a trace that crosses nodes
 
 Reading order: 1–7 are enough to change the example; 8, 9 and 12 are where
 Elixir differs most from Go, and why it's worth learning.

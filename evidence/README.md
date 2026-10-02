@@ -15,6 +15,7 @@ repository, and the commit it came from is at the top of each log.
 | [05](05-cache/) | A delete on one node clears the cache on all three; a rejoining node starts empty | `Dandelion.Cache` | log + GIF + control |
 | [06](06-one-transaction/) | An event and its data are saved together, or not at all | `Dandelion.PubSub` | test output |
 | [07](07-database-outage/) | A database outage crashes nothing and splits nothing | `Dandelion.Cluster` | log |
+| [11](11-tracing/) | One request is one trace in Jaeger, kept under the caller's trace id, and an order's jobs on another node are spans of the same trace | `Dandelion.PubSub`, `Queue.Ordered` (they carry the context) | log + GIF |
 | [10](10-metrics/) | `/metrics` is Prometheus text on every node, and the cluster size it reports follows the nodes (3 → 2 → 3 around a kill) | (the app; `Dandelion.Cache` emits the cache events) | log + GIF |
 | [09](09-network-partition/) | A network split: jobs and payments still run once, one cron leader; broadcasts lost, a cache goes stale and is emptied on the heal, presence merges | `Dandelion.Cache`, `Queue`, `Queue.Ordered`, `PubSub` | log + GIF + control |
 | [08](08-generated-projects/) | Generated projects compile, test and run as a cluster (with everything, without the frontend, without the example) | the generator | test output |
@@ -40,13 +41,13 @@ Chromium with Playwright.
 ```sh
 cd evidence
 npm install && npx playwright install chromium     # once (or set PLAYWRIGHT=…/index.mjs)
-./record.sh proof       # 01, 03, 04, 05, 07, 10    (~8 min)
+./record.sh proof       # 01, 03, 04, 05, 07, 10, 11 (~9 min)
 ./record.sh live        # 02                        (~2 min)
 ./record.sh partition   # 09                        (~4 min)
 ./record.sh controls    # the four controls         (~20 min)
 ./record.sh tests       # 06, 08                    (~10 min; Postgres on :55432)
 ```
 
-Needs Docker, Node, ffmpeg and python3. The GIFs are small (a few MB at most)
+Needs Docker, Node, ffmpeg and python3 (the proof reads Jaeger's JSON with it). The GIFs are small (a few MB at most)
 and committed; the logs are the primary evidence, the GIFs are for people who
 would rather watch.

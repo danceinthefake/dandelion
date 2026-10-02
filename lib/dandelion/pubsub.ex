@@ -30,9 +30,15 @@ defmodule Dandelion.PubSub do
       end
 
   Not this: a `Phoenix.PubSub` broadcast is for live views — fast, memory only,
-  lost if nobody is listening. Order between events isn't kept; a subscriber
+  lost if nobody is listening.
+
+  With OpenTelemetry installed, each job carries the trace context of the code
+  that published it: the subscribers' spans appear inside the trace of the
+  request, on whichever node runs them. Order between events isn't kept; a subscriber
   that needs it uses `Dandelion.Queue.Ordered`.
   """
+
+  alias Dandelion.Trace
 
   @doc """
   Queues the event for every subscriber of `topic` in `subscriptions`
@@ -48,7 +54,7 @@ defmodule Dandelion.PubSub do
         raise ArgumentError, "no subscriptions for topic #{inspect(topic)}"
 
     workers
-    |> Enum.map(& &1.new(args))
+    |> Enum.map(&(args |> &1.new() |> Trace.propagate()))
     |> Oban.insert_all()
   end
 end

@@ -27,6 +27,8 @@ defmodule Dandelion.Queue.Ordered do
   """
   import Ecto.Query
 
+  alias Dandelion.Trace
+
   @unfinished ~w(available scheduled executing retryable)
 
   @doc "Adds the job to the line for `key`. Call inside a transaction."
@@ -34,8 +36,11 @@ defmodule Dandelion.Queue.Ordered do
   def insert(job_changeset, key) do
     Oban.Repo.query!(Oban.config(Oban), "SELECT pg_advisory_xact_lock(hashtext($1))", [key])
 
+    meta = Ecto.Changeset.get_field(job_changeset, :meta, %{})
+
     job_changeset
-    |> Ecto.Changeset.change(meta: %{"ordered_key" => key})
+    |> Ecto.Changeset.change(meta: Map.put(meta, "ordered_key", key))
+    |> Trace.propagate()
     |> Oban.insert()
   end
 

@@ -21,6 +21,10 @@ config :acme, Platform.Web.Endpoint,
   ],
   pubsub_server: Platform.Broadcast
 
+# Tracing is off until an OTLP endpoint is given (config/runtime.exs): no
+# exporter means spans are made but go nowhere, and nothing tries to connect.
+config :opentelemetry, traces_exporter: :none
+
 # Configure Elixir's Logger
 config :logger, :default_formatter,
   format: "$time $metadata[$level] $message\n",

@@ -26,6 +26,18 @@ config :acme, Platform.Web.Endpoint,
 # Optional: with METRICS_TOKEN set, GET /metrics needs `Authorization: Bearer <token>`.
 config :acme, :metrics_token, System.get_env("METRICS_TOKEN")
 
+# Tracing: with OTEL_EXPORTER_OTLP_ENDPOINT set (e.g. http://jaeger:4318), spans
+# are sent there over OTLP/HTTP, to Jaeger, Tempo, Honeycomb or any collector.
+# The service name is OTEL_SERVICE_NAME (default: the app); each node says which
+# it is through service.instance.id (rel/env.sh.eex).
+if System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT") do
+  config :opentelemetry,
+    traces_exporter: :otlp,
+    resource: %{service: %{name: System.get_env("OTEL_SERVICE_NAME", "acme")}}
+
+  config :opentelemetry_exporter, otlp_protocol: :http_protobuf
+end
+
 # ≈ envconfig: settings from environment variables, read at boot.
 config :acme, App.Shop.Workers.ExpireUnpaidOrders,
   max_age_seconds: String.to_integer(System.get_env("UNPAID_ORDER_MAX_AGE_SECONDS", "3600"))

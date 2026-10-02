@@ -1,5 +1,6 @@
 #!/bin/sh
-# Checks what the 3-node cluster promises (compose.cluster.yaml must be up):
+# Checks what the 3-node cluster promises (compose.cluster.yaml must be up;
+# needs curl and python3 on this machine):
 #   - every node sees the other two
 #   - a broadcast on one node reaches a subscriber on another
 #   - requests through the load balancer are answered
@@ -17,6 +18,10 @@
 # @example-end
 #   - a node killed without warning drops out; started again, it rejoins
 #   - /metrics is Prometheus text, and the cluster size it reports follows the nodes
+#   - a request is a trace in Jaeger, under the trace id it was sent
+# @example-start
+#   - an order's jobs, run on another node, are spans of the same trace
+# @example-end
 #   - the database going away crashes nothing and splits nothing
 set -eu
 cd "$(dirname "$0")"
@@ -247,6 +252,62 @@ compose start node3 >/dev/null 2>&1
 wait_for node3 2 && wait_for node1 2 || fail "node3 didn't rejoin"
 until_size node1 3 || fail "node1 reports $(cluster_size_on node1) nodes after node3 came back, want 3"
 ok "node3 back: node1's metric is 3 again"
+
+echo "traces:"
+# Jaeger (compose.cluster.yaml) is where the nodes send their spans. We hand the
+# first request our own trace id (W3C `traceparent`), so we know where to look.
+new_trace_id() { od -An -N16 -tx1 /dev/urandom | tr -d ' \n'; }
+# trace_spans ID: one line per span, "node|operation|worker", as Jaeger has them
+trace_spans() {
+  curl -s "http://localhost:16686/api/traces/$1" | python3 -c '
+import json, sys
+try:
+    trace = json.load(sys.stdin)["data"][0]
+except Exception:
+    sys.exit(0)
+nodes = {k: {t["key"]: t["value"] for t in v["tags"]}.get("service.instance.id", "?")
+         for k, v in trace["processes"].items()}
+for s in trace["spans"]:
+    tags = {t["key"]: t["value"] for t in s["tags"]}
+    print(nodes[s["processID"]], s["operationName"], tags.get("oban.job.worker", "-"), sep="|")
+'
+}
+# wait_trace ID PATTERN: until the trace has a span matching PATTERN (30 s at most)
+wait_trace() {
+  for _ in $(seq 1 30); do
+    trace_spans "$1" | grep -q "$2" && return 0
+    sleep 1
+  done
+  return 1
+}
+tid=$(new_trace_id)
+curl -s -o /dev/null -H "traceparent: 00-$tid-00f067aa0ba902b7-01" http://localhost:8080/health
+wait_trace "$tid" '|GET /health|' || fail "no trace $tid in Jaeger after GET /health (is the exporter reaching jaeger:4318?)"
+ok "GET /health with our traceparent is trace $(echo "$tid" | cut -c1-8)… in Jaeger, on $(trace_spans "$tid" | grep '|GET /health|' | head -1 | cut -d'|' -f1)"
+
+# @example-start
+# An order made through one node: its subscriber jobs run on any node, and
+# their spans belong to the same trace as the request. Orders are tried until a
+# job lands on another node than the request (usually the first).
+cross_node=
+for _ in 1 2 3 4 5 6 7 8 9 10; do
+  tid=$(new_trace_id)
+  curl -s -o /dev/null -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+    -H "traceparent: 00-$tid-00f067aa0ba902b7-01" \
+    -d '{"customer_email":"trace@example.com","items":[{"sku":"PROOF","quantity":1}]}'
+  wait_trace "$tid" 'SendOrderConfirmation' && wait_trace "$tid" 'UpdateCustomerStats' ||
+    fail "trace $tid lacks the subscribers' job spans"
+  spans=$(trace_spans "$tid")
+  http_node=$(echo "$spans" | grep '|POST /api/orders|' | head -1 | cut -d'|' -f1)
+  job_nodes=$(echo "$spans" | grep -E 'SendOrderConfirmation|UpdateCustomerStats' | cut -d'|' -f1 | sort -u)
+  other=$(echo "$job_nodes" | grep -vx "$http_node" | head -1 || true)
+  if [ -n "$other" ]; then cross_node="$http_node → $other"; break; fi
+done
+echo "$spans" | grep -q 'platform.database.repo.query:orders' || fail "no database span for the order in trace $tid"
+ok "the order's database queries are spans of the request"
+[ -n "$cross_node" ] || fail "10 orders: every job ran on the node that took the request"
+ok "one trace, two nodes: the request on $http_node, the order's jobs (confirmation, stats) on $other"
+# @example-end
 
 # @example-start
 echo "job on a killed node:"

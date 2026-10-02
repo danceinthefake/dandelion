@@ -22,6 +22,7 @@ CLAIM = {
     "ordered queue": "04-ordered-queue",
     "cache": "05-cache",
     "metrics": "10-metrics",
+    "traces": "11-tracing",
     "database outage": "07-database-outage",
 }
 

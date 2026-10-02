@@ -101,3 +101,23 @@ this node sees it, and VM memory. What is reported is the list in
 to add a metric. Keep the endpoint on your private network; setting
 `METRICS_TOKEN` also requires `Authorization: Bearer <token>`.
 
+## Tracing
+
+Every request, database query and background job is a span
+([OpenTelemetry](https://opentelemetry.io)), and a job continues the trace of
+the request that queued it — on whichever node runs it. Set
+`OTEL_EXPORTER_OTLP_ENDPOINT` (for example `http://jaeger:4318`) and the nodes
+send spans there over OTLP/HTTP, to Jaeger, Tempo, Honeycomb or any collector;
+without it nothing is exported and nothing tries to connect. `OTEL_SERVICE_NAME`
+names the service (default: the app), and each node tags its spans with
+`service.instance.id`, so a trace shows which node did what.
+
+`docker compose -f deploy/compose.cluster.yaml up` starts Jaeger next to the
+nodes: make an order, then open http://localhost:16686 and look at the trace —
+the request on one node, the order's jobs on another.
+
+The wiring is five lines in [`lib/platform/application.ex`](lib/platform/application.ex)
+and a block in [`config/runtime.exs`](config/runtime.exs). Every span is kept:
+in production, sample (`OTEL_TRACES_SAMPLER=parentbased_traceidratio`,
+`OTEL_TRACES_SAMPLER_ARG=0.1`).
+
