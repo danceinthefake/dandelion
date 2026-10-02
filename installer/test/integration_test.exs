@@ -21,6 +21,7 @@ defmodule DandelionNew.IntegrationTest do
       Mix.shell(Mix.Shell.Quiet)
       Mix.Tasks.Dandelion.New.run([path | unquote(flags)])
       use_local_dandelion(path)
+      on_exit(fn -> drop_test_db(path) end)
 
       mix!(path, ["deps.get"])
       mix!(path, ["compile", "--warnings-as-errors"])
@@ -39,6 +40,7 @@ defmodule DandelionNew.IntegrationTest do
       Mix.shell(Mix.Shell.Quiet)
       Mix.Tasks.Dandelion.New.run([path | unquote(flags)])
       use_local_dandelion(path)
+      on_exit(fn -> drop_test_db(path) end)
       mix!(path, ["deps.get"])
 
       if System.get_env("DANDELION_FROM_HEX") && not gen_domain_available?(path) do
@@ -144,6 +146,13 @@ defmodule DandelionNew.IntegrationTest do
     {out, status} = System.cmd(cmd, args, cd: path, stderr_to_stdout: true)
     assert status == 0, "#{cmd} #{Enum.join(args, " ")} failed:\n#{out}"
     out
+  end
+
+  # A generated project's test database: dropped when the test ends, however it
+  # ends. (A failed run used to leave it behind, and the next run, which names its
+  # projects the same way, then found its tables already there.)
+  defp drop_test_db(path) do
+    System.cmd("mix", ["ecto.drop"], cd: path, env: [{"MIX_ENV", "test"}], stderr_to_stdout: true)
   end
 
   defp mix!(path, args, env \\ %{}) do

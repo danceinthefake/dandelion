@@ -12,6 +12,8 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`rejoin.log`](rejoin.log) | `Dandelion.Cache.Listener` no longer empties the cache when a node rejoins | `node1's cache was emptied when it rejoined` (the partition proof, claim 09) | an entry cached just before the heal was still there |
 
+| [`dualwrite.log`](dualwrite.log) | an order's events are saved after its transaction commits, with a 1.5 s gap, not inside it | `an order never lacks its events` (the failure proof, claim 13) | a crash fell into the gap: orders exist without their events |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

@@ -55,9 +55,15 @@ flowchart LR
 "node1's cache was emptied when it rejoined"
 ([`controls/rejoin.log`](../controls/rejoin.log)).
 
-**Not shown:** a split that also cuts a half off from Postgres (a half without
-the database can't run jobs or hold the leader, by construction, but that is
-not reproduced here), an asymmetric split (A sees B but B can't see A), or a
+**A flapping split** (the last part of the log): the same split and heal five times
+in a row, a few seconds apart, with orders, payments and refunds sent through both
+halves all the while. After the last heal everything has converged: every node sees
+the others, presence has merged, there is one leader, every order has exactly two
+completed subscriber jobs, the five orders that were paid and then refunded all end
+`refunded` in that order, and each of the ten payment events completed once.
+
+**Not shown:** a half cut off from Postgres (that is [claim 13](../13-database-failures/)),
+an asymmetric split (A sees B but B can't see A), or a
 very long split (past the 60 s cache TTL the stale entry would simply expire;
 the proof keeps the check independent of that). See [LIMITS](../LIMITS.md).
 

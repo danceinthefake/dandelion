@@ -37,6 +37,7 @@ defmodule Mix.Tasks.Dandelion.New do
     priv/repo/migrations/20261002000002_add_user_to_orders.exs
     deploy/seed.sh
     deploy/partition-proof.sh
+    deploy/failure-proof.sh
     test/platform/pubsub_test.exs
   )
 
@@ -80,7 +81,8 @@ defmodule Mix.Tasks.Dandelion.New do
 
     # (the example's scripts are left out with --no-example)
     for bin <- ~w(rel/overlays/bin/server rel/overlays/bin/migrate
-                  deploy/cluster-proof.sh deploy/seed.sh deploy/partition-proof.sh),
+                  deploy/cluster-proof.sh deploy/seed.sh deploy/partition-proof.sh
+                  deploy/failure-proof.sh),
         File.exists?(Path.join(path, bin)),
         do: File.chmod!(Path.join(path, bin), 0o755)
 

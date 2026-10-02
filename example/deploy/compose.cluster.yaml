@@ -9,8 +9,16 @@
 # Local only: the secrets below are fixed and public. Real deployments take
 # them from a secret store (README.md).
 
+# Two networks: `default` (nginx, Jaeger and the nodes, which also find and talk to
+# each other here) and `db` (Postgres and the nodes). Postgres is only on `db`, so
+# deploy/failure-proof.sh can cut ONE node off from the database
+# (`docker network disconnect`) while it stays in the cluster.
+networks:
+  db: {}
+
 x-node: &node
   build: ..
+  networks: [default, db]
   depends_on:
     migrate: { condition: service_completed_successfully }
   environment: &env
@@ -27,6 +35,7 @@ x-node: &node
 services:
   postgres:
     image: postgres:18-alpine
+    networks: [db]
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
@@ -38,14 +47,32 @@ services:
 
   migrate:
     build: ..
+    networks: [db]
     command: /app/bin/migrate
     depends_on:
       postgres: { condition: service_healthy }
     environment: *env
 
-  node1: *node
-  node2: *node
-  node3: *node
+  # Each node is named after its address on `default` (NODE_HOST resolves only
+  # there: `hostname -i` would list the two networks' addresses in any order).
+  node1:
+    <<: *node
+    networks:
+      default: { aliases: [node1.cluster] }
+      db: {}
+    environment: { <<: *env, NODE_HOST: node1.cluster }
+  node2:
+    <<: *node
+    networks:
+      default: { aliases: [node2.cluster] }
+      db: {}
+    environment: { <<: *env, NODE_HOST: node2.cluster }
+  node3:
+    <<: *node
+    networks:
+      default: { aliases: [node3.cluster] }
+      db: {}
+    environment: { <<: *env, NODE_HOST: node3.cluster }
 
   # ≈ a tracing backend (Jaeger, Tempo, Honeycomb …): where the nodes send spans.
   # In memory, for trying things out; the UI is http://localhost:16686.

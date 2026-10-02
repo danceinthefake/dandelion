@@ -28,6 +28,10 @@ http://localhost:8080. The proof script checks that:
 - a price changed through one node is read fresh from the cache on every node, and a node that joins again starts with an empty cache;
 <!-- @example-end -->
 <!-- @example-start -->
+- `./deploy/failure-proof.sh`: the leader cut off from Postgres (it steps down, another
+  node leads, jobs run once, its cache serves only until the entries expire) and
+  Postgres killed while orders are being made: every acknowledged order survives
+  and every order has its events, once;
 - `./deploy/partition-proof.sh`: a network split (`node1 | node2 + node3`, both
   halves still reach Postgres): a live broadcast doesn't cross it, a cut-off
   cache goes stale and is emptied on the heal, jobs and ordered payments still
@@ -54,6 +58,7 @@ On real machines: [vms.md](vms.md).
 | `PAYMENT_WEBHOOK_TOKEN` | the same on every node: the secret the payment provider sends in `x-callback-token` |
 | `RELEASE_COOKIE` | **the same on every node, from a secret store**. It lets a node join — and run code on — every other node. `mix phx.gen.secret 32` makes one. The node refuses to start without it. |
 | `NODE_IP` | this node's private IP. Needed on VMs (where `hostname -i` can say 127.0.1.1); containers find their own. The node is named `acme@<NODE_IP>`. |
+| `NODE_HOST` | instead of `NODE_IP`: a name that resolves to this node's cluster address. For a host or container on **several networks**, where `hostname -i` lists the addresses in no fixed order and the node could be named after the wrong one. (The compose file uses it.) |
 | `CLUSTER_DATABASE_URL` | optional: a direct connection to Postgres for discovery, when `DATABASE_URL` goes through PgBouncer in transaction mode (`LISTEN` doesn't work through it) |
 
 ## Network

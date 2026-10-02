@@ -817,3 +817,30 @@ already emit `:telemetry` events, and tracing is another reader of them.
   subscribers' jobs on another node, in the same trace.
 - **Ships in dandelion 0.2.0** with `mix dandelion.gen.domain`.
 
+### 11.7 Harder failures
+
+2026-10-02. Two more of the things `LIMITS.md` said weren't covered.
+
+- **A node cut off from Postgres alone:** the compose file gives Postgres its own
+  network (`db`); the nodes are on it and on `default`, where they find each
+  other. `docker network disconnect` cuts one node off — no privileges. The
+  proof cuts the **leader**: it stays in the cluster, steps down, another node
+  becomes the only leader (about 40 s, never two at once), the cut node can't run
+  jobs and its cache serves until the entries expire. On reconnect it recovers by
+  itself.
+- **Postgres killed under load** (SIGKILL, three concurrent order-makers through
+  nginx): every acknowledged order survives, every order has exactly two completed
+  events — the property that publishing inside the transaction buys. A negative
+  control (events saved after the transaction, with a gap) fails it.
+- **A flapping split** (the partition proof's last part): five splits and heals
+  in a row with orders, payments and refunds meanwhile; everything converges.
+- **Found by building it, fixed:** with two networks, `hostname -i` lists a
+  container's addresses in no fixed order, so a node could be *named* after its
+  `db` address and become unreachable by that name when the `db` network was cut.
+  `rel/env.sh.eex` now takes `NODE_HOST` (a name that resolves only on the cluster
+  network) when `NODE_IP` isn't set; the compose file sets it per node. Real
+  deployments with several networks per host need the same (`NODE_IP` or
+  `NODE_HOST`).
+- **Still not covered:** an asymmetric split (A reaches B, B can't reach A), a
+  database that is slow rather than gone, a clean shutdown under load.
+

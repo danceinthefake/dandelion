@@ -13,6 +13,7 @@
 #   - jobs, events and ordered payments still run exactly once, through Postgres
 #   - there is still exactly one cron leader
 #   - presence: each half sees its own viewers; they merge after the heal
+#   - the same split five times in a row (flapping): everything still converges
 set -eu
 cd "$(dirname "$0")"
 
@@ -224,5 +225,96 @@ ok "presence merged: every node sees all 3 viewers again ($(( $(date +%s) - heal
 ok "exactly one cron leader after the heal"
 rpc node1 "import Ecto.Query; IO.write(Platform.Database.Repo.aggregate(from(j in Oban.Job, where: fragment(\"args->>'event_id' IN ('$tag-pay', '$tag-refund') AND ? = 'completed'\", j.state)), :count))" | grep -q '^2$' || fail "the two payment events aren't both completed exactly once"
 ok "the two payment events each completed exactly once"
+
+echo "flapping:"
+# The same split, five times in a row, with a few seconds between: the halves
+# barely meet before they are cut again. Orders, payments and refunds go on
+# throughout, through both halves.
+tag="flap-$(date +%s)"
+flap_split() {
+  ex node1 <<'ELIXIR' >/dev/null
+for p <- [:"__N2__", :"__N3__"] do
+  Node.set_cookie(p, :split_a)
+  Node.disconnect(p)
+end
+IO.write(:ok)
+ELIXIR
+  for n in node2 node3; do
+    ex $n <<'ELIXIR' >/dev/null
+Node.set_cookie(:"__N1__", :split_b)
+Node.disconnect(:"__N1__")
+IO.write(:ok)
+ELIXIR
+  done
+}
+flap_heal() {
+  for n in node1 node2 node3; do
+    ex $n <<'ELIXIR' >/dev/null
+for p <- [:"__N1__", :"__N2__", :"__N3__"], p != node() do
+  Node.set_cookie(p, Node.get_cookie())
+end
+IO.write(:ok)
+ELIXIR
+  done
+}
+flap_started=$(date +%s)
+for round in 1 2 3 4 5; do
+  flap_split
+  sleep 3
+  # an order and its payment on node1's side, its refund on node2's side
+  oid=$(ex node1 <<ELIXIR
+{:ok, o} = App.Shop.Services.OrderService.create(%{"customer_email" => "__TAG__-pay-$round@example.com", "items" => [%{"sku" => "A", "quantity" => 1}]})
+IO.write(o.id)
+ELIXIR
+)
+  ex node1 <<ELIXIR >/dev/null
+:ok = App.Shop.Services.PaymentService.receive_event(%{"event_id" => "__TAG__-pay-$round", "type" => "payment.succeeded", "order_id" => $oid})
+IO.write(:ok)
+ELIXIR
+  ex node2 <<ELIXIR >/dev/null
+:ok = App.Shop.Services.PaymentService.receive_event(%{"event_id" => "__TAG__-refund-$round", "type" => "payment.refunded", "order_id" => $oid})
+{:ok, _} = App.Shop.Services.OrderService.create(%{"customer_email" => "__TAG__-plain-$round@example.com", "items" => [%{"sku" => "A", "quantity" => 1}]})
+IO.write(:ok)
+ELIXIR
+  flap_heal
+  sleep 3
+done
+ok "split and healed 5 times in $(( $(date +%s) - flap_started )) s, with 10 orders, 5 payments and 5 refunds sent meanwhile through both halves"
+
+until_is "nodes_seen node1" "$(others node1)" 120 || fail "node1 doesn't see the others after the flapping: $(nodes_seen node1)"
+until_is "nodes_seen node2" "$(others node2)" 120 || fail "node2 doesn't see the others after the flapping"
+until_is "nodes_seen node3" "$(others node3)" 120 || fail "node3 doesn't see the others after the flapping"
+ok "after the last heal, every node sees the other two again"
+for n in node1 node2 node3; do until_is "viewers $n" 3 120 || fail "$n sees $(viewers $n) viewers after the flapping, want 3"; done
+ok "presence has merged: every node sees all 3 viewers"
+until_is leaders 1 90 || fail "$(leaders) cron leaders after the flapping, want 1"
+ok "exactly one cron leader"
+
+orders_not_done() { # orders of this run without exactly two completed order.created jobs
+  ex node1 <<'ELIXIR'
+%{rows: [[n]]} = Platform.Database.Repo.query!("""
+  SELECT count(*) FROM orders o WHERE o.customer_email LIKE '__TAG__-%' AND
+    (SELECT count(*) FROM oban_jobs j WHERE j.args->>'topic' = 'order.created'
+       AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> 2
+""")
+IO.write(n)
+ELIXIR
+}
+until_is orders_not_done 0 90 || fail "$(orders_not_done) of the flapping orders lack exactly two completed subscriber jobs"
+ok "all 10 orders have exactly two completed subscriber jobs: nothing lost, nothing twice"
+not_refunded() {
+  ex node1 <<'ELIXIR'
+%{rows: [[n]]} = Platform.Database.Repo.query!("SELECT count(*) FROM orders WHERE customer_email LIKE '__TAG__-pay-%' AND status <> 'refunded'")
+IO.write(n)
+ELIXIR
+}
+until_is not_refunded 0 90 || fail "$(not_refunded) payment order(s) didn't end refunded"
+payment_jobs=$(ex node1 <<'ELIXIR'
+%{rows: [[n]]} = Platform.Database.Repo.query!("SELECT count(*) FROM oban_jobs WHERE args->>'event_id' LIKE '__TAG__-%' AND state = 'completed'")
+IO.write(n)
+ELIXIR
+)
+[ "$payment_jobs" = 10 ] || fail "$payment_jobs payment events completed, want 10 (each once)"
+ok "all 5 orders ended refunded, in order, and each of the 10 payment events completed exactly once"
 
 echo "all good"

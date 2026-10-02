@@ -15,17 +15,18 @@ repository, and the commit it came from is at the top of each log.
 | [05](05-cache/) | A delete on one node clears the cache on all three; a rejoining node starts empty | `Dandelion.Cache` | log + GIF + control |
 | [06](06-one-transaction/) | An event and its data are saved together, or not at all | `Dandelion.PubSub` | test output |
 | [07](07-database-outage/) | A database outage crashes nothing and splits nothing | `Dandelion.Cluster` | log |
+| [13](13-database-failures/) | The leader cut off from Postgres steps down, another leads, jobs run once; Postgres killed under load loses no acknowledged order and no order's events | `Dandelion.PubSub`, `Cache` | log + GIF + control |
 | [12](12-auth/) | One login is accepted by all 3 nodes (signed token, no session); a customer sees only their own orders (404 for others'); prices are admin-only; a tampered token and an anonymous WebSocket are refused | (the app: not in the library) | log + GIF |
 | [11](11-tracing/) | One request is one trace in Jaeger, kept under the caller's trace id, and an order's jobs on another node are spans of the same trace | `Dandelion.PubSub`, `Queue.Ordered` (they carry the context) | log + GIF |
 | [10](10-metrics/) | `/metrics` is Prometheus text on every node, and the cluster size it reports follows the nodes (3 → 2 → 3 around a kill) | (the app; `Dandelion.Cache` emits the cache events) | log + GIF |
 | [09](09-network-partition/) | A network split: jobs and payments still run once, one cron leader; broadcasts lost, a cache goes stale and is emptied on the heal, presence merges | `Dandelion.Cache`, `Queue`, `Queue.Ordered`, `PubSub` | log + GIF + control |
 | [08](08-generated-projects/) | Generated projects compile, test and run as a cluster (with everything, without the frontend, without the example) | the generator | test output |
 
-**Negative controls** ([`controls/`](controls/)): four logs where one thing is
+**Negative controls** ([`controls/`](controls/)): five logs where one thing is
 broken on purpose and the same proof **fails** where it should — ordering off
 (04), cache broadcast off (05), job rescue off (03), cache not emptied on rejoin
-(09). A check that can't fail
-proves nothing; these show these can.
+(09), an order's events saved outside its transaction (13). A check that can't
+fail proves nothing; these show these can.
 
 **Read [LIMITS.md](LIMITS.md)** — what is *not* proven.
 
@@ -44,8 +45,9 @@ cd evidence
 npm install && npx playwright install chromium     # once (or set PLAYWRIGHT=…/index.mjs)
 ./record.sh proof       # 01, 03, 04, 05, 07, 10, 11, 12 (~10 min)
 ./record.sh live        # 02                        (~2 min)
-./record.sh partition   # 09                        (~4 min)
-./record.sh controls    # the four controls         (~20 min)
+./record.sh partition   # 09                        (~6 min)
+./record.sh failures    # 13                        (~6 min)
+./record.sh controls    # the five controls         (~25 min)
 ./record.sh tests       # 06, 08                    (~10 min; Postgres on :55432)
 ```
 

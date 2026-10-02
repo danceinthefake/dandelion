@@ -190,7 +190,8 @@ defmodule DandelionNew.GenerateTest do
             "rel/overlays/bin/migrate",
             "deploy/cluster-proof.sh",
             "deploy/seed.sh",
-            "deploy/partition-proof.sh"
+            "deploy/partition-proof.sh",
+            "deploy/failure-proof.sh"
           ] do
         assert File.stat!(Path.join(path, bin)).mode |> Bitwise.band(0o111) != 0, bin
       end
