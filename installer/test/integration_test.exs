@@ -31,6 +31,47 @@ defmodule DandelionNew.IntegrationTest do
     end
   end
 
+  # `mix dandelion.gen.domain` inside generated projects: the domain it writes
+  # compiles cleanly, is formatted, passes its own tests and credo.
+  for {name, flags} <- [{"with the example", []}, {"without the example", ["--no-example"]}] do
+    test "mix dandelion.gen.domain adds a working domain (#{name})", %{tmp_dir: dir} do
+      path = Path.join(dir, "gen_domain_#{System.unique_integer([:positive])}")
+      Mix.shell(Mix.Shell.Quiet)
+      Mix.Tasks.Dandelion.New.run([path | unquote(flags)])
+      use_local_dandelion(path)
+      mix!(path, ["deps.get"])
+
+      if System.get_env("DANDELION_FROM_HEX") && not gen_domain_available?(path) do
+        IO.puts("skipped: the published dandelion has no mix dandelion.gen.domain yet")
+      else
+        mix!(
+          path,
+          ~w(dandelion.gen.domain Billing Invoice number:string amount_cents:integer paid:boolean)
+        )
+
+        mix!(path, ~w(dandelion.gen.domain Billing Payment reference:string notes:text))
+        mix!(path, ["compile", "--warnings-as-errors"])
+        mix!(path, ["format", "--check-formatted"])
+        out = mix!(path, ["test"], %{"MIX_ENV" => "test"})
+
+        # ExUnit's summary: "Result: 25 passed" (or "Failed: …"). The two
+        # generated resources bring 9 tests each.
+        assert [_, passed] = Regex.run(~r/Result: (\d+) passed/, out), out
+        assert String.to_integer(passed) >= 18
+        refute out =~ "Failed:"
+        mix!(path, ["credo", "--strict"])
+        mix!(path, ["ecto.drop"], %{"MIX_ENV" => "test"})
+      end
+    end
+  end
+
+  defp gen_domain_available?(path) do
+    {_out, status} =
+      System.cmd("mix", ["help", "dandelion.gen.domain"], cd: path, stderr_to_stdout: true)
+
+    status == 0
+  end
+
   test "the generated frontend builds", %{tmp_dir: dir} do
     path = Path.join(dir, "gen_ui")
     Mix.shell(Mix.Shell.Quiet)

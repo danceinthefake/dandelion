@@ -81,6 +81,11 @@ Dandelion.Queue.Ordered.insert(MyWorker.new(args), "order:42")   # then, in perf
 # with :ok <- Dandelion.Queue.Ordered.turn(job), do: ...
 ```
 
+`mix dandelion.gen.domain Billing Invoice number:string amount_cents:integer`
+adds a resource to a project in its own layout (model, repo, service, handler,
+migration, tests and routes), so a second feature starts from the same shape as
+the first.
+
 Each module's docs say what it promises and what it doesn't. The rules behind
 them: **Postgres decides; memory only makes things faster.** Anything that must
 survive a crash or happen exactly once goes through the database; the cache and

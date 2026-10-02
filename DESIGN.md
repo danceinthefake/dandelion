@@ -728,3 +728,30 @@ during and merged after. Evidence: `evidence/09-network-partition/`, with a
 negative control (the clear-on-`:nodeup` removed) in `evidence/controls/`.
 Not covered: a half cut off from Postgres, an asymmetric or flapping split.
 
+### 11.5 `mix dandelion.gen.domain`
+
+2026-10-02. The generator makes a project; this adds to one. `mix
+dandelion.gen.domain Billing Invoice number:string amount_cents:integer
+paid:boolean` writes, in the project's own layout: model (schema +
+`create_changeset`), repo, service (create / get / list with the same page
+checks as orders), handler and JSON, a migration, a test per layer, a fixtures
+module, and a `# domain: billing` scope with three routes appended to the router.
+
+Decisions:
+
+- **It gives the shape, not the rules.** create, show, list; the business rules
+  (a cancel, a state change, an event) are written by hand the way `shop` does.
+  Update and delete aren't generated: they're where the rules live.
+- **Fields:** `string` (255), `text` (10 000), `integer` (bigint, ±10¹²),
+  `boolean` (default false). All required but booleans; at least one non-boolean.
+- **Lives in the library**, so it needs the project to depend on `dandelion`
+  at the release that has it (0.2.0). It uses only the names every dandelion
+  project shares (`Platform.*`, `App.*`), so it needs no app name.
+- **Refuses to overwrite** and changes nothing when it does; formats what it
+  writes with the project's own formatter.
+- Checked three ways: unit tests of the task (names, plurals, types, routes,
+  refusal), the generated code run inside the example (compiles clean, formatted,
+  66 tests, credo), and an integration test that adds two resources to a
+  generated project, with and without the example, and runs compile / format /
+  tests / credo.
+

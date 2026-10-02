@@ -30,6 +30,11 @@ lib/
       models/  repos/  services/
 ```
 
+Adding another domain: `mix dandelion.gen.domain Billing Invoice number:string
+amount_cents:integer` writes the layers, a migration, tests and the routes for
+one resource in `lib/app/billing/` — the same shape as `shop` — then
+`mix ecto.migrate`.
+
 Module names follow the folders: `lib/app/shop/services/order_service.ex`
 is `App.Shop.Services.OrderService`.
 
