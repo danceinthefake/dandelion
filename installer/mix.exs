@@ -21,10 +21,11 @@ defmodule DandelionNew.MixProject do
       docs: [
         main: "readme",
         extras: ["README.md"],
-        source_ref: "v#{@version}",
+        # the tag the release workflow makes: dandelion_new-vX.Y.Z
+        source_ref: "dandelion_new-v#{@version}",
         # the generator lives in installer/ of the repository
         source_url_pattern:
-          "https://github.com/danceinthefake/dandelion/blob/v#{@version}/installer/%{path}#L%{line}"
+          "https://github.com/danceinthefake/dandelion/blob/dandelion_new-v#{@version}/installer/%{path}#L%{line}"
       ]
     ]
   end

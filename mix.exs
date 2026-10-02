@@ -23,7 +23,8 @@ defmodule Dandelion.MixProject do
       docs: [
         main: "readme",
         extras: ["README.md", "CHANGELOG.md"],
-        source_ref: "v#{@version}",
+        # the tag the release workflow makes: dandelion-vX.Y.Z
+        source_ref: "dandelion-v#{@version}",
         groups_for_modules: [
           Clustering: [Dandelion.Cluster, Dandelion.Cluster.Postgres],
           Cache: [Dandelion.Cache, Dandelion.Cache.Listener],
