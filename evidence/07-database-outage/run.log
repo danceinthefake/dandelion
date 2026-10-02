@@ -1,10 +1,10 @@
-# commit: acb823b
-# recorded: 2026-10-02T13:18Z
+# commit: 5c3bca0
+# recorded: 2026-10-02T14:05Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
 
 database outage:
-13:21:13   ok  15 s without Postgres: no node restarted, still 3 nodes, /health says 503
-13:21:14   ok  Postgres back: /health 200
-13:21:14 all good
+14:08:28   ok  15 s without Postgres: no node restarted, still 3 nodes, /health says 503
+14:08:29   ok  Postgres back: /health 200
+14:08:29 all good

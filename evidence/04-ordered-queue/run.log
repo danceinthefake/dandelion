@@ -1,14 +1,14 @@
-# commit: acb823b
-# recorded: 2026-10-02T13:18Z
+# commit: 5c3bca0
+# recorded: 2026-10-02T14:05Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
 
 events:
-13:18:52   ok  order 2: both order.created subscribers completed, once each
-13:18:52   ok  webhook without the token: 401
+14:06:03   ok  order 2: both order.created subscribers completed, once each
+14:06:03   ok  webhook without the token: 401
 
 ordered queue:
-13:18:56   ok  10 orders: payment then refund, each ended refunded (nodes raced, order held)
-13:18:57   ok  order 14 (other order) paid while order 13 waited
-13:19:14   ok  order 13: the dead node's job was rescued, then its refund ran after it
+14:06:09   ok  10 orders: payment then refund, each ended refunded (nodes raced, order held)
+14:06:10   ok  order 14 (other order) paid while order 13 waited
+14:06:24   ok  order 13: the dead node's job was rescued, then its refund ran after it

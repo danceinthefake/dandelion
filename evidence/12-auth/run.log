@@ -1,0 +1,13 @@
+# commit: 5c3bca0
+# recorded: 2026-10-02T14:05Z
+# machine: Linux 7.2.7-arch1-1, docker 29.8.1
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
+
+auth:
+14:06:33   ok  an order without a login is refused: 401
+14:06:33   ok  one login, accepted by all 3 nodes (no session to share: the token is signed)
+14:06:33   ok  a customer sees and cancels only their own orders (order 15 yes, 16 404); an admin sees both
+14:06:33   ok  a customer can't change a price: 403 (an admin did, above)
+14:06:33   ok  a tampered token is refused: 401
+14:06:36   ok  the WebSocket: 403 without a token or with a bad one, 101 with a good one

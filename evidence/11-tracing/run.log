@@ -1,10 +1,10 @@
-# commit: acb823b
-# recorded: 2026-10-02T13:18Z
+# commit: 5c3bca0
+# recorded: 2026-10-02T14:05Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
 
 traces:
-13:20:30   ok  GET /health with our traceparent is trace 8fb1e7f5… in Jaeger, on acme@172.31.0.4
-13:20:37   ok  the order's database queries are spans of the request
-13:20:37   ok  one trace, two nodes: the request on acme@172.31.0.4, the order's jobs (confirmation, stats) on acme@172.31.0.6
+14:07:51   ok  GET /health with our traceparent is trace 2931394b… in Jaeger, on acme@172.31.0.4
+14:07:54   ok  the order's database queries are spans of the request
+14:07:54   ok  one trace, two nodes: the request on acme@172.31.0.6, the order's jobs (confirmation, stats) on acme@172.31.0.5
