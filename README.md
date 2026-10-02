@@ -16,6 +16,8 @@ mix archive.install hex dandelion_new
 mix dandelion.new my_app          # a service that already depends on this library
 ```
 
+New here? [**From zero to a three-node cluster**](https://github.com/danceinthefake/dandelion/blob/main/TUTORIAL.md) — ten minutes, step by step.
+
 ## Proof
 
 Every claim is recorded, not just written down — [`evidence/`](https://github.com/danceinthefake/dandelion/tree/main/evidence)

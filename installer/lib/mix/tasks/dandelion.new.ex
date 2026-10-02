@@ -93,7 +93,7 @@ defmodule Mix.Tasks.Dandelion.New do
         docker compose up -d      # Postgres on localhost:55432
         mix setup                 # dependencies + database
         mix test
-        #{if frontend?, do: "(cd assets && npm install && npm run build)   # the Vue app, needs Node\n        ", else: ""}mix phx.server            # http://localhost:4000
+        #{if frontend?, do: "(cd assets && npm install && npm run build)   # the Vue app, needs Node\n    ", else: ""}mix phx.server            # http://localhost:4000
 
     New to Elixir from Go? Start with the phrasebook:
     https://github.com/danceinthefake/dandelion/tree/main/phrasebook
