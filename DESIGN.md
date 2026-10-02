@@ -825,7 +825,7 @@ already emit `:telemetry` events, and tracing is another reader of them.
   network (`db`); the nodes are on it and on `default`, where they find each
   other. `docker network disconnect` cuts one node off — no privileges. The
   proof cuts the **leader**: it stays in the cluster, steps down, another node
-  becomes the only leader (about 40 s, never two at once), the cut node can't run
+  becomes the only leader (37 to 53 s in the runs, never two at once), the cut node can't run
   jobs and its cache serves until the entries expire. On reconnect it recovers by
   itself.
 - **Postgres killed under load** (SIGKILL, three concurrent order-makers through

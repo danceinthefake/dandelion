@@ -1,0 +1,22 @@
+# commit: 082414c
+# recorded: 2026-10-02T17:12Z
+# machine: Linux 7.2.7-arch1-1, docker 29.8.1
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/failure-proof.sh (3 containers; the leader cut off from Postgres by docker network disconnect; Postgres killed under load)
+
+17:12:40 the leader cut off from Postgres:
+17:13:15   ok  node3, the leader, is cut off from Postgres (and only node3)
+17:13:15   ok  node3 still serves the cached product price, with no database (until the entry expires)
+17:13:16   ok  the cluster is still whole: all three nodes see each other (they talk over the other network)
+17:13:19   ok  6 orders made on the other nodes: all 12 subscriber jobs completed once, none on node3
+17:13:34   ok  node3 stepped down and node1 took over as the only leader, 53 s after the cut (never two at once)
+17:13:51   ok  70 s on, the cached entry has expired and node3 has no price to give: a cache doesn't replace the database
+17:13:54   ok  node3 reconnected: it reaches Postgres again
+17:13:56   ok  still exactly one leader (node1 )
+17:13:57   ok  node3 sees the same 6 orders as node1, and works again
+17:14:04   ok  node3 takes jobs again (2 so far)
+17:14:04 Postgres killed under load:
+17:14:34   ok  orders made through nginx while Postgres was killed (23 s ago) and started again: 231 answered 201, 13 failed during the outage
+17:14:35   ok  every one of the 231 acknowledged orders is in the database after the crash
+17:14:36   ok  all 231 orders in the database (some of the 13 failures may have committed before the crash) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice
+17:14:36   ok  no node restarted, still 3 nodes, /health 200

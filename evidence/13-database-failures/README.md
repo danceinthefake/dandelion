@@ -32,13 +32,13 @@ reachable by the others.
 | the leader can't reach Postgres, the others can; all three still see each other | the networks are separate |
 | it still serves a cached price | `Dandelion.Cache`, from memory |
 | 6 orders made on the other nodes: all 12 subscriber jobs completed once, **none on the cut node** | the cut node can't claim jobs |
-| it steps down, and another node becomes the only leader (~40 s after the cut, **never two at once**, sampled throughout) | Oban's lease in Postgres expires |
+| it steps down, and another node becomes the only leader (**37 to 53 s** after the cut in the runs, **never two at once**, sampled throughout) | Oban's lease in Postgres expires |
 | 70 s on, its cached price is gone and it **can't answer** | a cache doesn't replace the database |
 | after the reconnect it reaches Postgres at once, there is still one leader, it sees all the orders, and takes jobs again | Postgrex reconnects by itself |
 
 | Postgres killed under load | Because |
 |---|---|
-| about 100 orders were answered 201 and a few failed during the outage | the outage was real |
+| a few hundred orders were answered 201 (231 in the recorded run) and a few failed during the outage | the outage was real |
 | **every acknowledged order is in the database** after the crash | Postgres's write-ahead log |
 | every order in the database has exactly **two completed subscriber jobs**, none discarded | the order and its events are one transaction |
 | no node restarted, 3 nodes, `/health` 200 | the pool and the cluster reconnect |
