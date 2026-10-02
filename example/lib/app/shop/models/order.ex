@@ -18,6 +18,8 @@ defmodule App.Shop.Models.Order do
     field :customer_email, :string
     field :status, :string, default: "pending"
     field :total_cents, :integer
+    # who made it (App.Accounts); nil for orders made by the system
+    field :user_id, :integer
     has_many :items, OrderItem
     timestamps()
   end

@@ -15,6 +15,7 @@
 #   - a dead node's unfinished payment job holds back its order, until rescued
 #   - a price changed through one node is seen by the cache on every node
 #   - a node that joins again starts with an empty cache
+#   - a login is accepted by every node; customers see only their own orders
 # @example-end
 #   - a node killed without warning drops out; started again, it rejoins
 #   - /metrics is Prometheus text, and the cluster size it reports follows the nodes
@@ -84,8 +85,16 @@ ok "GET / serves the Vue app ($asset: 200)"
 # @frontend-end
 
 # @example-start
-# the products the orders below are made of (prices come from this table)
-./seed-products.sh >/dev/null
+# the products the orders below are made of (prices come from this table), and
+# the two users who make them
+./seed.sh >/dev/null
+login() { # EMAIL -> a login token, through nginx
+  curl -s -X POST http://localhost:8080/api/session -H 'content-type: application/json' \
+    -d "{\"email\":\"$1\",\"password\":\"local-password-1\"}" |
+    sed -n 's/.*"token":"\([^"]*\)".*/\1/p'
+}
+admin_token=$(login admin@example.com)
+[ -n "$admin_token" ] || fail "can't log in as the seeded admin through nginx"
 
 echo "jobs:"
 # Creating an order queues its confirmation; one node runs it, once.
@@ -113,6 +122,7 @@ ok "order $job: confirmation job completed, 1 attempt"
 
 echo "events:"
 oid=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+    -H "authorization: Bearer $admin_token" \
   -d '{"customer_email":"events@example.com","items":[{"sku":"A","quantity":1}]}' |
   sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ -n "$oid" ] || fail "POST /api/orders through nginx didn't return an order"
@@ -150,6 +160,7 @@ rpc node1 'Oban.pause_queue(queue: :ordered)' >/dev/null
 ids=""
 for i in $(seq 1 10); do
   id=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+    -H "authorization: Bearer $admin_token" \
     -d '{"customer_email":"order@example.com","items":[{"sku":"A","quantity":1}]}' |
     sed -n 's/.*"id":\([0-9]*\).*/\1/p')
   [ "$(webhook "$id" "pay-$id" payment.succeeded)" = 202 ] || fail "webhook refused payment.succeeded for $id"
@@ -164,6 +175,7 @@ ok "10 orders: payment then refund, each ended refunded (nodes raced, order held
 # order, until the lifeline gives it back; other orders aren't held.
 rpc node1 'Oban.pause_queue(queue: :ordered)' >/dev/null
 held=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+    -H "authorization: Bearer $admin_token" \
   -d '{"customer_email":"held@example.com","items":[{"sku":"A","quantity":1}]}' |
   sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ "$(webhook "$held" "pay-$held" payment.succeeded)" = 202 ] || fail "webhook refused the payment"
@@ -178,6 +190,7 @@ rpc node1 "
 " >/dev/null
 [ "$(webhook "$held" "refund-$held" payment.refunded)" = 202 ] || fail "webhook refused the refund"
 free=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+    -H "authorization: Bearer $admin_token" \
   -d '{"customer_email":"free@example.com","items":[{"sku":"A","quantity":1}]}' |
   sed -n 's/.*"id":\([0-9]*\).*/\1/p')
 [ "$(webhook "$free" "pay-$free" payment.succeeded)" = 202 ] || fail "webhook refused the payment"
@@ -198,7 +211,7 @@ for n in node1 node2 node3; do
 done
 ok "$sku read on all 3 nodes: each keeps its own copy"
 code=$(curl -s -o /dev/null -w '%{http_code}' -X PUT "http://localhost:8080/api/products/$sku" \
-  -H 'content-type: application/json' -d '{"price_cents":1600}')
+  -H 'content-type: application/json' -H "authorization: Bearer $admin_token" -d '{"price_cents":1600}')
 [ "$code" = 200 ] || fail "PUT through nginx: $code"
 for n in node1 node2 node3; do
   for _ in $(seq 1 10); do [ "$(cached_on $n)" = false ] && break; sleep 0.5; done
@@ -214,6 +227,64 @@ for _ in $(seq 1 30); do [ "$(cached_on node1)" = false ] && break; sleep 1; don
 [ "$(cached_on node1)" = false ] || fail "node1 kept its cache after a node joined again"
 wait_for node1 2 || fail "node1 didn't get its nodes back"
 ok "node1 lost a node and got it back: its cache was emptied"
+
+echo "auth:"
+order='{"customer_email":"auth@example.com","items":[{"sku":"A","quantity":1}]}'
+code=$(curl -s -o /dev/null -w '%{http_code}' -X POST http://localhost:8080/api/orders \
+  -H 'content-type: application/json' -d "$order")
+[ "$code" = 401 ] || fail "POST /api/orders without a login: $code (want 401)"
+ok "an order without a login is refused: 401"
+
+customer_token=$(login customer@example.com)
+[ -n "$customer_token" ] || fail "can't log in as the seeded customer"
+# A token is signed, not stored: every node accepts it. nginx spreads nine
+# requests over the nodes, and says which one answered.
+answered=
+for _ in 1 2 3 4 5 6 7 8 9; do
+  headers=$(curl -s -D - -o /dev/null http://localhost:8080/api/me -H "authorization: Bearer $customer_token" | tr -d '\r')
+  echo "$headers" | head -1 | grep -q ' 200' || fail "GET /api/me with a valid token: $(echo "$headers" | head -1)"
+  answered="$answered
+$(echo "$headers" | grep -i '^x-upstream:' | sed 's/^[^:]*: //')"
+done
+[ "$(echo "$answered" | sort -u | grep -c .)" = 3 ] ||
+  fail "the token was answered by $(echo "$answered" | sort -u | grep -c .) node(s), want 3"
+ok "one login, accepted by all 3 nodes (no session to share: the token is signed)"
+
+mine=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+  -H "authorization: Bearer $customer_token" -d "$order" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+theirs=$(curl -s -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+  -H "authorization: Bearer $admin_token" -d "$order" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+status_of() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
+[ "$(status_of http://localhost:8080/api/orders/$mine -H "authorization: Bearer $customer_token")" = 200 ] ||
+  fail "a customer can't read their own order $mine"
+[ "$(status_of http://localhost:8080/api/orders/$theirs -H "authorization: Bearer $customer_token")" = 404 ] ||
+  fail "a customer can read somebody else's order $theirs"
+list=$(curl -s http://localhost:8080/api/orders -H "authorization: Bearer $customer_token")
+echo "$list" | grep -q "\"id\":$mine[,}]" || fail "the customer's list lacks their own order"
+echo "$list" | grep -q "\"id\":$theirs[,}]" && fail "the customer's list shows somebody else's order"
+[ "$(status_of -X POST http://localhost:8080/api/orders/$theirs/cancel -H "authorization: Bearer $customer_token")" = 404 ] ||
+  fail "a customer can cancel somebody else's order"
+[ "$(status_of http://localhost:8080/api/orders/$mine -H "authorization: Bearer $admin_token")" = 200 ] ||
+  fail "an admin can't read a customer's order"
+ok "a customer sees and cancels only their own orders (order $mine yes, $theirs 404); an admin sees both"
+
+[ "$(status_of -X PUT http://localhost:8080/api/products/$sku -H 'content-type: application/json' \
+  -H "authorization: Bearer $customer_token" -d '{"price_cents":1}')" = 403 ] ||
+  fail "a customer changed a price"
+ok "a customer can't change a price: 403 (an admin did, above)"
+
+[ "$(status_of http://localhost:8080/api/me -H "authorization: Bearer ${customer_token}x")" = 401 ] ||
+  fail "a tampered token was accepted"
+ok "a tampered token is refused: 401"
+
+# the WebSocket takes the same token: refused without one, upgraded with one
+ws() { curl -s -o /dev/null -m 3 -w '%{http_code}' -H 'Connection: Upgrade' -H 'Upgrade: websocket' \
+  -H 'Sec-WebSocket-Version: 13' -H 'Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==' \
+  "http://localhost:8080/socket/websocket?vsn=2.0.0$1" || true; }
+[ "$(ws '')" = 403 ] || fail "the WebSocket accepted a connection without a token: $(ws '')"
+[ "$(ws "&token=nope")" = 403 ] || fail "the WebSocket accepted a bad token"
+[ "$(ws "&token=$admin_token")" = 101 ] || fail "the WebSocket refused a valid token: $(ws "&token=$admin_token")"
+ok "the WebSocket: 403 without a token or with a bad one, 101 with a good one"
 
 # @example-end
 
@@ -293,6 +364,7 @@ cross_node=
 for _ in 1 2 3 4 5 6 7 8 9 10; do
   tid=$(new_trace_id)
   curl -s -o /dev/null -X POST http://localhost:8080/api/orders -H 'content-type: application/json' \
+    -H "authorization: Bearer $admin_token" \
     -H "traceparent: 00-$tid-00f067aa0ba902b7-01" \
     -d '{"customer_email":"trace@example.com","items":[{"sku":"PROOF","quantity":1}]}'
   wait_trace "$tid" 'SendOrderConfirmation' && wait_trace "$tid" 'UpdateCustomerStats' ||

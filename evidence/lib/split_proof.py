@@ -23,6 +23,7 @@ CLAIM = {
     "cache": "05-cache",
     "metrics": "10-metrics",
     "traces": "11-tracing",
+    "auth": "12-auth",
     "database outage": "07-database-outage",
 }
 

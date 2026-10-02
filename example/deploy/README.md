@@ -97,3 +97,11 @@ your collector or backend. A request that arrives with a `traceparent` header
 keeps its trace id, so a caller's trace goes through the load balancer, a node,
 and the jobs it queues, wherever they run.
 
+## Logins
+
+Every node signs and checks tokens with the same `SECRET_KEY_BASE`, so a login on
+one node is good on all of them, and a node that restarts keeps everyone logged
+in. Rotating `SECRET_KEY_BASE` logs everyone out. `seed.sh` makes the two demo
+users (`admin@example.com`, `customer@example.com`, password `local-password-1`)
+in the local cluster: never create users like that in production.
+

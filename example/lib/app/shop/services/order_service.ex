@@ -11,6 +11,10 @@ defmodule App.Shop.Services.OrderService do
   alias Platform.Database.Repos.OrderRepo
   alias Platform.PubSub
 
+  # Who is asking: a user (`%{id: …, role: …}`), or nil for the system itself
+  # (workers, the payment webhook), which sees everything.
+  @type viewer :: %{id: integer(), role: String.t()} | nil
+
   @type error ::
           :not_found
           | {:invalid, String.t()}
@@ -33,18 +37,26 @@ defmodule App.Shop.Services.OrderService do
   line, so a later price change doesn't rewrite old orders. A SKU that isn't a
   product is `{:error, {:invalid, "unknown product: …"}}`.
 
+  The order belongs to `viewer` (a user, from the login — never from the
+  request). Without one, it belongs to nobody: the system made it.
+
   After the commit the event also goes out live on `Platform.Broadcast`, for
   whoever is watching right now (every node).
   """
-  @spec create(map()) :: {:ok, Order.t()} | {:error, error()}
-  def create(params) do
-    with {:ok, params} <- price_items(params), do: insert_order(params)
+  @spec create(map(), viewer()) :: {:ok, Order.t()} | {:error, error()}
+  def create(params, viewer \\ nil) do
+    with {:ok, params} <- price_items(params), do: insert_order(params, viewer)
   end
 
-  defp insert_order(params) do
+  defp insert_order(params, viewer) do
     result =
       Repo.transact(fn ->
-        with {:ok, order} <- params |> Order.create_changeset() |> OrderRepo.insert() do
+        changeset =
+          params
+          |> Order.create_changeset()
+          |> Ecto.Changeset.put_change(:user_id, viewer && viewer.id)
+
+        with {:ok, order} <- OrderRepo.insert(changeset) do
           PubSub.publish("order.created", %{
             "order_id" => order.id,
             "customer_email" => order.customer_email
@@ -60,10 +72,13 @@ defmodule App.Shop.Services.OrderService do
     end
   end
 
-  @doc "One order with its items."
-  @spec get(integer()) :: {:ok, Order.t()} | {:error, error()}
-  def get(id) do
-    case OrderRepo.get(id) do
+  @doc """
+  One order with its items. A customer asking for somebody else's order gets
+  `:not_found`, the same as for one that doesn't exist: no hint that it's there.
+  """
+  @spec get(integer(), viewer()) :: {:ok, Order.t()} | {:error, error()}
+  def get(id, viewer \\ nil) do
+    case OrderRepo.get(id, scope(viewer)) do
       nil -> {:error, :not_found}
       order -> {:ok, order}
     end
@@ -71,16 +86,19 @@ defmodule App.Shop.Services.OrderService do
 
   @doc """
   Orders, newest first. `params`: optional `"status"`, `"page"` (from 1),
-  `"per_page"` (1..#{@max_per_page}, default 20).
+  `"per_page"` (1..#{@max_per_page}, default 20). A customer sees their own
+  orders; an admin (or the system) sees all.
   """
-  @spec list(map()) ::
+  @spec list(map(), viewer()) ::
           {:ok, %{orders: [Order.t()], page: pos_integer(), per_page: pos_integer()}}
           | {:error, error()}
-  def list(params) do
+  def list(params, viewer \\ nil) do
     with {:ok, status} <- status_param(params["status"]),
          {:ok, page} <- positive_int(params["page"], 1, @max_page, "page"),
          {:ok, per_page} <- positive_int(params["per_page"], 20, @max_per_page, "per_page") do
-      orders = OrderRepo.list(%{status: status, page: page, per_page: per_page})
+      orders =
+        OrderRepo.list(%{status: status, page: page, per_page: per_page, scope: scope(viewer)})
+
       {:ok, %{orders: orders, page: page, per_page: per_page}}
     end
   end
@@ -89,11 +107,12 @@ defmodule App.Shop.Services.OrderService do
   Cancels an order. Pending and paid orders can be cancelled; shipped ones
   can't. The row is locked while deciding, so two cancels (or a cancel and
   a "mark shipped") can't race. ≈ a Go `tx` with `SELECT … FOR UPDATE`.
+  A customer can cancel only their own orders (`:not_found` for others').
   """
-  @spec cancel(integer()) :: {:ok, Order.t()} | {:error, error()}
-  def cancel(id) do
+  @spec cancel(integer(), viewer()) :: {:ok, Order.t()} | {:error, error()}
+  def cancel(id, viewer \\ nil) do
     Repo.transact(fn ->
-      with {:ok, order} <- locked(id),
+      with {:ok, order} <- locked(id, scope(viewer)),
            :ok <- cancellable(order),
            {:ok, order} <- OrderRepo.update_status(order, "cancelled") do
         {:ok, Repo.preload(order, :items)}
@@ -132,6 +151,12 @@ defmodule App.Shop.Services.OrderService do
   end
 
   # -- helpers -----------------------------------------------------------------
+
+  # What a viewer may see: everything for the system and admins, their own
+  # orders for anyone else.
+  defp scope(nil), do: :all
+  defp scope(%{role: "admin"}), do: :all
+  defp scope(%{id: id}), do: {:user, id}
 
   # Puts each item's price from its product. Items that aren't `%{"sku" => text}`
   # are left alone: the changeset reports what's wrong with them.
@@ -179,8 +204,8 @@ defmodule App.Shop.Services.OrderService do
     end
   end
 
-  defp locked(id) do
-    case OrderRepo.lock_for_update(id) do
+  defp locked(id, scope \\ :all) do
+    case OrderRepo.lock_for_update(id, scope) do
       nil -> {:error, :not_found}
       order -> {:ok, order}
     end

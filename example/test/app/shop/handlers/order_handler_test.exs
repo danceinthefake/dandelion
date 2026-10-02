@@ -1,7 +1,14 @@
 defmodule App.Shop.Handlers.OrderHandlerTest do
   use Platform.ConnCase, async: true
 
+  import App.Accounts.Fixtures
   import App.Shop.Fixtures
+
+  # every test is a logged-in customer
+  setup %{conn: conn} do
+    user = user_fixture()
+    {:ok, conn: log_in(conn, user), user: user}
+  end
 
   test "POST /api/orders creates an order", %{conn: conn} do
     conn = post(conn, "/api/orders", order_params())
@@ -54,8 +61,8 @@ defmodule App.Shop.Handlers.OrderHandlerTest do
     end
   end
 
-  test "GET /api/orders/:id, and 404 for unknown or malformed ids", %{conn: conn} do
-    order = order_fixture()
+  test "GET /api/orders/:id, and 404 for unknown or malformed ids", %{conn: conn, user: user} do
+    order = order_fixture(user_id: user.id)
     assert %{"id" => id} = conn |> get("/api/orders/#{order.id}") |> json_response(200)
     assert id == order.id
 
@@ -66,8 +73,8 @@ defmodule App.Shop.Handlers.OrderHandlerTest do
              conn |> get("/api/orders/99999999999999999999") |> json_response(404)
   end
 
-  test "GET /api/orders pages and filters; bad parameters are 400", %{conn: conn} do
-    order_fixture(status: "paid")
+  test "GET /api/orders pages and filters; bad parameters are 400", %{conn: conn, user: user} do
+    order_fixture(status: "paid", user_id: user.id)
 
     assert %{"orders" => [%{"status" => "paid"}], "page" => 1, "per_page" => 20} =
              conn |> get("/api/orders?status=paid") |> json_response(200)
@@ -76,13 +83,17 @@ defmodule App.Shop.Handlers.OrderHandlerTest do
              conn |> get("/api/orders?status=lost") |> json_response(400)
   end
 
-  test "POST /api/orders/:id/cancel, and 409 when the rule says no", %{conn: conn} do
+  test "POST /api/orders/:id/cancel, and 409 when the rule says no", %{conn: conn, user: user} do
     assert %{"status" => "cancelled"} =
-             conn |> post("/api/orders/#{order_fixture().id}/cancel") |> json_response(200)
+             conn
+             |> post("/api/orders/#{order_fixture(user_id: user.id).id}/cancel")
+             |> json_response(200)
 
     assert %{"error" => "a shipped order can't be cancelled"} =
              conn
-             |> post("/api/orders/#{order_fixture(status: "shipped").id}/cancel")
+             |> post(
+               "/api/orders/#{order_fixture(status: "shipped", user_id: user.id).id}/cancel"
+             )
              |> json_response(409)
   end
 end

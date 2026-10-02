@@ -1,6 +1,6 @@
-// Two browsers on the 3-node cluster (nginx on :8080), on two DIFFERENT
-// nodes: an order made in one shows up in the other, in both directions, and
-// presence counts both. Records both as one side-by-side GIF and a PNG.
+// Two browsers, both signed in as the admin, on the 3-node cluster (nginx on
+// :8080), on two DIFFERENT nodes: an order made in one shows up in the other,
+// in both directions, and presence counts both. Records both as one side-by-side GIF and a PNG.
 //
 //   node browser/live-feed.mjs OUT_DIR
 //
@@ -28,6 +28,10 @@ async function pair() {
     const ctx = await browser.newContext({ viewport: size, recordVideo: { dir: join(work, dir), size } });
     const page = await ctx.newPage();
     await page.goto(url);
+    // the console needs a login: the admin that seed.sh made
+    await page.getByLabel("Email").fill("admin@example.com");
+    await page.getByLabel("Password").fill("local-password-1");
+    await page.getByRole("button", { name: "Sign in" }).click();
     await page.getByTestId("node").waitFor();
     return { ctx, page, node: (await page.getByTestId("node").innerText()).replace(/^.*connected to /, "") };
   };

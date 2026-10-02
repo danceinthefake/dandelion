@@ -5,6 +5,9 @@ config :acme, Oban, testing: :manual
 
 config :acme, :payment_webhook_token, "test-token"
 
+# fast password hashing in tests (a real hash takes about a quarter of a second)
+config :acme, App.Accounts.Services.Password, iterations: 1_000
+
 # Configure your database
 #
 # The MIX_TEST_PARTITION environment variable can be used

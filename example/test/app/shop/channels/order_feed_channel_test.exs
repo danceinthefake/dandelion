@@ -2,17 +2,33 @@ defmodule App.Shop.Channels.OrderFeedChannelTest do
   # not async: the channel processes use the test's database connection
   use Platform.DataCase, async: false
 
+  import App.Accounts.Fixtures
   import App.Shop.Fixtures
   import Phoenix.ChannelTest
 
+  alias App.Accounts.Handlers.Token
   alias App.Shop.Services.OrderService
   alias Platform.Web.UserSocket
 
   @endpoint Platform.Web.Endpoint
 
-  defp join_feed do
-    {:ok, socket} = connect(UserSocket, %{})
+  defp token(user), do: Token.sign(user)
+
+  defp join_feed(user \\ admin_fixture()) do
+    {:ok, socket} = connect(UserSocket, %{"token" => token(user)})
     subscribe_and_join(socket, "orders:live", %{})
+  end
+
+  test "a connection needs a login token" do
+    assert connect(UserSocket, %{}) == :error
+    assert connect(UserSocket, %{"token" => "nope"}) == :error
+    assert connect(UserSocket, %{"token" => 42}) == :error
+    assert {:ok, _} = connect(UserSocket, %{"token" => token(user_fixture())})
+  end
+
+  test "the feed shows everyone's orders, so it is for admins" do
+    {:ok, socket} = connect(UserSocket, %{"token" => token(user_fixture())})
+    assert {:error, %{reason: "forbidden"}} = subscribe_and_join(socket, "orders:live", %{})
   end
 
   test "joining replies with the latest orders, and the node it is connected to" do
@@ -31,7 +47,7 @@ defmodule App.Shop.Channels.OrderFeedChannelTest do
   end
 
   test "an unknown topic is refused" do
-    {:ok, socket} = connect(UserSocket, %{})
+    {:ok, socket} = connect(UserSocket, %{"token" => token(admin_fixture())})
     assert {:error, %{reason: _}} = subscribe_and_join(socket, "orders:other", %{})
   end
 

@@ -129,6 +129,37 @@ defmodule DandelionNew.GenerateTest do
     end
   end
 
+  test "the example has logins: an accounts domain, guarded routes, a token socket" do
+    files = files("my_app", "MyApp")
+
+    assert files["lib/app/accounts/handlers/auth.ex"] =~ "defmodule App.Accounts.Handlers.Auth"
+    assert files["lib/platform/web/router.ex"] =~ "pipeline :authenticated"
+    assert files["lib/platform/web/router.ex"] =~ "pipe_through [:api, :authenticated, :admin]"
+    assert files["lib/platform/web/user_socket.ex"] =~ ~S(def connect(%{"token" => token})
+    assert files["priv/repo/seeds.exs"] =~ "admin@example.com"
+    assert files["config/test.exs"] =~ "App.Accounts.Services.Password"
+    assert Enum.any?(Map.keys(files), &(&1 =~ "create_users"))
+  end
+
+  test "--no-example has no accounts, no login and no shop left in it" do
+    files = files("my_app", "MyApp", false)
+
+    for {path, contents} <- files do
+      refute path =~ ~r/accounts|users/, path
+
+      refute contents =~ ~r/App\.Accounts|App\.Shop/,
+             "#{path} still mentions the example"
+    end
+
+    socket = files["lib/platform/web/user_socket.ex"]
+    assert socket =~ "def connect(_params, socket, _connect_info)"
+    refute socket =~ "token"
+
+    # `mix setup` runs the seeds: they must not name a module the project lacks
+    refute files["priv/repo/seeds.exs"] =~ "Product"
+    refute files["config/test.exs"] =~ "Password"
+  end
+
   test "marker lines never reach a generated project; left-out parts go whole" do
     for {example?, frontend?} <- [{true, true}, {true, false}, {false, false}] do
       files = files("my_app", "MyApp", example?, frontend?)
@@ -158,7 +189,7 @@ defmodule DandelionNew.GenerateTest do
       for bin <- [
             "rel/overlays/bin/migrate",
             "deploy/cluster-proof.sh",
-            "deploy/seed-products.sh",
+            "deploy/seed.sh",
             "deploy/partition-proof.sh"
           ] do
         assert File.stat!(Path.join(path, bin)).mode |> Bitwise.band(0o111) != 0, bin

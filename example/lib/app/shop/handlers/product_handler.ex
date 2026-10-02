@@ -1,7 +1,7 @@
 defmodule App.Shop.Handlers.ProductHandler do
   @moduledoc """
-  HTTP handlers for products. ≈ `http/products.go`. (Like the orders, these
-  have no login: add your auth plug before using `update` for real.)
+  HTTP handlers for products. ≈ `http/products.go`. Reading is public; changing
+  a price needs an admin (the router's `:admin` pipeline).
   """
   use Platform.Web, :handler
 

@@ -13,6 +13,7 @@
 - `mix dandelion.gen.domain DOMAIN RESOURCE field:type …` adds a resource to a
   project's domain in the project's own layout: model, repo, service, handler,
   JSON, migration, tests and the routes.
+  The routes go through the project's `:authenticated` pipeline when it has one.
 
 ## 0.1.1
 

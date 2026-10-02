@@ -14,9 +14,42 @@ import {
   useToast,
 } from "blessing-ui";
 import { api, money, type Order } from "./api";
+import { clearSession, getToken, user } from "./auth";
 import OrderFeed from "./OrderFeed.vue";
 
 const toast = useToast();
+
+// -- who: a login, then the console (for staff) -----------------------------------
+
+const loginEmail = ref("");
+const loginPassword = ref("");
+const loggingIn = ref(false);
+const loginError = ref("");
+const checking = ref(!!getToken());
+
+async function login() {
+  loggingIn.value = true;
+  loginError.value = "";
+  const res = await api.login(loginEmail.value, loginPassword.value);
+  loggingIn.value = false;
+  if (res.ok) loginPassword.value = "";
+  else loginError.value = res.error.message;
+}
+
+function logout() {
+  clearSession();
+  location.hash = "#/";
+}
+
+// a token kept from before this page was opened: is it still good?
+onMounted(async () => {
+  if (getToken()) {
+    const res = await api.me();
+    if (res.ok) user.value = res.data;
+    else clearSession();
+  }
+  checking.value = false;
+});
 
 // -- where: #/ (feed + new order) or #/orders/42 (detail) ---------------------
 
@@ -96,13 +129,37 @@ const itemColumns = [
       <nav class="nav">
         <a href="#/">Orders</a>
       </nav>
-      <BlessText as="p" size="xs" muted class="who">
+      <BlessText v-if="user" as="p" size="xs" muted class="who">
         <BlessBadge color="info">{{ online }}</BlessBadge> online now
+      </BlessText>
+      <BlessText v-if="user" as="p" size="xs" muted class="me" data-testid="me">
+        {{ user.email }} ({{ user.role }})
+        <a href="#/" @click.prevent="logout">Sign out</a>
       </BlessText>
     </template>
 
+    <BlessSection v-if="!user && !checking" title="Sign in" watermark="acme">
+      <form class="new" @submit.prevent="login">
+        <BlessField label="Email" required>
+          <BlessInput v-model="loginEmail" type="email" required autocomplete="username" />
+        </BlessField>
+        <BlessField label="Password" required>
+          <BlessInput v-model="loginPassword" type="password" required autocomplete="current-password" />
+        </BlessField>
+        <BlessButton type="submit" color="accent" :loading="loggingIn">Sign in</BlessButton>
+      </form>
+      <BlessAlert v-if="loginError" color="danger" title="Not signed in">{{ loginError }}</BlessAlert>
+    </BlessSection>
+
+    <BlessSection v-else-if="user && user.role !== 'admin'" title="Staff only" watermark="staff">
+      <BlessText as="p">
+        This console shows every customer's orders, so it is for staff. Customers use the API:
+        <code>POST /api/orders</code> with their token.
+      </BlessText>
+    </BlessSection>
+
     <!-- v-show, not v-if: the feed stays joined (and you stay "online") on the detail page -->
-    <BlessSection v-show="orderId === null" title="Orders" subtitle="live" watermark="orders">
+    <BlessSection v-if="user?.role === 'admin'" v-show="orderId === null" title="Orders" subtitle="live" watermark="orders">
       <form class="new" @submit.prevent="create">
         <BlessField label="Customer email" required>
           <BlessInput v-model="email" type="email" required placeholder="sari@example.com" />
@@ -116,7 +173,7 @@ const itemColumns = [
       <OrderFeed ref="feed" @online="(n) => (online = n)" />
     </BlessSection>
 
-    <BlessSection v-if="orderId !== null" :title="`Order #${orderId}`" :watermark="`#${orderId}`">
+    <BlessSection v-if="user?.role === 'admin' && orderId !== null" :title="`Order #${orderId}`" :watermark="`#${orderId}`">
       <p><a href="#/">← all orders</a></p>
       <BlessAlert v-if="detailError" color="danger" title="Can't show this order">{{ detailError }}</BlessAlert>
       <template v-else-if="order">

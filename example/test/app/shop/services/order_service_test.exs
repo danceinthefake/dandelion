@@ -1,6 +1,7 @@
 defmodule App.Shop.Services.OrderServiceTest do
   use Platform.DataCase, async: true
 
+  import App.Accounts.Fixtures
   import App.Shop.Fixtures
 
   alias App.Shop.Services.{OrderService, ProductService}
@@ -68,6 +69,48 @@ defmodule App.Shop.Services.OrderServiceTest do
 
       assert {:error, {:invalid, "unknown product: NOPE-1, NOPE-2"}} =
                OrderService.create(order_params(%{"items" => items}))
+    end
+  end
+
+  describe "who sees what" do
+    setup do
+      {:ok, me: user_fixture(), other: user_fixture(), admin: admin_fixture()}
+    end
+
+    test "an order belongs to the viewer who made it, or to nobody", %{me: me} do
+      assert {:ok, %{user_id: id}} = OrderService.create(order_params(), me)
+      assert id == me.id
+      assert {:ok, %{user_id: nil}} = OrderService.create(order_params())
+    end
+
+    test "get/2, list/2 and cancel/2 show a customer only their own", %{me: me, other: other} do
+      mine = order_fixture(user_id: me.id)
+      theirs = order_fixture(user_id: other.id)
+
+      assert {:ok, _} = OrderService.get(mine.id, me)
+      assert OrderService.get(theirs.id, me) == {:error, :not_found}
+
+      assert {:ok, %{orders: orders}} = OrderService.list(%{}, me)
+      assert Enum.map(orders, & &1.id) == [mine.id]
+
+      assert OrderService.cancel(theirs.id, me) == {:error, :not_found}
+      assert {:ok, %{status: "pending"}} = OrderService.get(theirs.id)
+      assert {:ok, %{status: "cancelled"}} = OrderService.cancel(mine.id, me)
+    end
+
+    test "an admin, and the system (no viewer), see everything", %{me: me, admin: admin} do
+      order = order_fixture(user_id: me.id)
+
+      assert {:ok, _} = OrderService.get(order.id, admin)
+      assert {:ok, _} = OrderService.get(order.id, nil)
+      assert {:ok, %{orders: [_ | _]}} = OrderService.list(%{}, admin)
+      assert {:ok, %{status: "cancelled"}} = OrderService.cancel(order.id, admin)
+    end
+
+    test "paying and refunding are the system's, whoever owns the order", %{me: me} do
+      order = order_fixture(user_id: me.id)
+      assert {:ok, %{status: "paid"}} = OrderService.mark_paid(order.id)
+      assert {:ok, %{status: "refunded"}} = OrderService.mark_refunded(order.id)
     end
   end
 

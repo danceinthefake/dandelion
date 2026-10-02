@@ -80,16 +80,53 @@ left alone. If other services call yours over plain HTTP inside the network
 
 ## Try the API
 
-`mix setup` seeds two products (`TEA-01`, `CUP-02`). Orders are **priced from the
-products table** — send only the SKU and the quantity; a `price_cents` in the
-request is ignored, and an unknown SKU is a 400:
+`mix setup` seeds two products (`TEA-01`, `CUP-02`) and two users, `admin@example.com`
+and `customer@example.com`, both with the password `local-password-1` (public:
+local use only). Orders need a login, and are **priced from the products
+table**: send the SKU and the quantity; a `price_cents` in the request is
+ignored, and an unknown SKU is a 400.
 
 ```sh
-curl -X POST localhost:4000/api/orders -H 'content-type: application/json' \
+# log in: a signed token comes back
+TOKEN=$(curl -s -X POST localhost:4000/api/session -H 'content-type: application/json' \
+  -d '{"email":"customer@example.com","password":"local-password-1"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
+
+curl -X POST localhost:4000/api/orders -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' \
   -d '{"customer_email":"sari@example.com","items":[{"sku":"TEA-01","quantity":2}]}'
-curl -X PUT localhost:4000/api/products/TEA-01 -H 'content-type: application/json' \
-  -d '{"price_cents":1600}'          # the next order pays 1600; old orders keep their price
+
+curl localhost:4000/api/orders -H "authorization: Bearer $TOKEN"   # your orders, not everyone's
 ```
+
+New users register with `POST /api/users` (`{"email": …, "password": …}`, at least
+10 characters); they are customers — the role is never read from a request.
+
+## Logins and who may do what
+
+[`lib/app/accounts/`](lib/app/accounts) is a small, real login — a place to
+start, not a library to depend on:
+
+- **Passwords** are hashed with PBKDF2-SHA256 from Erlang's `:crypto` (no
+  dependency), 600 000 iterations, a salt each; the iteration count is stored
+  in the hash so it can be raised later. Logging in as an unknown email costs
+  the same time as a wrong password, and gives the same answer.
+- **Tokens** are signed and expire after a day (`Phoenix.Token`): nothing is
+  stored, so any node accepts a token another node issued. They can't be revoked
+  before they expire; `App.Accounts.Handlers.Token` says what to do if you
+  need that.
+- **The plug** [`App.Accounts.Handlers.Auth`](lib/app/accounts/handlers/auth.ex)
+  guards routes, as pipelines in [`router.ex`](lib/platform/web/router.ex):
+  `:authenticated` (a valid token, else 401) and `:admin` (else 403). The
+  catalogue and the payment webhook (which has its own token) stay public.
+- **Who may see what is a rule, so it's in the service:** an order belongs to
+  the user who made it; a customer gets their own orders and a 404 for anyone
+  else's (the same as for one that doesn't exist), an admin sees all.
+  Prices are changed by admins only, and so is the live feed.
+- **The web console** signs in, then shows the live feed to admins. The token
+  is kept in `sessionStorage`, and sent as a header and as the WebSocket's
+  `token` parameter.
+
+Not here: password reset, email confirmation, lockout after failed attempts or
+rate limiting (the load balancer's job, as DESIGN says), two-factor login.
 
 ## Metrics
 

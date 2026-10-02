@@ -88,6 +88,85 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
     assert Regex.scan(~r/\nend\s*\z/, router) |> length() == 1
   end
 
+  test "behind the login when the router has an :authenticated pipeline", %{tmp_dir: dir} do
+    File.mkdir_p!(Path.join(dir, "lib/platform/web"))
+
+    File.write!(Path.join(dir, "lib/platform/web/router.ex"), """
+    defmodule Platform.Web.Router do
+      use Platform.Web, :router
+
+      pipeline :authenticated do
+        plug :some_login
+      end
+    end
+    """)
+
+    gen(dir, ~w(Billing Invoice number:string))
+    router = read(dir, "lib/platform/web/router.ex")
+    assert router =~ "pipe_through [:api, :authenticated]"
+    assert router =~ ~s(post "/invoices", App.Billing.Handlers.InvoiceHandler, :create)
+  end
+
+  @guarded_router """
+  defmodule Platform.Web.Router do
+    use Platform.Web, :router
+
+    pipeline :authenticated do
+      plug :some_login
+    end
+  end
+  """
+
+  defp project(dir, router, login_helper?) do
+    File.mkdir_p!(Path.join(dir, "lib/platform/web"))
+    File.write!(Path.join(dir, "lib/platform/web/router.ex"), router)
+
+    if login_helper? do
+      File.mkdir_p!(Path.join(dir, "test/support/app/accounts"))
+
+      File.write!(
+        Path.join(dir, "test/support/app/accounts/fixtures.ex"),
+        "defmodule App.Accounts.Fixtures do\n  def log_in(conn, _user), do: conn\nend\n"
+      )
+    end
+  end
+
+  test "a login in the project: the handler tests log in", %{tmp_dir: dir} do
+    project(dir, @guarded_router, true)
+    gen(dir, ~w(Billing Invoice number:string))
+
+    test = read(dir, "test/app/billing/handlers/invoice_handler_test.exs")
+    assert test =~ "import App.Accounts.Fixtures"
+    assert test =~ "log_in(conn, user_fixture())"
+    assert test =~ ~s(test "POST /api/invoices creates an invoice")
+  end
+
+  test "a login the task doesn't know: guarded routes, tests that only expect a 401", %{
+    tmp_dir: dir
+  } do
+    project(dir, @guarded_router, false)
+    gen(dir, ~w(Billing Invoice number:string))
+
+    assert read(dir, "lib/platform/web/router.ex") =~ "pipe_through [:api, :authenticated]"
+    test = read(dir, "test/app/billing/handlers/invoice_handler_test.exs")
+    assert test =~ ~s(test "the routes need a login")
+    refute test =~ "creates an invoice"
+  end
+
+  test "no login at all: open routes, full handler tests", %{tmp_dir: dir} do
+    gen(dir, ~w(Billing Invoice number:string))
+    test = read(dir, "test/app/billing/handlers/invoice_handler_test.exs")
+    refute test =~ "log_in"
+    assert test =~ ~s(test "POST /api/invoices creates an invoice")
+  end
+
+  test "without one, the routes use :api only", %{tmp_dir: dir} do
+    gen(dir, ~w(Billing Invoice number:string))
+    router = read(dir, "lib/platform/web/router.ex")
+    assert router =~ "# domain: billing\n  scope \"/api\" do\n    pipe_through :api\n"
+    refute router =~ ":authenticated"
+  end
+
   test "plurals: category → categories, box → boxes, --table overrides", %{tmp_dir: dir} do
     gen(dir, ~w(Shop Category name:string))
     assert [_] = Path.wildcard(Path.join(dir, "priv/repo/migrations/*_create_categories.exs"))

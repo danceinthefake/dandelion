@@ -7,7 +7,7 @@ import type { Channel } from "phoenix";
 import { Presence } from "phoenix";
 import { BlessBadge, BlessTable, BlessText } from "blessing-ui";
 import { money, type Order } from "./api";
-import { socket } from "./socket";
+import { connectSocket, disconnectSocket } from "./socket";
 
 const emit = defineEmits<{ online: [count: number] }>();
 
@@ -35,7 +35,7 @@ const rows = computed(() =>
 defineExpose({ replace: (o: Order) => (orders.value = orders.value.map((x) => (x.id === o.id ? o : x))) });
 
 onMounted(() => {
-  channel = socket.channel("orders:live");
+  channel = connectSocket().channel("orders:live");
   const presence = new Presence(channel);
   presence.onSync(() => emit("online", presence.list().length));
   channel.on("order", (o: Order) => {
@@ -54,7 +54,10 @@ onMounted(() => {
   channel.onError(() => (live.value = false));
 });
 
-onUnmounted(() => channel?.leave());
+onUnmounted(() => {
+  channel?.leave();
+  disconnectSocket();
+});
 </script>
 
 <template>

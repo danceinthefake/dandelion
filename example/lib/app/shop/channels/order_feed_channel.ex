@@ -2,6 +2,7 @@ defmodule App.Shop.Channels.OrderFeedChannel do
   @moduledoc """
   The live order feed (`orders:live`). ≈ a WebSocket handler in Go.
 
+    * Admins only (it shows everyone's orders).
     * Joining replies with the latest orders and the name of this node.
     * Every order made on **any node** is pushed as `"order"` the moment it's
       saved (`Platform.Broadcast`, sent by `OrderService.create/1`). It is
@@ -12,12 +13,22 @@ defmodule App.Shop.Channels.OrderFeedChannel do
   """
   use Phoenix.Channel
 
+  alias App.Accounts.Services.UserService
   alias App.Shop.Handlers.OrderJSON
   alias App.Shop.Services.OrderService
   alias Platform.Realtime.Presence
 
   @impl true
   def join("orders:live", _params, socket) do
+    if admin?(socket), do: join_feed(socket), else: {:error, %{reason: "forbidden"}}
+  end
+
+  def join(_topic, _params, _socket), do: {:error, %{reason: "unknown feed"}}
+
+  # The feed shows every customer's orders, so only an admin may watch it.
+  defp admin?(socket), do: UserService.admin?(socket.assigns.current_user)
+
+  defp join_feed(socket) do
     {:ok, %{orders: orders}} = OrderService.list(%{"per_page" => "20"})
     Phoenix.PubSub.subscribe(Platform.Broadcast, "orders")
     send(self(), :after_join)
@@ -25,8 +36,6 @@ defmodule App.Shop.Channels.OrderFeedChannel do
     # demo can show two browsers on two nodes)
     {:ok, %{orders: Enum.map(orders, &OrderJSON.order/1), node: Atom.to_string(node())}, socket}
   end
-
-  def join(_topic, _params, _socket), do: {:error, %{reason: "unknown feed"}}
 
   @impl true
   def handle_info(:after_join, socket) do

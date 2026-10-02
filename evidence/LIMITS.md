@@ -24,6 +24,11 @@ Said plainly, so nobody has to find out the hard way.
   standard OTLP, so other backends should work, but none was tried. Sampling
   isn't exercised, and propagation through the ordered queue is unit-tested, not
   run in the cluster proof.
+- **The login is a starting point, not a hardened one.** No lockout or rate
+  limiting, no password reset or email confirmation, no two-factor, and a token
+  can't be revoked before it expires (a day). Passwords use PBKDF2-SHA256 at
+  OWASP's 2023 count; nothing here measures whether that is enough for your
+  threat model.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

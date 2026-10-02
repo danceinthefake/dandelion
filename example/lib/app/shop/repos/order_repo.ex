@@ -10,16 +10,25 @@ defmodule Platform.Database.Repos.OrderRepo do
   alias App.Shop.Models.Order
   alias Platform.Database.Repo
 
-  @doc "An order with its items, or nil."
-  @spec get(integer()) :: Order.t() | nil
-  def get(id), do: Order |> Repo.get(id) |> Repo.preload(:items)
+  # Whose orders a query may see: `:all`, or `{:user, id}` for one customer's.
+  @type scope :: :all | {:user, integer()}
 
-  @doc "Orders newest first, optionally by status, one page at a time."
-  @spec list(%{status: String.t() | nil, page: pos_integer(), per_page: pos_integer()}) :: [
-          Order.t()
-        ]
-  def list(%{status: status, page: page, per_page: per_page}) do
+  @doc "An order with its items, or nil. Within `scope`: another customer's is nil."
+  @spec get(integer(), scope()) :: Order.t() | nil
+  def get(id, scope \\ :all) do
+    Order |> where(id: ^id) |> scoped(scope) |> Repo.one() |> Repo.preload(:items)
+  end
+
+  @doc "Orders newest first, optionally by status, one page at a time, within `scope`."
+  @spec list(%{
+          required(:page) => pos_integer(),
+          required(:per_page) => pos_integer(),
+          required(:status) => String.t() | nil,
+          optional(:scope) => scope()
+        }) :: [Order.t()]
+  def list(%{status: status, page: page, per_page: per_page} = query) do
     Order
+    |> scoped(Map.get(query, :scope, :all))
     |> then(fn q -> if status, do: where(q, status: ^status), else: q end)
     |> order_by(desc: :inserted_at, desc: :id)
     |> limit(^per_page)
@@ -29,8 +38,10 @@ defmodule Platform.Database.Repos.OrderRepo do
   end
 
   @doc "Locks the order row until the transaction ends. ≈ SELECT … FOR UPDATE."
-  @spec lock_for_update(integer()) :: Order.t() | nil
-  def lock_for_update(id), do: Order |> where(id: ^id) |> lock("FOR UPDATE") |> Repo.one()
+  @spec lock_for_update(integer(), scope()) :: Order.t() | nil
+  def lock_for_update(id, scope \\ :all) do
+    Order |> where(id: ^id) |> scoped(scope) |> lock("FOR UPDATE") |> Repo.one()
+  end
 
   @doc "Inserts an order with its items (one transaction, done by Ecto)."
   def insert(%Ecto.Changeset{} = changeset), do: Repo.insert(changeset)
@@ -50,4 +61,7 @@ defmodule Platform.Database.Repos.OrderRepo do
 
     count
   end
+
+  defp scoped(query, :all), do: query
+  defp scoped(query, {:user, user_id}), do: where(query, user_id: ^user_id)
 end

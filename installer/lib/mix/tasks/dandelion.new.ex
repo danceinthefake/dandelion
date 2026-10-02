@@ -25,12 +25,17 @@ defmodule Mix.Tasks.Dandelion.New do
   @switches [app: :string, module: :string, example: :boolean, frontend: :boolean]
 
   # The example domain (`shop`): left out with --no-example.
-  @example_prefixes ~w(lib/app/shop/ test/app/shop/ test/support/app/shop/)
+  @example_prefixes ~w(
+    lib/app/shop/ test/app/shop/ test/support/app/shop/
+    lib/app/accounts/ test/app/accounts/ test/support/app/accounts/
+  )
   @example_files ~w(
     priv/repo/migrations/20260927000001_create_orders.exs
     priv/repo/migrations/20260930000001_refunds_and_customer_stats.exs
     priv/repo/migrations/20260930000002_create_products.exs
-    deploy/seed-products.sh
+    priv/repo/migrations/20261002000001_create_users.exs
+    priv/repo/migrations/20261002000002_add_user_to_orders.exs
+    deploy/seed.sh
     deploy/partition-proof.sh
     test/platform/pubsub_test.exs
   )
@@ -75,7 +80,7 @@ defmodule Mix.Tasks.Dandelion.New do
 
     # (the example's scripts are left out with --no-example)
     for bin <- ~w(rel/overlays/bin/server rel/overlays/bin/migrate
-                  deploy/cluster-proof.sh deploy/seed-products.sh deploy/partition-proof.sh),
+                  deploy/cluster-proof.sh deploy/seed.sh deploy/partition-proof.sh),
         File.exists?(Path.join(path, bin)),
         do: File.chmod!(Path.join(path, bin), 0o755)
 
@@ -169,7 +174,7 @@ defmodule Mix.Tasks.Dandelion.New do
   defp without_example("lib/platform/web/router.ex", contents) do
     replace!(
       contents,
-      ~r/  # domain: shop\n  scope "\/api" do\n.*?\n  end\n/s,
+      ~r/  # domain: accounts.*\nend\n\z/s,
       """
         # domain: things (lib/app/things/)
         scope "/api" do
@@ -177,16 +182,47 @@ defmodule Mix.Tasks.Dandelion.New do
 
           # get "/things/:id", App.Things.Handlers.ThingHandler, :show
         end
+      end
       """
     )
   end
 
+  # Without the example there is no login: the socket takes any connection
+  # (put your own identity check in `connect/3`).
   defp without_example("lib/platform/web/user_socket.ex", contents) do
-    replace!(
-      contents,
+    contents
+    |> replace!(
       ~r/  # domain: shop\n  channel "orders:\*", [\w.]+\n/,
       "  # domain: things\n  # channel \"things:*\", App.Things.Channels.ThingChannel\n"
     )
+    |> replace!(~r/\n  alias App\.Accounts\.Handlers\.Token\n/, "")
+    |> replace!(
+      ~r/  @impl true\n  def connect\(%\{"token" => token\}.*?def connect\(_params, _socket, _connect_info\), do: :error\n/s,
+      """
+        @impl true
+        def connect(_params, socket, _connect_info) do
+          viewer_id = 6 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false)
+          {:ok, assign(socket, :viewer_id, viewer_id)}
+        end
+      """
+    )
+    |> replace!(
+      ~r/  A connection needs the login token.*?connection also gets a random `viewer_id` for the "who's online" list\./s,
+      "  Every connection gets a random `viewer_id` (who's online needs a name; there is\n  no login here — put your own identity check in `connect/3`)."
+    )
+  end
+
+  # Users and the demo products are the example's.
+  defp without_example("priv/repo/seeds.exs", contents) do
+    contents
+    |> replace!(~r/\nalias App\.Shop\.Models\.Product\n.*\z/s, "")
+    |> String.replace("App.Shop.Models.SomeSchema", "App.Things.Models.Thing")
+  end
+
+  defp without_example("config/test.exs", contents) do
+    contents
+    |> replace!(~r/\nconfig :acme, :payment_webhook_token, "test-token"\n/, "")
+    |> replace!(~r/\n# fast password hashing in tests.*?iterations: 1_000\n/s, "")
   end
 
   defp without_example("deploy/README.md", contents),
@@ -215,9 +251,6 @@ defmodule Mix.Tasks.Dandelion.New do
 
   defp without_example("config/dev.exs", contents),
     do: replace!(contents, ~r/\n# The payment provider's webhook token.*?"dev-token"\n/s, "")
-
-  defp without_example("config/test.exs", contents),
-    do: replace!(contents, ~r/\nconfig :acme, :payment_webhook_token, "test-token"\n/, "")
 
   defp without_example("deploy/compose.cluster.yaml", contents),
     do: replace!(contents, ~r/    PAYMENT_WEBHOOK_TOKEN: [\w-]+\n/, "")
@@ -314,9 +347,8 @@ defmodule Mix.Tasks.Dandelion.New do
     | background goroutines | `lib/app/<domain>/workers/` |
     | `migrations/` | `priv/repo/migrations/` |
 
-    Module names follow the folders: `lib/app/shop/services/order_service.ex`
-    is `App.Shop.Services.OrderService`.
-    #{if frontend?, do: "\nThe Vue + blessing-ui frontend is in `assets/` (built into `priv/static/app`, served at `/`): a live order feed, who's online, new order, order detail. It needs Node.\n", else: ""}#{if example?, do: "\nThe `shop` domain (`lib/app/shop/`: orders, their handlers, services, repos and a worker) shows every layer; delete it when you don't need it.\n", else: ""}
+    Module names follow the folders: #{if example?, do: "`lib/app/shop/services/order_service.ex` is `App.Shop.Services.OrderService`", else: "`lib/app/billing/services/invoice_service.ex` would be `App.Billing.Services.InvoiceService`"}.
+    #{if frontend?, do: "\nThe Vue + blessing-ui frontend is in `assets/` (built into `priv/static/app`, served at `/`): a live order feed, who's online, new order, order detail. It needs Node.\n", else: ""}#{if example?, do: "\nThe `shop` domain (`lib/app/shop/`: orders, their handlers, services, repos and a worker) shows every layer, and `accounts` (`lib/app/accounts/`) is a login with signed tokens, the plug that guards routes, and who may see what; delete or replace both when you don't need them.\n", else: ""}
     ## Run it
 
     ```sh

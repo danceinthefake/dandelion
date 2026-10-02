@@ -23,6 +23,11 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
   and adds `POST /api/invoices`, `GET /api/invoices`, `GET /api/invoices/:id`
   to `lib/platform/web/router.ex`. Then run `mix ecto.migrate` and `mix test`.
 
+  If the router has an `:authenticated` pipeline (the example's login does), the
+  new routes go through it, so a new resource isn't public by accident. The
+  generated handlers don't ask who is calling: *what a user may see* is a rule —
+  add it to the service, the way `OrderService` scopes orders to their owner.
+
   Field types: `string` (up to 255 characters), `text` (up to 10 000),
   `integer` and `boolean` (false unless given). All fields are required except
   booleans. There must be at least one that isn't a boolean. `id`,
@@ -68,15 +73,20 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
     if fields |> Enum.map(& &1.name) |> Enum.uniq() |> length() != length(fields),
       do: Mix.raise("a field is given twice")
 
-    assigns = assigns(domain, resource, fields, opts[:table])
+    router = router!()
+
+    assigns =
+      domain
+      |> assigns(resource, fields, opts[:table])
+      |> Keyword.put(:authenticated?, router.authenticated?)
+      |> Keyword.put(:login_helper?, login_helper?())
+
     files = files(assigns)
 
     taken = for {path, _} <- files, File.exists?(path), do: path
 
     if taken != [],
       do: Mix.raise("won't overwrite: " <> Enum.join(taken, ", ") <> " (already exist)")
-
-    router = router!()
 
     for {path, contents} <- files do
       File.mkdir_p!(Path.dirname(path))
@@ -147,7 +157,7 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
       {"lib/app/#{d}/handlers/#{s}_json.ex", render(:json, a)},
       {"priv/repo/migrations/#{ts}_create_#{a[:table]}.exs", render(:migration, a)},
       {"test/app/#{d}/services/#{s}_service_test.exs", render(:service_test, a)},
-      {"test/app/#{d}/handlers/#{s}_handler_test.exs", render(:handler_test, a)},
+      {"test/app/#{d}/handlers/#{s}_handler_test.exs", render(handler_test(a), a)},
       {"test/support/app/#{d}/#{s}_fixtures.ex", render(:fixtures, a)}
     ]
   end
@@ -163,18 +173,35 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
       else: migration_version(DateTime.add(now, 1, :second))
   end
 
+  # Open routes, routes behind a login the tests know how to pass, or routes
+  # behind a login they can't (then they only check that it is asked for).
+  defp handler_test(a) do
+    cond do
+      not a[:authenticated?] -> :handler_test
+      a[:login_helper?] -> :handler_test_logged_in
+      true -> :handler_test_guarded
+    end
+  end
+
   defp routes(a) do
     """
 
       # domain: #{a[:domain_dir]}
       scope "/api" do
-        pipe_through :api
+        pipe_through #{if a[:authenticated?], do: "[:api, :authenticated]", else: ":api"}
 
         post "/#{a[:plural]}", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :create
         get "/#{a[:plural]}", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :index
         get "/#{a[:plural]}/:id", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :show
       end
     """
+  end
+
+  # Does the project have a way to log in inside tests? The example's is
+  # `App.Accounts.Fixtures.user_fixture/0` and `log_in/2`.
+  defp login_helper? do
+    path = "test/support/app/accounts/fixtures.ex"
+    File.exists?(path) and File.read!(path) =~ "def log_in("
   end
 
   # The router's last `end` closes the module: the new scope goes before it.
@@ -193,7 +220,7 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
       String.replace(source, ~r/\nend\s*\z/, "\n" <> String.trim_trailing(routes) <> "\nend\n")
     end
 
-    %{path: path, insert: insert}
+    %{path: path, insert: insert, authenticated?: source =~ ~r/pipeline :authenticated\b/}
   end
 
   # -- fields ---------------------------------------------------------------------
@@ -589,6 +616,68 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
                  conn |> get("/api/<%= @plural %>") |> json_response(200)
 
         assert %{"error" => _} = conn |> get("/api/<%= @plural %>?page=0") |> json_response(400)
+      end
+    end
+    '''
+  end
+
+  defp template(:handler_test_logged_in) do
+    ~S'''
+    defmodule App.<%= @domain %>.Handlers.<%= @resource %>HandlerTest do
+      use Platform.ConnCase, async: true
+
+      import App.Accounts.Fixtures
+      import App.<%= @domain %>.<%= @resource %>Fixtures
+
+      # the routes need a login: every test is a logged-in user
+      setup %{conn: conn}, do: {:ok, conn: log_in(conn, user_fixture())}
+
+      test "POST /api/<%= @plural %> creates <%= @a_human_lc %>", %{conn: conn} do
+        conn = post(conn, "/api/<%= @plural %>", <%= @snake %>_params())
+        assert %{"id" => _, "created_at" => _} = json_response(conn, 201)
+      end
+
+      test "POST /api/<%= @plural %> with invalid input is 422 with field errors", %{conn: conn} do
+        params = Map.delete(<%= @snake %>_params(), "<%= @first.name %>")
+        conn = post(conn, "/api/<%= @plural %>", params)
+
+        assert %{"errors" => %{"<%= @first.name %>" => ["can't be blank"]}} = json_response(conn, 422)
+      end
+
+      test "GET /api/<%= @plural %>/:id, and 404 for unknown or malformed ids", %{conn: conn} do
+        <%= @snake %> = <%= @snake %>_fixture()
+        assert %{"id" => id} = conn |> get("/api/<%= @plural %>/#{<%= @snake %>.id}") |> json_response(200)
+        assert id == <%= @snake %>.id
+
+        assert %{"error" => "not found"} = conn |> get("/api/<%= @plural %>/999999") |> json_response(404)
+        assert %{"error" => "not found"} = conn |> get("/api/<%= @plural %>/abc") |> json_response(404)
+      end
+
+      test "GET /api/<%= @plural %> pages; bad parameters are 400", %{conn: conn} do
+        <%= @snake %>_fixture()
+
+        assert %{"<%= @plural %>" => [_ | _], "page" => 1, "per_page" => 20} =
+                 conn |> get("/api/<%= @plural %>") |> json_response(200)
+
+        assert %{"error" => _} = conn |> get("/api/<%= @plural %>?page=0") |> json_response(400)
+      end
+    end
+    '''
+  end
+
+  defp template(:handler_test_guarded) do
+    ~S'''
+    defmodule App.<%= @domain %>.Handlers.<%= @resource %>HandlerTest do
+      use Platform.ConnCase, async: true
+
+      # The router puts these routes behind `:authenticated`. This project's tests
+      # have no login helper this task knows (the example has
+      # `App.Accounts.Fixtures.log_in/2`), so this only checks that a login is
+      # asked for: add a logged-in conn, then test create, show and index.
+      test "the routes need a login", %{conn: conn} do
+        assert conn |> post("/api/<%= @plural %>", %{}) |> response(401)
+        assert conn |> get("/api/<%= @plural %>") |> response(401)
+        assert conn |> get("/api/<%= @plural %>/1") |> response(401)
       end
     end
     '''

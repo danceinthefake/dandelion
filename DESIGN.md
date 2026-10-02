@@ -207,6 +207,7 @@ request:
 16. Frontend and live updates: the Vue app, channels, presence
 17. One node or many: the service mesh, node failure, network splits
 18. Metrics and traces: `promhttp` / `otel-go` vs telemetry events, a trace that crosses nodes
+19. Logins, tokens and who may see what: middleware vs plugs, JWT vs signed tokens, ownership in the service
 
 Written in English. (A Bahasa Indonesia translation was removed 2026-09-27:
 it read unnaturally.)
@@ -639,6 +640,49 @@ load balancer does it (Cloud Armor, nginx `limit_req`).
    everything and with `--no-example`. Fixed on the way: the generated
    `deploy/cluster-proof.sh` wasn't executable.
 
+### 10.11 Orders are priced from the products table
+
+Decided 2026-09-30 (it was the one thing step 4 left open). `OrderService.create/1`
+reads each item's price from `ProductService.get/1` — the cache, so a hot
+product costs no query — and **ignores any `price_cents` in the request**: a
+client must not set its own prices. The price is copied onto the order line
+(`order_items.price_cents`), so a later price change doesn't rewrite old
+orders. An unknown SKU is `400 unknown product: …` (every unknown SKU named).
+Product prices are capped at the same ceiling as an order line (10¹² cents) so a
+price can't fail the line's validation. The UI sends only `sku` and `quantity`.
+The Docker cluster has no products or users until `deploy/seed.sh` puts some in
+(`mix setup` seeds the same for local development).
+
+### 10.12 Logins in the example
+
+Decided 2026-10-02. "Where do I put my auth plug?" is the first question of a Go
+developer, so the example answers it with a small, real login — in the example,
+not the library: auth is the app's.
+
+- **A domain, `accounts/`** in the usual layout: user model, repo, service,
+  handlers, and the plug. It is the example's, so `--no-example` projects don't
+  have it (their socket takes any connection, with a comment saying where to put
+  an identity check).
+- **No new dependency:** passwords are PBKDF2-SHA256 from `:crypto` (600 000
+  iterations, salt per hash, the count stored in the hash); tokens are
+  `Phoenix.Token` (signed, expire after a day, nothing stored). The cost is no
+  revocation before expiry, said in the code; a stronger hash (argon2/bcrypt) is
+  one module to swap.
+- **Stateless on purpose.** Every node shares `SECRET_KEY_BASE`, so a login on one
+  node is good on all of them: the cluster proof logs in once and is answered by
+  three nodes. A session table or Redis is exactly what the project avoids.
+- **Roles are two strings** (`customer`, `admin`), never taken from a request.
+- **Ownership is a service rule.** `orders.user_id` says who made an order;
+  `OrderService.get/list/cancel` take a *viewer* and scope the query: a customer
+  sees their own orders and gets `:not_found` (404) for anybody else's, an admin
+  and the system (workers, the webhook, no viewer) see all. Prices and the live
+  feed are admin-only.
+- **Router pipelines say what each route needs** (`:authenticated`, `:admin`);
+  public: the catalogue, `/health`, `/metrics` (its own token), the payment
+  webhook (its own token).
+- **Not covered, said so:** password reset, email confirmation, lockout and rate
+  limiting (the load balancer's job, §10.8), 2FA, token revocation.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:
@@ -692,19 +736,6 @@ hex.
 3. ✅ `Dandelion.Queue.Ordered` and `Dandelion.Migration` (2026-09-30): the ordered queue asks Oban's repo (`Oban.Repo` with `Oban.config(Oban)`), so it needs no repo option and works with the default Oban instance; the index migration is `Dandelion.Migration.up/0`, called from the project's migration like `Oban.Migration`. The library now has a test repo (Postgres on :55432, `priv/test_repo`) and tests the queue with its own worker; the example's ordered-queue tests moved there.
 4. ✅ `Dandelion.PubSub` and `Dandelion.Queue.config/1` (2026-09-30): `Dandelion.PubSub.publish(subscriptions, topic, payload)` takes the topic → workers map from the app, so the list stays in the project (`Platform.PubSub`, a 15-line module) and the library only holds the mechanism; a topic not in the map raises. `Dandelion.Queue.config(otp_app:, repo:, crontab:)` holds the queue defaults (`default`, `ordered`), the lifeline and the pruner, and merges `config :app, Oban`; `Platform.Queue.config/0` is one call to it. Both have library tests.
 5. Docs, then publish. ✅ Both done. ✅ Docs (2026-09-30): the root README is now the library's hex page (what the six modules are and replace, one wiring example, the rules, links to the rest on GitHub), CHANGELOG, ex_doc (`mix docs`, modules grouped, no warnings), `mix hex.build` checked. Published: `dandelion` 0.1.0 and `dandelion_new` 0.1.0 (docs on hexdocs). The integration tests can build generated projects against the published library (`DANDELION_FROM_HEX=1`, what `evidence/record.sh tests` does).
-
-### 10.11 Orders are priced from the products table
-
-Decided 2026-09-30 (it was the one thing step 4 left open). `OrderService.create/1`
-reads each item's price from `ProductService.get/1` — the cache, so a hot
-product costs no query — and **ignores any `price_cents` in the request**: a
-client must not set its own prices. The price is copied onto the order line
-(`order_items.price_cents`), so a later price change doesn't rewrite old
-orders. An unknown SKU is `400 unknown product: …` (every unknown SKU named).
-Product prices are capped at the same ceiling as an order line (10¹² cents) so a
-price can't fail the line's validation. The UI sends only `sku` and `quantity`.
-The Docker cluster has no products until `deploy/seed-products.sh` puts some in
-(`mix setup` seeds two for local development).
 
 ### 11.3 Evidence
 

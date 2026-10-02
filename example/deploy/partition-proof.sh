@@ -72,7 +72,7 @@ leaders() {
 price_on() { rpc "$1" "{:ok, p} = App.Shop.Services.ProductService.get(\"$2\"); IO.write(p.price_cents)"; }
 cached_on() { rpc "$1" "IO.write(elem(Cachex.exists?(Dandelion.Cache, {:product, \"$2\"}), 1))"; }
 
-./seed-products.sh >/dev/null
+./seed.sh >/dev/null
 for s in "$sku:1500" "$sku2:900"; do
   rpc node1 "Platform.Database.Repo.insert!(%App.Shop.Models.Product{sku: \"${s%%:*}\", name: \"Split\", price_cents: ${s##*:}})" >/dev/null
 done

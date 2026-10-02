@@ -18,7 +18,7 @@ defmodule App.Shop.Fixtures do
     )
   end
 
-  @doc "An order in the database, optionally in another status or with another creation time."
+  @doc "An order in the database, optionally in another status, with another creation time, or an owner (`user_id:`)."
   def order_fixture(opts \\ []) do
     params =
       if email = opts[:email],
@@ -28,7 +28,7 @@ defmodule App.Shop.Fixtures do
     {:ok, order} = OrderService.create(params)
 
     order
-    |> Ecto.Changeset.change(Keyword.take(opts, [:status, :inserted_at]))
+    |> Ecto.Changeset.change(Keyword.take(opts, [:status, :inserted_at, :user_id]))
     |> Repo.update!()
     |> then(&Repo.get!(Order, &1.id))
     |> Repo.preload(:items)

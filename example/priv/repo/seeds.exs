@@ -17,3 +17,16 @@ for {sku, name, price} <- [{"TEA-01", "Green tea", 1500}, {"CUP-02", "Tea cup", 
     on_conflict: :nothing
   )
 end
+
+# Two users for trying the API and the web UI locally: an admin and a customer.
+# The password is public (it's in this file): never seed users like this in
+# production.
+for {email, role} <- [{"admin@example.com", "admin"}, {"customer@example.com", "customer"}] do
+  unless Platform.Database.Repos.UserRepo.get_by_email(email) do
+    {:ok, _} =
+      App.Accounts.Services.UserService.register(
+        %{"email" => email, "password" => "local-password-1"},
+        role
+      )
+  end
+end
