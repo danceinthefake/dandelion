@@ -121,7 +121,7 @@ defmodule DandelionNew.IntegrationTest do
     edit!(
       path,
       "mix.exs",
-      ~s({:dandelion, "~> 0.1.1"}),
+      ~s({:dandelion, "~> 0.2.0"}),
       ~s({:dandelion, path: "vendor/dandelion"})
     )
 

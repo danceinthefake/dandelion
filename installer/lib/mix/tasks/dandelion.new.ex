@@ -269,7 +269,7 @@ defmodule Mix.Tasks.Dandelion.New do
   # The example takes the library from the checkout (a dev-only `dandelion/0`
   # in its mix.exs); a generated project takes it from hex.
   defp hex_dependency("mix.exs", contents),
-    do: replace!(contents, ~r/dandelion\(\),/, ~S({:dandelion, "~> 0.1.1"},))
+    do: replace!(contents, ~r/dandelion\(\),/, ~S({:dandelion, "~> 0.2.0"},))
 
   defp hex_dependency(_file, contents), do: contents
 
@@ -349,6 +349,16 @@ defmodule Mix.Tasks.Dandelion.New do
 
     Module names follow the folders: #{if example?, do: "`lib/app/shop/services/order_service.ex` is `App.Shop.Services.OrderService`", else: "`lib/app/billing/services/invoice_service.ex` would be `App.Billing.Services.InvoiceService`"}.
     #{if frontend?, do: "\nThe Vue + blessing-ui frontend is in `assets/` (built into `priv/static/app`, served at `/`): a live order feed, who's online, new order, order detail. It needs Node.\n", else: ""}#{if example?, do: "\nThe `shop` domain (`lib/app/shop/`: orders, their handlers, services, repos and a worker) shows every layer, and `accounts` (`lib/app/accounts/`) is a login with signed tokens, the plug that guards routes, and who may see what; delete or replace both when you don't need them.\n", else: ""}
+    ## Add a resource
+
+    ```sh
+    mix dandelion.gen.domain Billing Invoice number:string amount_cents:integer
+    mix ecto.migrate && mix test
+    ```
+
+    writes the model, repo, service, handler, migration, tests and routes for it
+    in this layout#{if example?, do: ", behind the login", else: ""}.
+
     ## Run it
 
     ```sh

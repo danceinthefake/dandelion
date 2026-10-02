@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.2.0
 
 - Jobs queued by `Dandelion.PubSub.publish/3` and `Dandelion.Queue.Ordered.insert/2`
   carry the current OpenTelemetry trace context (W3C `traceparent`, in the job's
@@ -9,11 +9,15 @@
   OpenTelemetry. (`opentelemetry_api` is an optional dependency.)
 - `Dandelion.Queue.Ordered.insert/2` keeps the job's existing `meta` (it used to
   replace it with the key).
-
 - `mix dandelion.gen.domain DOMAIN RESOURCE field:type …` adds a resource to a
   project's domain in the project's own layout: model, repo, service, handler,
   JSON, migration, tests and the routes.
   The routes go through the project's `:authenticated` pipeline when it has one.
+
+The example and the generator (`dandelion_new` 0.2.0) also gain, in generated
+projects: logins with signed tokens and per-user orders, `/metrics`, OpenTelemetry
+tracing (Jaeger in the compose file), a network-partition proof, and orders priced
+from a products table. Generated projects require `dandelion ~> 0.2.0`.
 
 ## 0.1.1
 

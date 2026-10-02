@@ -689,7 +689,7 @@ Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:
 
 | Package | Is | Used as |
 |---|---|---|
-| `dandelion` | the library: the cloud pieces that are the same in every project | `{:dandelion, "~> 0.1.1"}` in a project's deps |
+| `dandelion` | the library: the cloud pieces that are the same in every project | `{:dandelion, "~> 0.2.0"}` in a project's deps |
 | `dandelion_new` | the generator | `mix archive.install hex dandelion_new`, then `mix dandelion.new` |
 
 A generated project depends on the library and keeps, in its own repo, what is
