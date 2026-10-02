@@ -74,6 +74,7 @@ live() {
   done
   "$example/deploy/seed.sh" >/dev/null   # the page orders TEA-01
   node "$here/browser/live-feed.mjs" "$here/02-live-feed"
+  node "$here/browser/jaeger-ui.mjs" "$here/11-tracing"    # the tutorial's screenshot of a trace
   { sed 's/^/# /' "$work/STAMP.txt"; echo; cat "$here/02-live-feed/browser.log"; } > "$here/02-live-feed/run.log"
   rm "$here/02-live-feed/browser.log"
   cluster_down

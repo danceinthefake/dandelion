@@ -20,8 +20,18 @@ const login = await fetch(`${app}/api/session`, {
 // An order, found again through Jaeger's own search (no made-up parent span, so
 // the page shows a complete trace). Tried until a job runs on another node than
 // the request (usually the first).
+// warm-up: the first orders after boot are slower than the rest
+for (let i = 0; i < 4; i++) {
+  await fetch(`${app}/api/orders`, {
+    method: "POST",
+    headers: { "content-type": "application/json", authorization: `Bearer ${login.token}` },
+    body: JSON.stringify({ customer_email: "warmup@example.com", items: [{ sku: "TEA-01", quantity: 1 }] }),
+  });
+}
+await new Promise((r) => setTimeout(r, 3000));
+
 let traceId;
-for (let i = 0; i < 10 && !traceId; i++) {
+for (let i = 0; i < 12 && !traceId; i++) {
   const since = new Date(Date.now() - 1000).toISOString();
   await fetch(`${app}/api/orders`, {
     method: "POST",
@@ -42,13 +52,16 @@ for (let i = 0; i < 10 && !traceId; i++) {
         trace.spans.map((x) => trace.processes[x.processID].tags.find((y) => y.key === "service.instance.id")?.value),
       );
       const jobs = trace.spans.filter((x) => x.operationName.startsWith("process")).length;
-      if (jobs >= 2 && nodes.size >= 2) traceId = id;
+      // not a cold start: the first requests after boot can be slow, and a
+      // screenshot of those would suggest the app is
+      const root = trace.spans.find((x) => x.operationName.startsWith("POST"));
+      if (jobs >= 2 && nodes.size >= 2 && root && root.duration < 500_000) traceId = id;
       if (jobs >= 2) break;
     }
     await new Promise((r) => setTimeout(r, 1000));
   }
 }
-if (!traceId) throw new Error("no trace spanning two nodes after 10 orders");
+if (!traceId) throw new Error("no warm trace spanning two nodes after 12 orders");
 
 const browser = await chromium.launch();
 const page = await (await browser.newContext({ viewport: { width: 1280, height: 760 } })).newPage();

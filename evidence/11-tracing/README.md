@@ -35,6 +35,12 @@ sequenceDiagram
     Note over A,B: span "POST /api/orders" (A) is the parent of the two "process" spans (B), trace T
 ```
 
+What it looks like in Jaeger's UI (an order's trace, found through Jaeger's own
+search; [`browser/jaeger-ui.mjs`](../browser/jaeger-ui.mjs) takes it, after a warm-up,
+from a trace whose jobs ran on another node than the request):
+
+![an order's trace in Jaeger](jaeger-ui.png)
+
 **Not shown:** a backend other than Jaeger (spans are standard OTLP, so Tempo or
 Honeycomb should do, but this isn't tested); sampling (every span is kept; the
 README says to sample in production); the ordered queue's trace propagation

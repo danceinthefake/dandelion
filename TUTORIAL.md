@@ -61,6 +61,8 @@ database queries, and the two background jobs the order queued — and the jobs 
 have run on a **different node** than the request. Click a span, open *Process*:
 `service.instance.id` is the node.
 
+![an order's trace in Jaeger: the request, its queries, and the two jobs it queued](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/11-tracing/jaeger-ui.png)
+
 ## 5. Kill a node
 
 ```sh
