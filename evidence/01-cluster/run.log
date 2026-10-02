@@ -1,22 +1,22 @@
-# commit: 77ac3a2
-# recorded: 2026-10-01T08:09Z
+# commit: acb823b
+# recorded: 2026-10-02T13:18Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
 # source: example/deploy/cluster-proof.sh (3 containers + nginx + Postgres on one machine)
 
 cluster:
-08:09:29   ok  node1 sees acme@172.31.0.4 acme@172.31.0.5
-08:09:30   ok  node2 sees acme@172.31.0.3 acme@172.31.0.4
-08:09:30   ok  node3 sees acme@172.31.0.3 acme@172.31.0.5
+13:18:48   ok  node1 sees acme@172.31.0.4 acme@172.31.0.5
+13:18:48   ok  node2 sees acme@172.31.0.4 acme@172.31.0.6
+13:18:49   ok  node3 sees acme@172.31.0.5 acme@172.31.0.6
 
 broadcast:
-08:09:31   ok  acme@172.31.0.3 -> acme@172.31.0.4
+13:18:49   ok  acme@172.31.0.6 -> acme@172.31.0.4
 
 load balancer:
-08:09:31   ok  6 × GET /health through nginx: 200
-08:09:31   ok  GET / serves the Vue app (/app/assets/index-wy-XAueH.js: 200)
+13:18:49   ok  6 × GET /health through nginx: 200
+13:18:49   ok  GET / serves the Vue app (/app/assets/index-wy-XAueH.js: 200)
 
 node failure:
-08:10:04   ok  node2 killed; node1 now sees 1 other node
-08:10:42   ok  6 × GET /health with node2 down: 200
-08:10:46   ok  node2 started again and rejoined
+13:19:23   ok  node2 killed; node1 now sees 1 other node
+13:20:02   ok  6 × GET /health with node2 down: 200
+13:20:05   ok  node2 started again and rejoined
