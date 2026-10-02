@@ -68,6 +68,17 @@ jobs:
           if [ "$name" = dandelion ]; then
             grep -q "^## $version" CHANGELOG.md || { echo "CHANGELOG.md has no '## $version'"; exit 1; }
           fi
+          # A version on hex can never be published again. Pushing a tag again (a
+          # moved tag, say) must not fail the run: skip with a notice instead.
+          already=false
+          if [ "$dry" != true ]; then
+            code=$(curl -s -o /dev/null -w '%{http_code}' "https://hex.pm/api/packages/$name/releases/$version")
+            if [ "$code" = 200 ]; then
+              already=true
+              echo "::notice::$name $version is already on hex: nothing to publish."
+            fi
+          fi
+          echo "already=$already" >> "$GITHUB_OUTPUT"
           echo "name=$name" >> "$GITHUB_OUTPUT"
           echo "dir=$dir" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
@@ -75,10 +86,12 @@ jobs:
           echo "Publishing $name $version from $dir (dry run: $dry)"
 
       - uses: jdx/mise-action@v4 # Erlang, Elixir from mise.toml
+        if: steps.pkg.outputs.already != 'true'
         with:
           working_directory: ${{ steps.pkg.outputs.dir }}
 
       - name: Test
+        if: steps.pkg.outputs.already != 'true'
         working-directory: ${{ steps.pkg.outputs.dir }}
         run: |
           mix deps.get
@@ -87,6 +100,7 @@ jobs:
           mix test
 
       - name: Publish to hex
+        if: steps.pkg.outputs.already != 'true'
         working-directory: ${{ steps.pkg.outputs.dir }}
         env:
           HEX_API_KEY: ${{ secrets.HEX_API_KEY }}
@@ -98,7 +112,7 @@ jobs:
           fi
 
       - name: GitHub release
-        if: github.event_name == 'push'
+        if: github.event_name == 'push' && steps.pkg.outputs.already != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: gh release create "$GITHUB_REF_NAME" --title "${{ steps.pkg.outputs.name }} ${{ steps.pkg.outputs.version }}" --generate-notes

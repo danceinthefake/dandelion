@@ -26,6 +26,9 @@ The library first, when both change: a generated project depends on it.
    and its docs, and creates the GitHub release.
 5. Check https://hex.pm/packages/dandelion (and `dandelion_new`).
 
+Pushing a tag for a version that is already on hex (for example after moving a
+tag) doesn't fail: the run says "already on hex" and skips everything.
+
 A mistake in the first hour: `mix hex.publish --revert X.Y.Z` locally.
 After that, publish the next patch (hex versions can't be overwritten).
 
