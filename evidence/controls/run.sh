@@ -139,7 +139,7 @@ selected rejoin && control rejoin "a node that rejoins after a split keeps its c
   "split: node1 alone" "node1's cache was emptied when it rejoined" "" partition-proof.sh
 
 selected dualwrite && control dualwrite "an order's events are saved after its transaction, with a 1.5 s gap, not inside it (OrderService.create/2)" \
-  "acknowledged orders is in the database after the crash" "an order never lacks its events" "" failure-proof.sh "ONLY=load"
+  "acknowledged orders is in the database afterwards" "an order never lacks its events" "" failure-proof.sh "ONLY=load"
 
 "$example/deploy/vendor-dandelion.sh" >/dev/null   # leave the copy unbroken
 echo "the controls run fail where they should"

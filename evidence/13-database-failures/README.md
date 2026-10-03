@@ -7,11 +7,10 @@ cluster promises:
    cluster. It stops running jobs and steps down; another node takes over as the
    only leader; the rest carry on; its cache serves until the entries expire, and
    not a second longer; when its database comes back it is whole again.
-2. **Postgres is killed** (SIGKILL: a crash, not a clean stop) while orders are
-   being made through the load balancer by three clients at once. Every order that
-   was answered 201 is still there afterwards, and **every order has both its
-   events — never an order without them, never an event twice** — and no node
-   restarted.
+2. **Postgres goes away under load** — killed, stopped cleanly, or frozen — while
+   three clients make orders through the load balancer. Every order that was
+   answered 201 is still there afterwards, and **every order has both its events —
+   never an order without them, never an event twice** — and no node restarted.
 
 **Code:** nothing new in the library; this is Oban's leader election, the
 `Dandelion.Cache` expiry, and `Dandelion.PubSub.publish/3` inside the order's
@@ -36,20 +35,32 @@ reachable by the others.
 | 70 s on, its cached price is gone and it **can't answer** | a cache doesn't replace the database |
 | after the reconnect it reaches Postgres at once, there is still one leader, it sees all the orders, and takes jobs again | Postgrex reconnects by itself |
 
-| Postgres killed under load | Because |
+**Postgres goes away under load, three ways** — killed (SIGKILL, a crash), stopped
+cleanly, and **frozen** (the process is paused: connections stay open and nothing
+answers, which is what a hung or overloaded database looks like). Three clients make
+orders through the load balancer the whole time. The same promises each time:
+
+| After each outage | Because |
 |---|---|
-| a few hundred orders were answered 201 (231 in the recorded run) and a few failed during the outage | the outage was real |
-| **every acknowledged order is in the database** after the crash | Postgres's write-ahead log |
+| a few hundred orders were answered 201 (251, 280 and 282 in the recorded run) and some failed during the outage | the outage was real |
+| **every acknowledged order is in the database** afterwards | Postgres's write-ahead log |
 | every order in the database has exactly **two completed subscriber jobs**, none discarded | the order and its events are one transaction |
-| no node restarted, 3 nodes, `/health` 200 | the pool and the cluster reconnect |
+| no node restarted, 3 nodes, `/health` 200, **exactly one cron leader again** | the pool and the cluster reconnect |
+
+**While the database is frozen**, the proof also checks what a client and a load
+balancer would see: `/health` answers **503** in a few seconds (3.8 s in the recorded
+run — a request has to give up on its stuck connection) and the API answers **503**,
+not a 500 and not a request that hangs. Both were found by this test, not assumed:
+the first `/health` during a freeze used to hang for 32 seconds, and a hung database
+was a 500.
 
 **Negative control** ([`controls/dualwrite.log`](../controls/dualwrite.log)): with the
 events saved *after* the order's transaction (with a long gap, so a crash always
 falls into it) the same proof **fails**: orders exist without their events. That is
 the dual-write problem the project avoids by publishing inside the transaction.
 
-**Not shown:** a *clean* Postgres shutdown under load (claim 07 has a short stop),
-a cut that drops only some connections, a leader cut off from *the cluster* but not
+**Not shown:** an outage of minutes (the longest is about 25 s), a cut that drops only
+some connections, a leader cut off from *the cluster* but not
 from Postgres (that is claim 09), an asymmetric split, or a database that is
 slow and not gone.
 

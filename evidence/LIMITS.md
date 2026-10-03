@@ -11,10 +11,11 @@ Said plainly, so nobody has to find out the hard way.
   No job is slow enough to catch mid-flight, so the proof plants the state a
   crash leaves behind and then kills a node. It shows the cluster gives such a
   job back and runs it; it does not show the exact instant of a crash.
-- **Database failures, two kinds.** [13](13-database-failures/) cuts off the leader
-  (with `docker network disconnect`) and kills Postgres under load. Not tested: a
-  clean shutdown under load, a cut that drops connections one at a time, a database
-  that is slow and not gone, or a failover to a replica (there is no replica).
+- **Database failures.** [13](13-database-failures/) cuts off the leader (with
+  `docker network disconnect`) and, under load, kills, cleanly stops and freezes
+  Postgres. Not tested: an outage of minutes (the longest is about 25 s), a cut
+  that drops connections one at a time, a database that is merely slow (frozen is
+  its extreme), or a failover to a replica (there is no replica).
 - **One kind of partition.** [09](09-network-partition/) splits the cluster into
   `node1 | node2 + node3`, both halves keeping their Postgres connection, made
   by giving each side a wrong Erlang cookie for the other. Not tested: a half
@@ -22,8 +23,8 @@ Said plainly, so nobody has to find out the hard way.
   can't reach A), a split that flaps on and off, or one long enough to outlast
   the cache TTL. The split is simulated at the Erlang layer, not by dropping
   packets, so it doesn't exercise TCP timeouts (`net_ticktime`).
-- **Database outages are short:** 15 s in [07](07-database-outage/), about 10 s of
-  crash in [13](13-database-failures/) — not minutes.
+- **Database outages are short:** 15 s in [07](07-database-outage/), up to 25 s in
+  [13](13-database-failures/) — not minutes.
 - **Tracing is checked against Jaeger only**, with every span kept. Spans are
   standard OTLP, so other backends should work, but none was tried. Sampling
   isn't exercised, and propagation through the ordered queue is unit-tested, not

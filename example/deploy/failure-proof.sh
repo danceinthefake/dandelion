@@ -5,10 +5,12 @@
 #   1. ONE node is cut off from Postgres (docker network disconnect) but stays in
 #      the cluster. It can't run jobs or lead; another node takes over; its cache
 #      keeps serving until the entries expire; on reconnect it is whole again.
-#   2. Postgres is killed (SIGKILL, a crash) while orders are being made through
-#      the load balancer, and started again. Every order that was answered 201 is
-#      still there, every order has both its events (never one without the other),
-#      each handled exactly once, and no node restarted.
+#   2. Postgres goes away while orders are being made through the load balancer:
+#      killed (a crash), stopped cleanly, and frozen (connections open, no
+#      answers). Every order that was answered 201 is still there, every order has
+#      both its events (never one without the other), each handled exactly once,
+#      no node restarted, and one leader is back. While it hangs, requests get a
+#      quick 503, not a hung request or a 500.
 set -eu
 cd "$(dirname "$0")"
 
@@ -181,78 +183,114 @@ done
 ok "$CUT takes jobs again ($took_jobs so far)"
 fi
 
-echo "Postgres killed under load:"
-tag="load-$(date +%s)"
+# Postgres goes away under load, three ways; the same promises each time.
 admin_token=$(curl -s -X POST http://localhost:8080/api/session -H 'content-type: application/json' \
   -d '{"email":"admin@example.com","password":"local-password-1"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
 [ -n "$admin_token" ] || fail "can't log in as the seeded admin"
-log=$(mktemp)
-stop=$(mktemp -u)
-# three workers, each making one order after another
-load() {
-  w=$1
-  n=0
-  while [ ! -e "$stop" ]; do
-    n=$((n + 1))
-    body=$(curl -s -m 5 -w ' %{http_code}' -X POST http://localhost:8080/api/orders \
-      -H 'content-type: application/json' -H "authorization: Bearer $admin_token" \
-      -d "{\"customer_email\":\"$tag-$w-$n@example.com\",\"items\":[{\"sku\":\"A\",\"quantity\":1}]}") || body=" 000"
-    id=$(echo "$body" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
-    echo "${body##* } ${id:--}" >> "$log"
-    sleep 0.2
+leader_count() { echo $(leaders) | wc -w | tr -d ' '; }
+
+# outage MODE: kill (SIGKILL, a crash) | stop (a clean shutdown) | freeze (the
+# process is paused: connections stay open and nothing answers)
+outage() {
+  mode=$1
+  case "$mode" in
+    kill)   down() { compose kill -s KILL postgres >/dev/null 2>&1; }; up() { compose start postgres >/dev/null 2>&1; }
+            what="killed (SIGKILL)"; gap=8 ;;
+    stop)   down() { compose stop postgres >/dev/null 2>&1; }; up() { compose start postgres >/dev/null 2>&1; }
+            what="stopped cleanly"; gap=8 ;;
+    freeze) down() { compose pause postgres >/dev/null 2>&1; }; up() { compose unpause postgres >/dev/null 2>&1; }
+            what="frozen (connections open, no answers)"; gap=25 ;;
+  esac
+  echo "Postgres $what under load:"
+  tag="load-$mode-$(date +%s)"
+  log=$(mktemp)
+  stop=$(mktemp -u)
+  # three workers, each making one order after another
+  load() {
+    w=$1
+    n=0
+    while [ ! -e "$stop" ]; do
+      n=$((n + 1))
+      body=$(curl -s -m 5 -w ' %{http_code}' -X POST http://localhost:8080/api/orders \
+        -H 'content-type: application/json' -H "authorization: Bearer $admin_token" \
+        -d "{\"customer_email\":\"$tag-$w-$n@example.com\",\"items\":[{\"sku\":\"A\",\"quantity\":1}]}") || body=" 000"
+      id=$(echo "$body" | sed -n 's/.*"id":\([0-9]*\).*/\1/p')
+      echo "${body##* } ${id:--}" >> "$log"
+      sleep 0.2
+    done
+  }
+  before_restarts=$(restarts)
+  load 1 &
+  load1=$!
+  load 2 &
+  load2=$!
+  load 3 &
+  load3=$!
+  sleep 6
+  down
+  down_at=$(date +%s)
+  if [ "$mode" = freeze ]; then
+    # What a client and a load balancer see while the database hangs: quick 503s,
+    # not requests that hang. (A SKU nobody asked for: no cache entry to answer
+    # from.) The first probes may take a moment to give up on their connections.
+    sleep 6
+    health=$(curl -s -m 20 -o /dev/null -w '%{http_code} %{time_total}' http://localhost:8080/health)
+    health=$(curl -s -m 20 -o /dev/null -w '%{http_code} %{time_total}' http://localhost:8080/health)
+    api=$(curl -s -m 20 -o /dev/null -w '%{http_code} %{time_total}' "http://localhost:8080/api/products/NEVER-ASKED-$tag")
+    [ "${health%% *}" = 503 ] || fail "GET /health while Postgres is frozen: ${health%% *}, want 503"
+    [ "${api%% *}" = 503 ] || fail "GET /api/products/… while Postgres is frozen: ${api%% *}, want 503 (a hung database isn't a bug in the request)"
+    for t in "${health#* }" "${api#* }"; do
+      [ "$(echo "$t" | awk '{ print ($1 < 5) }')" = 1 ] || fail "a request took ${t}s while Postgres was frozen: it should give up in seconds"
+    done
+    ok "while the database hangs: /health is 503 in ${health#* }s, the API answers 503 in ${api#* }s — quickly, not a hung request and not a 500"
+  fi
+  sleep "$gap"
+  up
+  for _ in $(seq 1 60); do
+    [ "$(compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo up)" = up ] && break
+    sleep 1
   done
-}
-before_restarts=$(restarts)
-load 1 &
-load1=$!
-load 2 &
-load2=$!
-load 3 &
-load3=$!
-sleep 6
-compose kill -s KILL postgres >/dev/null 2>&1
-killed_at=$(date +%s)
-sleep 8
-compose start postgres >/dev/null 2>&1
-for _ in $(seq 1 60); do
-  [ "$(compose exec -T postgres pg_isready -U postgres >/dev/null 2>&1 && echo up)" = up ] && break
-  sleep 1
-done
-sleep 14
-touch "$stop"
-wait "$load1" "$load2" "$load3" || true
-rm -f "$stop"
-good=$(grep -c '^201 ' "$log" || true)
-bad=$(grep -vc '^201 ' "$log" || true)
-[ "$good" -ge 10 ] || fail "only $good orders were answered 201"
-[ "$bad" -ge 1 ] || fail "no request failed: Postgres was never really gone"
-ok "orders made through nginx while Postgres was killed ($(( $(date +%s) - killed_at )) s ago) and started again: $good answered 201, $bad failed during the outage"
+  sleep 14
+  touch "$stop"
+  wait "$load1" "$load2" "$load3" || true
+  rm -f "$stop"
+  good=$(grep -c '^201 ' "$log" || true)
+  bad=$(grep -vc '^201 ' "$log" || true)
+  [ "$good" -ge 10 ] || fail "only $good orders were answered 201"
+  [ "$bad" -ge 1 ] || fail "no request failed: Postgres was never really gone"
+  ok "orders made through nginx while Postgres was $what and started again: $good answered 201, $bad failed during the outage"
 
-ids=$(sed -n 's/^201 \([0-9]*\)$/\1/p' "$log" | paste -sd, -)
-found=$(rpc "$O1" "import Ecto.Query; ids = [$ids]; IO.write(Platform.Database.Repo.aggregate(from(o in App.Shop.Models.Order, where: o.id in ^ids), :count))")
-[ "$found" = "$good" ] || fail "$good orders were acknowledged, $found are in the database"
-ok "every one of the $good acknowledged orders is in the database after the crash"
+  ids=$(sed -n 's/^201 \([0-9]*\)$/\1/p' "$log" | paste -sd, -)
+  found=$(rpc "$O1" "import Ecto.Query; ids = [$ids]; IO.write(Platform.Database.Repo.aggregate(from(o in App.Shop.Models.Order, where: o.id in ^ids), :count))")
+  [ "$found" = "$good" ] || fail "$good orders were acknowledged, $found are in the database"
+  ok "every one of the $good acknowledged orders is in the database afterwards"
 
-until_is unfinished 0 120 || fail "$(unfinished) order(s) don't have exactly two completed subscriber jobs"
-discarded=$(ex "$O1" <<'ELIXIR'
+  until_is unfinished 0 120 || fail "$(unfinished) order(s) don't have exactly two completed subscriber jobs"
+  discarded=$(ex "$O1" <<'ELIXIR'
 %{rows: [[n]]} = Platform.Database.Repo.query!("SELECT count(*) FROM oban_jobs WHERE args->'payload'->>'customer_email' LIKE '__TAG__-%' AND state = 'discarded'")
 IO.write(n)
 ELIXIR
 )
-[ "$discarded" = 0 ] || fail "$discarded job(s) were discarded"
-total=$(ex "$O1" <<'ELIXIR'
+  [ "$discarded" = 0 ] || fail "$discarded job(s) were discarded"
+  total=$(ex "$O1" <<'ELIXIR'
 %{rows: [[n]]} = Platform.Database.Repo.query!("SELECT count(*) FROM orders WHERE customer_email LIKE '__TAG__-%'")
 IO.write(n)
 ELIXIR
 )
-ok "all $total orders in the database (some of the $bad failures may have committed before the crash) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice"
+  ok "all $total orders in the database (some of the $bad failures may have committed first) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice"
 
-[ "$(restarts)" = "$before_restarts" ] || fail "a node restarted"
-for n in node1 node2 node3; do
-  [ "$(rpc $n 'IO.write(length(Node.list()))')" = 2 ] || fail "$n lost a node"
-done
-[ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health)" = 200 ] || fail "/health isn't 200 after the crash"
-ok "no node restarted, still 3 nodes, /health 200"
-rm -f "$log"
+  [ "$(restarts)" = "$before_restarts" ] || fail "a node restarted"
+  for n in node1 node2 node3; do
+    [ "$(rpc $n 'IO.write(length(Node.list()))')" = 2 ] || fail "$n lost a node"
+  done
+  [ "$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8080/health)" = 200 ] || fail "/health isn't 200 afterwards"
+  until_is leader_count 1 90 || fail "$(leader_count) cron leaders afterwards, want exactly 1"
+  ok "no node restarted, still 3 nodes, /health 200, and exactly one cron leader again"
+  rm -f "$log"
+}
+
+outage kill
+outage stop
+outage freeze
 
 echo "all good"

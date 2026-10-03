@@ -30,8 +30,9 @@ http://localhost:8080. The proof script checks that:
 <!-- @example-start -->
 - `./deploy/failure-proof.sh`: the leader cut off from Postgres (it steps down, another
   node leads, jobs run once, its cache serves only until the entries expire) and
-  Postgres killed while orders are being made: every acknowledged order survives
-  and every order has its events, once;
+  Postgres killed, stopped cleanly and frozen while orders are being made: every
+  acknowledged order survives and every order has its events, once; a hung database
+  gets a quick 503, not a hung request;
 - `./deploy/partition-proof.sh`: a network split (`node1 | node2 + node3`, both
   halves still reach Postgres): a live broadcast doesn't cross it, a cut-off
   cache goes stale and is emptied on the heal, jobs and ordered payments still

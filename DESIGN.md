@@ -841,6 +841,12 @@ already emit `:telemetry` events, and tracing is another reader of them.
   network) when `NODE_IP` isn't set; the compose file sets it per node. Real
   deployments with several networks per host need the same (`NODE_IP` or
   `NODE_HOST`).
-- **Still not covered:** an asymmetric split (A reaches B, B can't reach A), a
-  database that is slow rather than gone, a clean shutdown under load.
+- **Postgres killed, stopped cleanly and frozen under load** (`docker pause`:
+  connections open, nothing answers). Found by the freeze, fixed: `/health` took
+  32 s to answer the first time (it now gives up after 2 s and answers 503 within
+  a few seconds), and a hung or unreachable database was a 500 (a
+  `Plug.Exception` implementation for `DBConnection.ConnectionError` makes it 503).
+- **Still not covered:** an asymmetric split (A reaches B, B can't reach A: the
+  Erlang connection is symmetric and one direction can't be dropped without
+  privileges), an outage of minutes, a database that is merely slow.
 
