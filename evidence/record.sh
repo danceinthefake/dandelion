@@ -122,11 +122,11 @@ failures() {
   grep -q "all good" "$work/failures.log"
   {
     sed 's/^/# /' "$work/STAMP.txt"
-    echo "# source: example/deploy/failure-proof.sh (3 containers; the leader cut off from Postgres by docker network disconnect; Postgres killed under load)"
+    echo "# source: example/deploy/failure-proof.sh (3 containers; the leader cut off from Postgres by docker network disconnect; Postgres killed, stopped cleanly and frozen under load)"
     echo
     grep -v "all good" "$work/failures.log"
   } > "$here/13-database-failures/run.log"
-  gif "$here/13-database-failures" failures.gif "13 — the leader loses its database; Postgres is killed under load"
+  gif "$here/13-database-failures" failures.gif "13 — the leader loses its database; Postgres killed, stopped, frozen under load"
 }
 
 controls() { "$here/controls/run.sh"; }

@@ -1,22 +1,33 @@
-# commit: 082414c
-# recorded: 2026-10-02T17:12Z
+# commit: 07285d7
+# recorded: 2026-10-03T06:26Z
 # machine: Linux 7.2.7-arch1-1, docker 29.8.1
 # runtime: 1.20.4, OTP 29
-# source: example/deploy/failure-proof.sh (3 containers; the leader cut off from Postgres by docker network disconnect; Postgres killed under load)
+# source: example/deploy/failure-proof.sh (3 containers; the leader cut off from Postgres by docker network disconnect; Postgres killed, stopped cleanly and frozen under load)
 
-17:12:40 the leader cut off from Postgres:
-17:13:15   ok  node3, the leader, is cut off from Postgres (and only node3)
-17:13:15   ok  node3 still serves the cached product price, with no database (until the entry expires)
-17:13:16   ok  the cluster is still whole: all three nodes see each other (they talk over the other network)
-17:13:19   ok  6 orders made on the other nodes: all 12 subscriber jobs completed once, none on node3
-17:13:34   ok  node3 stepped down and node1 took over as the only leader, 53 s after the cut (never two at once)
-17:13:51   ok  70 s on, the cached entry has expired and node3 has no price to give: a cache doesn't replace the database
-17:13:54   ok  node3 reconnected: it reaches Postgres again
-17:13:56   ok  still exactly one leader (node1 )
-17:13:57   ok  node3 sees the same 6 orders as node1, and works again
-17:14:04   ok  node3 takes jobs again (2 so far)
-17:14:04 Postgres killed under load:
-17:14:34   ok  orders made through nginx while Postgres was killed (23 s ago) and started again: 231 answered 201, 13 failed during the outage
-17:14:35   ok  every one of the 231 acknowledged orders is in the database after the crash
-17:14:36   ok  all 231 orders in the database (some of the 13 failures may have committed before the crash) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice
-17:14:36   ok  no node restarted, still 3 nodes, /health 200
+06:27:19 the leader cut off from Postgres:
+06:27:52   ok  node3, the leader, is cut off from Postgres (and only node3)
+06:27:52   ok  node3 still serves the cached product price, with no database (until the entry expires)
+06:27:53   ok  the cluster is still whole: all three nodes see each other (they talk over the other network)
+06:27:55   ok  6 orders made on the other nodes: all 12 subscriber jobs completed once, none on node3
+06:27:58   ok  node3 stepped down and node1 took over as the only leader, 38 s after the cut (never two at once)
+06:28:32   ok  70 s on, the cached entry has expired and node3 has no price to give: a cache doesn't replace the database
+06:28:36   ok  node3 reconnected: it reaches Postgres again
+06:28:37   ok  still exactly one leader (node1 )
+06:28:38   ok  node3 sees the same 6 orders as node1, and works again
+06:28:45   ok  node3 takes jobs again (2 so far)
+06:28:45 Postgres killed (SIGKILL) under load:
+06:29:15   ok  orders made through nginx while Postgres was killed (SIGKILL) and started again: 263 answered 201, 25 failed during the outage
+06:29:15   ok  every one of the 263 acknowledged orders is in the database afterwards
+06:29:16   ok  all 263 orders in the database (some of the 25 failures may have committed first) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice
+06:29:17   ok  no node restarted, still 3 nodes, /health 200, and exactly one cron leader again
+06:29:17 Postgres stopped cleanly under load:
+06:29:47   ok  orders made through nginx while Postgres was stopped cleanly and started again: 269 answered 201, 26 failed during the outage
+06:29:48   ok  every one of the 269 acknowledged orders is in the database afterwards
+06:29:48   ok  all 269 orders in the database (some of the 26 failures may have committed first) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice
+06:29:58   ok  no node restarted, still 3 nodes, /health 200, and exactly one cron leader again
+06:29:58 Postgres frozen (connections open, no answers) under load:
+06:30:20   ok  while the database hangs: /health is 503 in 3.696728s, the API answers 503 in 2.555553s — quickly, not a hung request and not a 500
+06:31:00   ok  orders made through nginx while Postgres was frozen (connections open, no answers) and started again: 283 answered 201, 35 failed during the outage
+06:31:00   ok  every one of the 283 acknowledged orders is in the database afterwards
+06:31:01   ok  all 283 orders in the database (some of the 35 failures may have committed first) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice
+06:31:02   ok  no node restarted, still 3 nodes, /health 200, and exactly one cron leader again
