@@ -48,7 +48,7 @@ defmodule Platform.Web do
     quote do
       use Phoenix.VerifiedRoutes,
         endpoint: Platform.Web.Endpoint,
-        router: Platform.Web.Router,
+        router: App.Router,
         statics: Platform.Web.static_paths()
     end
   end

@@ -6,7 +6,7 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
   @moduletag :tmp_dir
 
   @router """
-  defmodule Platform.Web.Router do
+  defmodule App.Router do
     use Platform.Web, :router
 
     scope "/api" do
@@ -26,8 +26,8 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
   # runs the task inside a fresh "project" that only has a router
   defp gen(dir, args) do
     File.write!(Path.join(dir, ".formatter.exs"), @formatter)
-    File.mkdir_p!(Path.join(dir, "lib/platform/web"))
-    router = Path.join(dir, "lib/platform/web/router.ex")
+    File.mkdir_p!(Path.join(dir, "lib/app"))
+    router = Path.join(dir, "lib/app/router.ex")
     unless File.exists?(router), do: File.write!(router, @router)
     Mix.shell(Mix.Shell.Process)
     File.cd!(dir, fn -> Domain.run(args) end)
@@ -75,24 +75,35 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
     assert migration =~ "add :paid, :boolean, null: false, default: false"
   end
 
-  test "the router gets the three routes, once per resource", %{tmp_dir: dir} do
+  test "the domain gets its own routes file, and the router one line, once per domain", %{
+    tmp_dir: dir
+  } do
     gen(dir, ~w(Billing Invoice number:string))
     gen(dir, ~w(Billing Payment reference:string))
+    gen(dir, ~w(Support Ticket subject:string))
 
-    router = read(dir, "lib/platform/web/router.ex")
-    assert router =~ ~s(post "/invoices", App.Billing.Handlers.InvoiceHandler, :create)
-    assert router =~ ~s(get "/invoices/:id", App.Billing.Handlers.InvoiceHandler, :show)
-    assert router =~ ~s(get "/payments", App.Billing.Handlers.PaymentHandler, :index)
-    # the original scope is still there, and the module still ends once
+    routes = read(dir, "lib/app/billing/routes.ex")
+    assert routes =~ "defmodule App.Billing.Routes do"
+    assert routes =~ ~s(post "/invoices", App.Billing.Handlers.InvoiceHandler, :create)
+    assert routes =~ ~s(get "/invoices/:id", App.Billing.Handlers.InvoiceHandler, :show)
+    assert routes =~ ~s(get "/payments", App.Billing.Handlers.PaymentHandler, :index)
+    refute read(dir, "lib/app/support/routes.ex") =~ "invoices"
+
+    # the router only calls the domains; the original scope is still there
+    router = read(dir, "lib/app/router.ex")
+    refute router =~ "/invoices"
+    assert length(Regex.scan(~r/App\.Billing\.Routes\.routes\(\)/, router)) == 1
+    assert router =~ "require App.Billing.Routes"
+    assert router =~ "App.Support.Routes.routes()"
     assert router =~ "pipe_through :api"
     assert Regex.scan(~r/\nend\s*\z/, router) |> length() == 1
   end
 
   test "behind the login when the router has an :authenticated pipeline", %{tmp_dir: dir} do
-    File.mkdir_p!(Path.join(dir, "lib/platform/web"))
+    File.mkdir_p!(Path.join(dir, "lib/app"))
 
-    File.write!(Path.join(dir, "lib/platform/web/router.ex"), """
-    defmodule Platform.Web.Router do
+    File.write!(Path.join(dir, "lib/app/router.ex"), """
+    defmodule App.Router do
       use Platform.Web, :router
 
       pipeline :authenticated do
@@ -102,13 +113,13 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
     """)
 
     gen(dir, ~w(Billing Invoice number:string))
-    router = read(dir, "lib/platform/web/router.ex")
-    assert router =~ "pipe_through [:api, :authenticated]"
-    assert router =~ ~s(post "/invoices", App.Billing.Handlers.InvoiceHandler, :create)
+    routes = read(dir, "lib/app/billing/routes.ex")
+    assert routes =~ "pipe_through [:api, :authenticated]"
+    assert routes =~ ~s(post "/invoices", App.Billing.Handlers.InvoiceHandler, :create)
   end
 
   @guarded_router """
-  defmodule Platform.Web.Router do
+  defmodule App.Router do
     use Platform.Web, :router
 
     pipeline :authenticated do
@@ -118,8 +129,8 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
   """
 
   defp project(dir, router, login_helper?) do
-    File.mkdir_p!(Path.join(dir, "lib/platform/web"))
-    File.write!(Path.join(dir, "lib/platform/web/router.ex"), router)
+    File.mkdir_p!(Path.join(dir, "lib/app"))
+    File.write!(Path.join(dir, "lib/app/router.ex"), router)
 
     if login_helper? do
       File.mkdir_p!(Path.join(dir, "test/support/app/accounts"))
@@ -147,7 +158,7 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
     project(dir, @guarded_router, false)
     gen(dir, ~w(Billing Invoice number:string))
 
-    assert read(dir, "lib/platform/web/router.ex") =~ "pipe_through [:api, :authenticated]"
+    assert read(dir, "lib/app/billing/routes.ex") =~ "pipe_through [:api, :authenticated]"
     test = read(dir, "test/app/billing/handlers/invoice_handler_test.exs")
     assert test =~ ~s(test "the routes need a login")
     refute test =~ "creates an invoice"
@@ -162,15 +173,15 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
 
   test "without one, the routes use :api only", %{tmp_dir: dir} do
     gen(dir, ~w(Billing Invoice number:string))
-    router = read(dir, "lib/platform/web/router.ex")
-    assert router =~ "# domain: billing\n  scope \"/api\" do\n    pipe_through :api\n"
-    refute router =~ ":authenticated"
+    routes = read(dir, "lib/app/billing/routes.ex")
+    assert routes =~ "scope \"/api\" do\n        pipe_through :api\n"
+    refute routes =~ ":authenticated"
   end
 
   test "plurals: category → categories, box → boxes, --table overrides", %{tmp_dir: dir} do
     gen(dir, ~w(Shop Category name:string))
     assert [_] = Path.wildcard(Path.join(dir, "priv/repo/migrations/*_create_categories.exs"))
-    assert read(dir, "lib/platform/web/router.ex") =~ ~s(post "/categories")
+    assert read(dir, "lib/app/shop/routes.ex") =~ ~s(post "/categories")
 
     gen(dir, ~w(Shop Box label:string))
     assert [_] = Path.wildcard(Path.join(dir, "priv/repo/migrations/*_create_boxes.exs"))
@@ -202,13 +213,15 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
 
   test "refuses to overwrite, and changes nothing when it does", %{tmp_dir: dir} do
     gen(dir, ~w(Billing Invoice number:string))
-    router = read(dir, "lib/platform/web/router.ex")
+    router = read(dir, "lib/app/router.ex")
+    routes = read(dir, "lib/app/billing/routes.ex")
 
     assert_raise Mix.Error, ~r/won't overwrite.*invoice\.ex/, fn ->
       gen(dir, ~w(Billing Invoice number:string))
     end
 
-    assert read(dir, "lib/platform/web/router.ex") == router
+    assert read(dir, "lib/app/router.ex") == router
+    assert read(dir, "lib/app/billing/routes.ex") == routes
   end
 
   test "refuses bad input with a message that says what to write", %{tmp_dir: dir} do
@@ -228,7 +241,7 @@ defmodule Mix.Tasks.Dandelion.Gen.DomainTest do
       assert_raise Mix.Error, message, fn -> gen(dir, args) end
     end
 
-    refute exists?(dir, "lib/app")
+    refute exists?(dir, "lib/app/billing")
   end
 
   test "outside a dandelion project it says so", %{tmp_dir: dir} do

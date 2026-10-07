@@ -21,7 +21,7 @@ go run ./cmd/server   go test ./...   gofmt   golangci-lint
 | `golangci-lint` | `mix credo --strict` |
 | `go vet` | `mix compile --warnings-as-errors` |
 | `cmd/server/main.go` | [`lib/platform/application.ex`](../example/lib/platform/application.ex) |
-| router, middleware | [`lib/platform/web/`](../example/lib/platform/web) — every route in `router.ex` |
+| router, middleware | [`lib/app/router.ex`](../example/lib/app/router.ex) mounts each domain's `routes.ex`; [`lib/platform/web/`](../example/lib/platform/web) is the server |
 | `internal/<domain>/http/` | [`lib/app/shop/handlers/`](../example/lib/app/shop/handlers) |
 | `internal/<domain>/service/` | [`lib/app/shop/services/`](../example/lib/app/shop/services) |
 | `internal/<domain>/repo/` | [`lib/app/shop/repos/`](../example/lib/app/shop/repos) |

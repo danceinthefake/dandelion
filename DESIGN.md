@@ -72,7 +72,7 @@ lib/
     database/repo.ex          ≈ *sql.DB pool (Ecto.Repo) — Cloud SQL
     web/                      ≈ the web server
       endpoint.ex             ≈ http.Server + middleware
-      router.ex               ≈ chi router: every route of every domain
+      routes.ex               the routes every project has: /health, /metrics, the shell page
       fallback_handler.ex     ≈ one place turning errors into HTTP statuses
       health_handler.ex  error_json.ex  telemetry.ex
     cluster.ex  cluster/      ≈ service discovery: nodes find each other through Postgres
@@ -83,7 +83,9 @@ lib/
     # cache/, realtime/ — Platform.Broadcast (≈ Redis pub/sub) is
     # Phoenix.PubSub, started in application.ex
   app/
+    router.ex                 ≈ chi router in main.go: mounts each domain's routes, holds the shared pipelines
     shop/                     one domain; landing/, dashboard/, … the same way
+      routes.ex               ≈ the domain's sub-router: its paths, and who may call them
       handlers/               ≈ internal/shop/http: params → service → JSON
       workers/                ≈ background goroutines / queue handlers
       services/               ≈ internal/shop/service: rules, transactions, no HTTP
@@ -97,10 +99,12 @@ config/runtime.exs            ≈ envconfig: settings from environment variables
 
 - **Module names follow the folders**, like Go packages:
   `lib/app/shop/services/order_service.ex` is
-  `App.Shop.Services.OrderService`; `lib/platform/web/router.ex` is
-  `Platform.Web.Router`. Explicit over implicit.
+  `App.Shop.Services.OrderService`; `lib/app/router.ex` is
+  `App.Router`. Explicit over implicit.
 - **Handlers and workers belong to their domain**; `platform/` holds only
-  the machinery. The router lists every route with full module names.
+  the machinery. The router is `App.Router`, on the app side, because it names
+  the app's domains; each domain lists its own routes in
+  `lib/app/<domain>/routes.ex` with full module names.
 - **Services may use platform tools** (publish an event, read the cache),
   the way a Go service uses a Redis client; business rules never live in
   `platform/`.
@@ -767,7 +771,8 @@ dandelion.gen.domain Billing Invoice number:string amount_cents:integer
 paid:boolean` writes, in the project's own layout: model (schema +
 `create_changeset`), repo, service (create / get / list with the same page
 checks as orders), handler and JSON, a migration, a test per layer, a fixtures
-module, and a `# domain: billing` scope with three routes appended to the router.
+module, and three routes in `lib/app/billing/routes.ex` (a new domain also gets one
+line in `lib/app/router.ex`).
 
 Decisions:
 

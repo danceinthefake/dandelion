@@ -1,4 +1,4 @@
-// Thin client for the JSON API (`Platform.Web.Router`). Every call resolves
+// Thin client for the JSON API (`App.Router`). Every call resolves
 // to { ok: true, data } or { ok: false, error } — errors are values here too.
 
 export type OrderItem = { sku: string; quantity: number; price_cents: number };

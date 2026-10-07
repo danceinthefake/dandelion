@@ -29,7 +29,7 @@ end
 ```
 
 [`auth.ex`](../example/lib/app/accounts/handlers/auth.ex) is the middleware;
-[`router.ex`](../example/lib/platform/web/router.ex) says which routes need it,
+[`router.ex`](../example/lib/app/router.ex) defines the pipelines and each domain's `routes.ex` says which routes need it,
 and `:admin` (a second pipeline) adds a role check.
 
 | Go | Elixir |

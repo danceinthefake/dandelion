@@ -60,7 +60,8 @@ defmodule DandelionNew.GenerateTest do
     refute Enum.any?(Map.keys(files), &(&1 =~ ~r/orders?[._]|app\/shop/))
     assert Map.has_key?(files, "lib/app/.gitkeep")
     assert Map.has_key?(files, "lib/platform/web/fallback_handler.ex")
-    refute files["lib/platform/web/router.ex"] =~ "/orders"
+    refute files["lib/app/router.ex"] =~ "/orders"
+    refute files["lib/app/router.ex"] =~ "Accounts"
     refute files["lib/platform/cron.ex"] =~ "ExpireUnpaidOrders"
     refute files["config/runtime.exs"] =~ "ExpireUnpaidOrders"
     refute files["README.md"] =~ "orders"
@@ -73,7 +74,7 @@ defmodule DandelionNew.GenerateTest do
     files = files("my_app", "MyApp")
 
     assert files["assets/package.json"] =~ "my_app-ui"
-    assert files["lib/platform/web/router.ex"] =~ "PageHandler"
+    assert files["lib/platform/web/routes.ex"] =~ "PageHandler"
     assert files["Dockerfile"] =~ "AS ui"
     assert files[".gitignore"] =~ "/priv/static/app/"
     assert files["README.md"] =~ "assets/"
@@ -84,12 +85,12 @@ defmodule DandelionNew.GenerateTest do
 
     refute Enum.any?(Map.keys(files), &String.starts_with?(&1, "assets/"))
     refute Map.has_key?(files, "lib/platform/web/page_handler.ex")
-    refute files["lib/platform/web/router.ex"] =~ "PageHandler"
+    refute files["lib/platform/web/routes.ex"] =~ "PageHandler"
     refute files["Dockerfile"] =~ ~r/AS ui|node:|@frontend/
     refute files[".gitignore"] =~ "Vue"
     refute files["README.md"] =~ "Node"
     # the API, the socket and the example stay
-    assert files["lib/platform/web/router.ex"] =~ "/orders"
+    assert files["lib/app/shop/routes.ex"] =~ "/orders"
     assert files["lib/platform/web/user_socket.ex"] =~ "OrderFeedChannel"
   end
 
@@ -97,7 +98,7 @@ defmodule DandelionNew.GenerateTest do
     files = files("my_app", "MyApp", false)
 
     refute Enum.any?(Map.keys(files), &String.starts_with?(&1, "assets/"))
-    refute files["lib/platform/web/router.ex"] =~ "PageHandler"
+    refute files["lib/platform/web/routes.ex"] =~ "PageHandler"
     refute files["lib/platform/web/user_socket.ex"] =~ "OrderFeedChannel"
     assert files["lib/platform/web/user_socket.ex"] =~ "def connect"
   end
@@ -133,8 +134,10 @@ defmodule DandelionNew.GenerateTest do
     files = files("my_app", "MyApp")
 
     assert files["lib/app/accounts/handlers/auth.ex"] =~ "defmodule App.Accounts.Handlers.Auth"
-    assert files["lib/platform/web/router.ex"] =~ "pipeline :authenticated"
-    assert files["lib/platform/web/router.ex"] =~ "pipe_through [:api, :authenticated, :admin]"
+    assert files["lib/app/router.ex"] =~ "pipeline :authenticated"
+    assert files["lib/app/shop/routes.ex"] =~ "pipe_through [:api, :authenticated, :admin]"
+    assert files["lib/app/router.ex"] =~ "App.Shop.Routes.routes()"
+    refute files["lib/app/router.ex"] =~ "/orders"
     assert files["lib/platform/web/user_socket.ex"] =~ ~S(def connect(%{"token" => token})
     assert files["priv/repo/seeds.exs"] =~ "admin@example.com"
     assert files["config/test.exs"] =~ "App.Accounts.Services.Password"

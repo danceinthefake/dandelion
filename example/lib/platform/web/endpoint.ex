@@ -33,5 +33,5 @@ defmodule Platform.Web.Endpoint do
     json_decoder: Phoenix.json_library()
 
   plug Plug.Head
-  plug Platform.Web.Router
+  plug App.Router
 end

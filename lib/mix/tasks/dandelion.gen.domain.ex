@@ -21,9 +21,10 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
       test/support/app/billing/invoice_fixtures.ex
 
   and adds `POST /api/invoices`, `GET /api/invoices`, `GET /api/invoices/:id`
-  to `lib/platform/web/router.ex`. Then run `mix ecto.migrate` and `mix test`.
+  to the domain's own routes, `lib/app/billing/routes.ex` (a new domain also gets
+  one line in `lib/app/router.ex`). Then run `mix ecto.migrate` and `mix test`.
 
-  If the router has an `:authenticated` pipeline (the example's login does), the
+  If `lib/app/router.ex` has an `:authenticated` pipeline (the example's login does), the
   new routes go through it, so a new resource isn't public by accident. The
   generated handlers don't ask who is calling: *what a user may see* is a rule —
   add it to the service, the way `OrderService` scopes orders to their owner.
@@ -74,6 +75,7 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
       do: Mix.raise("a field is given twice")
 
     router = router!()
+    check_routes!(domain_routes_path(domain))
 
     assigns =
       domain
@@ -94,10 +96,9 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
       Mix.shell().info([:green, "* creating ", :reset, path])
     end
 
-    File.write!(router.path, router.insert.(routes(assigns)))
-    Mix.shell().info([:green, "* updating ", :reset, router.path])
+    written = write_routes(router, assigns)
 
-    Mix.Task.rerun("format", Enum.map(files, &elem(&1, 0)) ++ [router.path])
+    Mix.Task.rerun("format", Enum.map(files, &elem(&1, 0)) ++ written)
 
     Mix.shell().info("""
 
@@ -186,14 +187,30 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
   defp routes(a) do
     """
 
-      # domain: #{a[:domain_dir]}
-      scope "/api" do
-        pipe_through #{if a[:authenticated?], do: "[:api, :authenticated]", else: ":api"}
+          # #{a[:plural]}
+          scope "/api" do
+            pipe_through #{if a[:authenticated?], do: "[:api, :authenticated]", else: ":api"}
 
-        post "/#{a[:plural]}", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :create
-        get "/#{a[:plural]}", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :index
-        get "/#{a[:plural]}/:id", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :show
+            post "/#{a[:plural]}", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :create
+            get "/#{a[:plural]}", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :index
+            get "/#{a[:plural]}/:id", App.#{a[:domain]}.Handlers.#{a[:resource]}Handler, :show
+          end
+    """
+  end
+
+  defp routes_module(a) do
+    """
+    defmodule App.#{a[:domain]}.Routes do
+      @moduledoc \"\"\"
+      The routes of the #{a[:domain_dir]} domain. `App.Router` calls `routes/0` inside its
+      own module, so the paths stay whole (`/api/...`).
+      \"\"\"
+      import Phoenix.Router
+
+      defmacro routes do
+        quote do#{routes(a)}    end
       end
+    end
     """
   end
 
@@ -204,23 +221,75 @@ defmodule Mix.Tasks.Dandelion.Gen.Domain do
     File.exists?(path) and File.read!(path) =~ "def log_in("
   end
 
-  # The router's last `end` closes the module: the new scope goes before it.
+  # Routes live in the domain's own file; `lib/app/router.ex` only calls it.
+  defp domain_routes_path(domain), do: "lib/app/#{Macro.underscore(domain)}/routes.ex"
+
+  @routes_tail ~r/\n    end\n  end\nend\s*\z/
+
+  defp check_routes!(path) do
+    if File.exists?(path) and not (File.read!(path) =~ @routes_tail),
+      do: Mix.raise("#{path} doesn't end the way the generator expects; add the routes by hand")
+  end
+
   defp router! do
-    path = "lib/platform/web/router.ex"
+    path = "lib/app/router.ex"
 
     unless File.exists?(path),
       do: Mix.raise("#{path} not found: run this from the root of a dandelion project")
 
     source = File.read!(path)
 
-    unless source =~ ~r/\nend\s*\z/,
-      do: Mix.raise("#{path} doesn't end the way the generator expects; add the routes by hand")
+    unless source =~ ~r/\nend\s*\z/ and source =~ "use Platform.Web, :router\n",
+      do: Mix.raise("#{path} doesn't look the way the generator expects; add the routes by hand")
 
-    insert = fn routes ->
-      String.replace(source, ~r/\nend\s*\z/, "\n" <> String.trim_trailing(routes) <> "\nend\n")
+    %{path: path, source: source, authenticated?: source =~ ~r/pipeline :authenticated\b/}
+  end
+
+  # An existing domain gets the scope inside its routes file; a new domain gets
+  # a routes file, and `App.Router` one line that calls it.
+  defp write_routes(router, a) do
+    path = domain_routes_path(a[:domain])
+
+    if File.exists?(path) do
+      source = File.read!(path)
+      scope = String.trim_trailing(routes(a))
+      File.write!(path, Regex.replace(@routes_tail, source, fn tail -> "\n" <> scope <> tail end))
+      Mix.shell().info([:green, "* updating ", :reset, path])
+      [path]
+    else
+      File.mkdir_p!(Path.dirname(path))
+      File.write!(path, routes_module(a))
+      Mix.shell().info([:green, "* creating ", :reset, path])
+
+      module = "App.#{a[:domain]}.Routes"
+
+      with_require =
+        if router.source =~ ~r/^  require App\.\w+\.Routes\n/m,
+          do:
+            String.replace(
+              router.source,
+              ~r/(\A.*^  require App\.\w+\.Routes\n)/ms,
+              "\\1  require #{module}\n"
+            ),
+          else:
+            String.replace(
+              router.source,
+              "use Platform.Web, :router\n",
+              "use Platform.Web, :router\n\n  require #{module}\n",
+              global: false
+            )
+
+      updated =
+        String.replace(
+          with_require,
+          ~r/\nend\s*\z/,
+          "\n\n  # domain: #{a[:domain_dir]}\n  #{module}.routes()\nend\n"
+        )
+
+      File.write!(router.path, updated)
+      Mix.shell().info([:green, "* updating ", :reset, router.path])
+      [path, router.path]
     end
-
-    %{path: path, insert: insert, authenticated?: source =~ ~r/pipeline :authenticated\b/}
   end
 
   # -- fields ---------------------------------------------------------------------

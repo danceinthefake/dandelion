@@ -173,12 +173,18 @@ defmodule Mix.Tasks.Dandelion.New do
   # --no-example: remove the example's routes, cron entry and job config. Each edit
   # must find its text — if the example changes, generation fails loudly
   # (and the tests catch it) instead of producing a broken project.
-  defp without_example("lib/platform/web/router.ex", contents) do
-    replace!(
-      contents,
+  defp without_example("lib/app/router.ex", contents) do
+    contents
+    |> replace!(~r/  require App\.Accounts\.Routes\n  require App\.Shop\.Routes\n/, "")
+    |> replace!(
+      ~r/  # a login is needed\n  pipeline :authenticated.*?\n  end\n\n.*?\n  end\n\n/s,
+      ""
+    )
+    |> replace!(
       ~r/  # domain: accounts.*\nend\n\z/s,
       """
-        # domain: things (lib/app/things/)
+        # domain: things (lib/app/things/): `mix dandelion.gen.domain Things Thing name:string`
+        # moves these routes to lib/app/things/routes.ex and adds the call here
         scope "/api" do
           pipe_through :api
 
@@ -296,7 +302,7 @@ defmodule Mix.Tasks.Dandelion.New do
   end
 
   # --no-frontend: no shell page, no Node stage in the Dockerfile.
-  defp without_frontend("lib/platform/web/router.ex", contents),
+  defp without_frontend("lib/platform/web/routes.ex", contents),
     do: replace!(contents, ~r/  get "\/", Platform.Web.PageHandler, :index\n/, "")
 
   defp without_frontend(".gitignore", contents),

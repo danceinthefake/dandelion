@@ -19,7 +19,7 @@ func (h *OrderHandler) Show(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-**In Elixir** — routes in [`lib/platform/web/router.ex`](../example/lib/platform/web/router.ex#L14):
+**In Elixir** — routes in [`lib/app/shop/routes.ex`](../example/lib/app/shop/routes.ex):
 
 ```elixir
 # domain: shop
@@ -33,8 +33,10 @@ scope "/api" do
 end
 ```
 
-Every route of every domain is in this one file, with full module names —
-like the chi router in `main.go`, you see the whole API in one place.
+Each domain lists its own routes, with full module names, and
+[`lib/app/router.ex`](../example/lib/app/router.ex) mounts them — like chi's
+`r.Mount("/orders", shop.Routes())` in `main.go`. Adding a domain never edits
+another domain's file.
 
 and the handler in [`lib/app/shop/handlers/order_handler.ex`](../example/lib/app/shop/handlers/order_handler.ex#L23):
 

@@ -8,22 +8,24 @@ generates; see [../DESIGN.md](../DESIGN.md).
 The parts that are the same in every project — `Dandelion.Cluster`,
 `Dandelion.Cache`, `Dandelion.Queue`, `Dandelion.Queue.Ordered`,
 `Dandelion.PubSub` — come from the [`dandelion`](../lib) library; `platform/`
-wires them up and holds what belongs to *this* app (router, endpoint, cron
-schedule, subscriptions).
+wires them up and holds what belongs to *this* app (endpoint, cron
+schedule, subscriptions; the router is in `lib/app/`).
 
 ```
 lib/
   platform/                 same in every dandelion project
     application.ex          what starts, in order (≈ main.go)
     database/repo.ex        ≈ the *sql.DB pool
-    web/                    ≈ the web server: endpoint, router (every route), health, errors
+    web/                    ≈ the web server: endpoint, health, errors
     queue.ex                ≈ Cloud Tasks: background jobs (Oban, set up by Dandelion.Queue)
     cron.ex                 ≈ Cloud Scheduler: recurring jobs, once per cluster
     pubsub.ex               ≈ Google Pub/Sub topics: who subscribes to what (mechanism: Dandelion.PubSub)
     realtime/               ≈ Pusher presence: who is online, across nodes
     release.ex              migrations in production
   app/
+    router.ex               ≈ the router in main.go: mounts each domain's routes
     shop/                   one domain; add more the same way
+      routes.ex             the domain's paths and who may call them
       handlers/             HTTP: params → service → JSON
       channels/             WebSocket: the live order feed
       workers/              background work
@@ -114,7 +116,7 @@ start, not a library to depend on:
   before they expire; `App.Accounts.Handlers.Token` says what to do if you
   need that.
 - **The plug** [`App.Accounts.Handlers.Auth`](lib/app/accounts/handlers/auth.ex)
-  guards routes, as pipelines in [`router.ex`](lib/platform/web/router.ex):
+  guards routes, as pipelines in [`router.ex`](lib/app/router.ex):
   `:authenticated` (a valid token, else 401) and `:admin` (else 403). The
   catalogue and the payment webhook (which has its own token) stay public.
 - **Who may see what is a rule, so it's in the service:** an order belongs to
