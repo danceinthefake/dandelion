@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
@@ -10,6 +10,7 @@
 #   reliability  rate limit, a node stopped under load, request timeouts → 14
 #   rolling   a rolling deploy under load → 15
 #   idempotency  a retried order is made once → 16
+#   webhooks  signed deliveries, a receiver that goes away and returns → 17
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -182,6 +183,8 @@ proof_run() {
 rolling() { mkdir -p "$here/15-rolling-deploy"; proof_run rolling rolling-proof.sh "$here/15-rolling-deploy" "3 containers behind nginx; node1, node2, node3 stopped and started in turn under load"; }
 idempotency() { mkdir -p "$here/16-idempotency"; proof_run idempotency idempotency-proof.sh "$here/16-idempotency" "3 containers behind nginx; 20 identical requests at once; nodes killed mid-request"; }
 
+webhooks() { mkdir -p "$here/17-webhooks"; proof_run webhooks webhook-proof.sh "$here/17-webhooks" "3 containers behind nginx and an nginx receiver; the receiver stopped and started"; }
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -213,6 +216,7 @@ case "${1:-all}" in
   reliability) reliability ;;
   rolling) rolling ;;
   idempotency) idempotency ;;
-  all) proof; live; partition; failures; reliability; rolling; idempotency; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|controls|tests]" >&2; exit 2 ;;
+  webhooks) webhooks ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|controls|tests]" >&2; exit 2 ;;
 esac

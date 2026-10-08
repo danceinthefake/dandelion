@@ -33,6 +33,19 @@ config :acme, Platform.Web.RateLimit,
 # "draining" (Dandelion.Drain), so the load balancer can move its traffic away.
 config :acme, :drain_delay, 0
 
+# Webhooks we send (App.Webhooks): receivers must be https and public; the wait before
+# the first retry doubles each time (up to an hour); the circuit for a receiver that
+# keeps failing stays open this long before one request is tried again.
+# @example-start
+config :acme,
+  webhook_allow_http: false,
+  webhook_allow_private: false,
+  webhook_timeout: 5_000,
+  webhook_backoff_seconds: 30,
+  webhook_circuit_reset: 30_000
+
+# @example-end
+
 # lib/platform/web/database_unavailable.ex maps Postgrex.Error itself
 config :phoenix_ecto, exclude_ecto_exceptions_from_plug: [Postgrex.Error]
 

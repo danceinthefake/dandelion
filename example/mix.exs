@@ -55,6 +55,10 @@ defmodule Acme.MixProject do
       {:jason, "~> 1.2"},
       {:bandit, "~> 1.5"},
       {:oban, "~> 2.24"},
+      # @example-start
+      # outgoing HTTP: webhook delivery
+      {:req, "~> 0.5"},
+      # @example-end
       dandelion(),
       # tracing: the SDK and exporter, and a span for each request, query and job
       {:opentelemetry, "~> 1.5"},

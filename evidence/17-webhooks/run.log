@@ -1,0 +1,17 @@
+# commit: 8123cbb (+ uncommitted changes)
+# recorded: 2026-10-08T09:17Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/webhook-proof.sh (3 containers behind nginx and an nginx receiver; the receiver stopped and started)
+
+09:18:58 registering a receiver:
+09:18:58   ok  an admin registered it (endpoint 1); the secret was shown once
+09:18:58   ok  and it is not in the list afterwards
+09:18:58 orders while the receiver is up:
+09:18:59   ok  5 orders: each received once, and each signature recomputes from the secret and the raw body
+09:18:59 the receiver goes away:
+09:19:02   ok  the circuit for it opened on: node2:open — callers stop waiting on it
+09:19:02   ok  6 deliveries are waiting to be retried (none lost, none given up)
+09:19:02 the receiver comes back:
+09:20:06   ok  all 6 orders made while it was away arrived
+09:20:07   ok  each under its own webhook-id, and signed: the retry is the same event, not a new one

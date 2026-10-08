@@ -55,6 +55,14 @@ Said plainly, so nobody has to find out the hard way.
   means a slow disk stalls all writers, and that clients must retry — which the
   proof does, with idempotency keys. Idempotency keys are kept for the life of the
   order, only on `POST /api/orders`, and a key is per customer.
+- **Webhooks** ([17](17-webhooks/)). The receiver is nginx on the same Docker network,
+  over http, with private addresses allowed (the production defaults refuse both —
+  unit-tested, not run in the cluster). A name that points somewhere public when we
+  check it and inside our network when we connect (DNS rebinding) is not stopped.
+  Secrets are stored in the clear. The circuit is per node: three nodes each learn
+  for themselves that a receiver is down, so three times the failed calls before
+  all are quiet. Not tested: a receiver that answers slowly rather than not at all,
+  one that answers 410, a very large backlog after a long outage.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

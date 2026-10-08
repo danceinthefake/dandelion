@@ -762,6 +762,38 @@ header (1 to 255 characters; optional).
   proven to be the host's disk rather than the app; it did not happen with the same
   load and no node stopped, or with another container stopped (LIMITS.md).
 
+### 10.15 Webhooks we send, and calling other people's servers
+
+Decided 2026-10-08. Receiving a webhook (the payment provider's) was in the example
+from the start; sending one is the other half, and the first place the app calls a
+server it doesn't control — so the first place a slow or dead one can hurt it.
+
+- **Library:** `Dandelion.Webhook` (sign and verify; pure) and `Dandelion.Resilience`
+  (timeout, retries, circuit breaker; per node, like `RateLimit`: nothing asks
+  Postgres on a call). **App:** the `webhooks` domain — endpoints in a table, a
+  subscriber (`FanOut`) on `order.created` that makes one `Deliver` job per
+  endpoint, and the worker.
+- **At least once, one id.** An event is `evt_<topic>_<order id>`, the same on every
+  attempt and for every endpoint; it is the `webhook-id` header. A receiver that
+  sees an id twice has seen the event. Delivery jobs are unique per
+  (endpoint, event), so a `FanOut` that runs twice queues once.
+- **Signed** (`webhook-id`, `webhook-timestamp`, `webhook-signature`: HMAC-SHA256 over
+  `id.timestamp.body`, per endpoint secret, shown once). Standard Webhooks, so
+  receivers can use existing libraries. Secrets are stored in the clear — we need
+  them to sign; encrypting them at rest is the deployment's key management.
+- **What is retried:** 5xx, 408, 429, timeouts, connection errors — with Oban's
+  backoff (30 s doubling to an hour, ±20 %), 10 attempts. A 410 deactivates the
+  endpoint; another 4xx is the receiver saying no, not retried.
+- **The circuit.** After 5 failures in a row for a host, this node stops calling it
+  for 30 s and the jobs *snooze* (30 s, no attempt used) instead of each waiting out
+  a 5 s timeout. One call is then let through. A dead receiver costs a timestamp,
+  not worker time; the `webhooks` queue is separate so a slow one can't starve the
+  others' jobs.
+- **Where we send is checked.** `https` only (http by config), no `localhost` or
+  private addresses (by config), no redirects, and the name is resolved again at
+  delivery time and refused if it now points inside. The remaining gap (a name that
+  changes between our check and the connection) is real and is in LIMITS.md.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

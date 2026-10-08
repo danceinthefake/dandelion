@@ -1,0 +1,13 @@
+# control: nobreaker
+# broken on purpose: the circuit never opens (failure_threshold: 100_000 in Deliver)
+# expected: the proof FAILS after 'the receiver goes away:' and never reaches 'the circuit for it opened on'
+# commit: 8123cbb, recorded 2026-10-08T09:22Z
+# verdict: ok
+
+09:21:09 registering a receiver:
+09:21:09   ok  an admin registered it (endpoint 1); the secret was shown once
+09:21:09   ok  and it is not in the list afterwards
+09:21:09 orders while the receiver is up:
+09:21:10   ok  5 orders: each received once, and each signature recomputes from the secret and the raw body
+09:21:10 the receiver goes away:
+09:22:20 FAIL  no node opened the circuit for the dead receiver

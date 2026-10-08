@@ -1,0 +1,11 @@
+# control: webhooksig
+# broken on purpose: webhooks are signed with the wrong secret (Delivery.deliver/3)
+# expected: the proof FAILS after 'orders while the receiver is up:' and never reaches 'each signature recomputes from the secret and the raw body'
+# commit: 8123cbb, recorded 2026-10-08T09:20Z
+# verdict: ok
+
+09:20:38 registering a receiver:
+09:20:38   ok  an admin registered it (endpoint 1); the secret was shown once
+09:20:38   ok  and it is not in the list afterwards
+09:20:38 orders while the receiver is up:
+09:20:38 FAIL  order 1: the signature does not match (v1,ZSPxnzemxZC5DtjFVFWa3WBwriGTao/g9HRqsRofMZg=, want v1,XAAwDKmYciKFYiNeQKzcdsTJAIsqTIysAbO+g7C0EMw=)

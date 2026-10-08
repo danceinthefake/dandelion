@@ -56,7 +56,10 @@ defmodule Dandelion.ResilienceTest do
                fn ->
                  bump(c)
                  {:error, :down}
-               end, retries: 2, backoff: 20)
+               end,
+               retries: 2,
+               backoff: 20
+             )
 
     assert count(c) == 3
     # 20 + 40 ms, less jitter

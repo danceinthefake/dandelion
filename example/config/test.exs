@@ -9,6 +9,15 @@ config :acme, Platform.Web.RateLimit,
   auth: {100_000, :timer.minutes(1)},
   trust_forwarded_for: false
 
+# @example-start
+# webhooks: no real network. Requests go to Req.Test stubs, hosts are not resolved.
+config :acme,
+  webhook_allow_private: true,
+  webhook_req_options: [plug: {Req.Test, App.Webhooks}],
+  webhook_circuit_reset: 100
+
+# @example-end
+
 config :acme, :payment_webhook_token, "test-token"
 
 # fast password hashing in tests (a real hash takes about a quarter of a second)

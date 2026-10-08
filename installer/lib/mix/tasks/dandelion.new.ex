@@ -28,6 +28,7 @@ defmodule Mix.Tasks.Dandelion.New do
   @example_prefixes ~w(
     lib/app/shop/ test/app/shop/ test/support/app/shop/
     lib/app/accounts/ test/app/accounts/ test/support/app/accounts/
+    lib/app/webhooks/ test/app/webhooks/ test/support/app/webhooks/
   )
   @example_files ~w(
     priv/repo/migrations/20260927000001_create_orders.exs
@@ -36,12 +37,15 @@ defmodule Mix.Tasks.Dandelion.New do
     priv/repo/migrations/20261002000001_create_users.exs
     priv/repo/migrations/20261002000002_add_user_to_orders.exs
     priv/repo/migrations/20261008000001_add_idempotency_to_orders.exs
+    priv/repo/migrations/20261008000002_create_webhook_endpoints.exs
     deploy/seed.sh
     deploy/partition-proof.sh
     deploy/failure-proof.sh
     deploy/reliability-proof.sh
     deploy/rolling-proof.sh
     deploy/idempotency-proof.sh
+    deploy/webhook-proof.sh
+    deploy/webhook-receiver.conf
     test/platform/pubsub_test.exs
   )
 
@@ -179,7 +183,10 @@ defmodule Mix.Tasks.Dandelion.New do
   # (and the tests catch it) instead of producing a broken project.
   defp without_example("lib/app/router.ex", contents) do
     contents
-    |> replace!(~r/  require App\.Accounts\.Routes\n  require App\.Shop\.Routes\n/, "")
+    |> replace!(
+      ~r/  require App\.Accounts\.Routes\n  require App\.Shop\.Routes\n  require App\.Webhooks\.Routes\n/,
+      ""
+    )
     |> replace!(
       ~r/  # a login is needed\n  pipeline :authenticated.*?\n  end\n\n.*?\n  end\n\n/s,
       ""
@@ -269,7 +276,10 @@ defmodule Mix.Tasks.Dandelion.New do
 
   defp without_example("lib/platform/pubsub.ex", contents) do
     contents
-    |> replace!(~r/  alias App\.Shop\.Workers\.\{[^}]*\}\n\n/, "")
+    |> replace!(
+      ~r/  alias App\.Shop\.Workers\.\{[^}]*\}\n  alias App\.Webhooks\.Workers\.FanOut\n\n/,
+      ""
+    )
     |> replace!(
       ~r/    %\{\n      "order.created" => \[[^\]]*\]\n    \}\n/,
       "    %{\n      # \"thing.created\" => [App.Things.Workers.SendWelcome]\n    }\n"

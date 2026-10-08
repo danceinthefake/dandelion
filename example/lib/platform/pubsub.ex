@@ -26,11 +26,12 @@ defmodule Platform.PubSub do
   """
 
   alias App.Shop.Workers.{SendOrderConfirmation, UpdateCustomerStats}
+  alias App.Webhooks.Workers.FanOut
 
   @doc "Topic → subscribers. One place, like the crontab in `Platform.Cron`."
   def subscriptions do
     %{
-      "order.created" => [SendOrderConfirmation, UpdateCustomerStats]
+      "order.created" => [SendOrderConfirmation, UpdateCustomerStats, FanOut]
     }
   end
 

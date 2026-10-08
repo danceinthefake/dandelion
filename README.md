@@ -53,6 +53,8 @@ end
 | `Dandelion.Queue` | the Oban setup: queues, lifeline, pruner, crontab | Cloud Tasks, Cloud Scheduler |
 | `Dandelion.Queue.Ordered` | order per key, across nodes | SQS FIFO, Kafka partition keys |
 | `Dandelion.PubSub` | a topic → one Oban job per subscriber, in your transaction | Google Pub/Sub, Kafka topics |
+| `Dandelion.Resilience` | a call to another service with a timeout, retries and a circuit breaker | `gobreaker` + a retry loop + `context.WithTimeout` |
+| `Dandelion.Webhook` | sign what you send to a URL, verify what you receive (Standard Webhooks headers) | Stripe-Signature / X-Hub-Signature code |
 | `Dandelion.RateLimit` | per-node request limits in memory (fixed windows) | a Redis `INCR` with an expiry |
 | `Dandelion.Drain` | tell the load balancer a node is leaving, then stop | a Kubernetes `preStop` hook + readiness probe |
 | `Dandelion.Migration` | the database index the ordered queue needs | — |

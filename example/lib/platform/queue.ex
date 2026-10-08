@@ -18,10 +18,17 @@ defmodule Platform.Queue do
 
   @doc "The Oban config; `config :acme, Oban` overrides it (tests use `testing: :manual`)."
   def config do
-    Dandelion.Queue.config(
+    [
       otp_app: :acme,
       repo: Platform.Database.Repo,
       crontab: Platform.Cron.schedule()
-    )
+    ]
+    |> Dandelion.Queue.config()
+    # @example-start
+    # webhook deliveries wait on other people's servers: their own queue, so a slow
+    # receiver can't use up the slots other jobs run in
+    |> Keyword.update!(:queues, &(&1 ++ [webhooks: 5]))
+
+    # @example-end
   end
 end

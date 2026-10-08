@@ -22,6 +22,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`rollingcut.log`](rollingcut.log) | a stopping node neither waits nor lets requests in flight finish (`DRAIN_DELAY_MS=0`, `SHUTDOWN_TIMEOUT_MS=0`) | `requests were cut off by a stopping node` (claim 15) | the slow clients' requests got a 502 |
 
+| [`webhooksig.log`](webhooksig.log) | deliveries are signed with the wrong secret | `the signature does not match` (claim 17) | the receiver could not trust what it got |
+
+| [`nobreaker.log`](nobreaker.log) | the circuit never opens | `no node opened the circuit for the dead receiver` (claim 17) | a dead receiver was called again and again |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

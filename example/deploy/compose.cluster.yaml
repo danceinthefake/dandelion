@@ -35,6 +35,13 @@ x-node: &node
     RATE_LIMIT_API: "100000"
     RATE_LIMIT_AUTH: "100000"
     TRUST_FORWARDED_FOR: "1"
+    # @example-start
+    # webhooks go to hook-receiver below, a private http address; retries come quickly
+    WEBHOOK_ALLOW_HTTP: "1"
+    WEBHOOK_ALLOW_PRIVATE: "1"
+    WEBHOOK_BACKOFF_SECONDS: "1"
+    WEBHOOK_CIRCUIT_RESET_MS: "5000"
+    # @example-end
     OBAN_RESCUE_AFTER_SECONDS: "${OBAN_RESCUE_AFTER_SECONDS:-10}"
     # traces go to Jaeger below; its UI is http://localhost:16686
     OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
@@ -84,6 +91,13 @@ services:
       default: { aliases: [node3.cluster] }
       db: {}
     environment: { <<: *env, NODE_HOST: node3.cluster }
+
+  # @example-start
+  # ≈ somebody else's server, receiving our webhooks (deploy/webhook-proof.sh)
+  hook-receiver:
+    image: nginx:1-alpine
+    volumes: ["./webhook-receiver.conf:/etc/nginx/nginx.conf:ro"]
+  # @example-end
 
   # ≈ a tracing backend (Jaeger, Tempo, Honeycomb …): where the nodes send spans.
   # In memory, for trying things out; the UI is http://localhost:16686.

@@ -169,6 +169,26 @@ assert a in s; open(p, "w").write(s.replace(a, "      [key] when byte_size(key) 
 PY
 }
 
+# Deliveries are signed with the wrong secret.
+patch_webhooksig() {
+  break_file "$example/lib/app/webhooks/services/delivery.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "Dandelion.Webhook.headers(endpoint.secret, id, body)"
+assert a in s; open(p, "w").write(s.replace(a, 'Dandelion.Webhook.headers("wrong-" <> endpoint.secret, id, body)'))
+PY
+}
+
+# The circuit never opens: a dead receiver is called again and again.
+patch_nobreaker() {
+  break_file "$example/lib/app/webhooks/workers/deliver.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "failure_threshold: 5,"
+assert a in s; open(p, "w").write(s.replace(a, "failure_threshold: 100_000,"))
+PY
+}
+
 # A node that is told to stop stops at once, cutting the requests it is serving.
 patch_rollingcut() { :; }
 
@@ -199,6 +219,12 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected webhooksig && control webhooksig "webhooks are signed with the wrong secret (Delivery.deliver/3)" \
+  "orders while the receiver is up:" "each signature recomputes from the secret and the raw body" "" webhook-proof.sh
+
+selected nobreaker && control nobreaker "the circuit never opens (failure_threshold: 100_000 in Deliver)" \
+  "the receiver goes away:" "the circuit for it opened on" "" webhook-proof.sh
 
 "$example/deploy/vendor-dandelion.sh" >/dev/null   # leave the copy unbroken
 echo "the controls run fail where they should"

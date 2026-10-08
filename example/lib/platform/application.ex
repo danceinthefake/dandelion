@@ -35,6 +35,8 @@ defmodule Platform.Application do
         {Dandelion.Cache, pubsub: Platform.Broadcast},
         # ≈ Redis INCR with an expiry: request limits, in memory on each node
         Dandelion.RateLimit,
+        # ≈ a circuit breaker + timeout + retry for calls to other services
+        Dandelion.Resilience,
         # ≈ Cloud Tasks + Cloud Scheduler: background jobs and cron
         {Oban, Platform.Queue.config()},
         # ≈ the web servers. Last, so it stops first: a node stops accepting requests

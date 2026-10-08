@@ -29,6 +29,8 @@ defmodule Dandelion.MixProject do
           Clustering: [Dandelion.Cluster, Dandelion.Cluster.Postgres],
           Cache: [Dandelion.Cache, Dandelion.Cache.Listener],
           "Jobs and events": [Dandelion.Queue, Dandelion.Queue.Ordered, Dandelion.PubSub],
+          Reliability: [Dandelion.RateLimit, Dandelion.Drain, Dandelion.Resilience],
+          "Talking to other services": [Dandelion.Webhook],
           Database: [Dandelion.Migration]
         ]
       ]

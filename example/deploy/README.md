@@ -38,6 +38,9 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/webhook-proof.sh`: an admin registers a URL; each new order is delivered to it
+  once, signed (the signature is recomputed outside the app); with the receiver stopped
+  the circuit opens and the deliveries wait; when it returns every event arrives;
 - `./deploy/rolling-proof.sh`: a rolling deploy — node1, node2, node3 stopped and started
   in turn under load, with slow clients mid-request: no request is cut off by a stopping
   node, no order is lost or made twice, one cron leader after;

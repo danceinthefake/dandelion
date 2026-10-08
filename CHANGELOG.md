@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- `Dandelion.Resilience`: `call/3` runs a function with a timeout, retries with
+  backoff and jitter, and a per-name circuit breaker (opens after N failures in a
+  row, lets one call through after a while). Per node. Telemetry for calls and
+  circuit changes.
+- `Dandelion.Webhook`: `headers/4` signs a request body (HMAC-SHA256 of
+  `id.timestamp.body`, the Standard Webhooks headers), `verify/4` checks one, with a
+  timestamp tolerance and several signatures for a secret being rotated.
+- The example sends webhooks: admins register URLs (`/api/webhooks`), every
+  `order.created` is delivered to each, signed, retried with a growing wait, with a
+  circuit per receiver, in its own `webhooks` queue. New dependency in the example:
+  `req`. New migration `create_webhook_endpoints`.
 - `Dandelion.RateLimit`: per-node request limits in memory (`hit/3`, fixed windows).
 - `Dandelion.Drain`: `start/1` marks a node as leaving and waits, `draining?/0` for
   the health check; call it from `prep_stop/1`.

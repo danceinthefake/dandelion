@@ -125,6 +125,20 @@ if config_env() == :prod do
     auth: {String.to_integer(System.get_env("RATE_LIMIT_AUTH") || "10"), :timer.minutes(1)},
     trust_forwarded_for: System.get_env("TRUST_FORWARDED_FOR") in ["1", "true"]
 
+  # @example-start
+  # Webhooks we send: http and private addresses are refused unless allowed (a
+  # private network's own receiver); WEBHOOK_BACKOFF_SECONDS is the wait before the
+  # first retry, doubling each time up to an hour.
+  config :acme,
+    webhook_allow_http: System.get_env("WEBHOOK_ALLOW_HTTP") in ["1", "true"],
+    webhook_allow_private: System.get_env("WEBHOOK_ALLOW_PRIVATE") in ["1", "true"],
+    webhook_timeout: String.to_integer(System.get_env("WEBHOOK_TIMEOUT_MS") || "5000"),
+    webhook_backoff_seconds: String.to_integer(System.get_env("WEBHOOK_BACKOFF_SECONDS") || "30"),
+    webhook_circuit_reset:
+      String.to_integer(System.get_env("WEBHOOK_CIRCUIT_RESET_MS") || "30000")
+
+  # @example-end
+
   # On SIGTERM: say "draining" on /health for this long, then stop
   config :acme, :drain_delay, String.to_integer(System.get_env("DRAIN_DELAY_MS") || "5000")
 

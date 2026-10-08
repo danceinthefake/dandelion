@@ -62,6 +62,13 @@ defmodule DandelionNew.GenerateTest do
     assert Map.has_key?(files, "lib/platform/web/fallback_handler.ex")
     refute files["lib/app/router.ex"] =~ "/orders"
     refute files["lib/app/router.ex"] =~ "Accounts"
+    refute files["lib/app/router.ex"] =~ "Webhooks"
+    refute files["mix.exs"] =~ ":req"
+    refute files["config/config.exs"] =~ "webhook"
+    refute files["config/runtime.exs"] =~ "WEBHOOK"
+    refute files["deploy/compose.cluster.yaml"] =~ "hook-receiver"
+    refute files["lib/platform/queue.ex"] =~ "webhooks"
+    refute Enum.any?(Map.keys(files), &(&1 =~ "webhook"))
     refute files["lib/platform/cron.ex"] =~ "ExpireUnpaidOrders"
     refute files["config/runtime.exs"] =~ "ExpireUnpaidOrders"
     refute files["README.md"] =~ "orders"
@@ -128,6 +135,20 @@ defmodule DandelionNew.GenerateTest do
       # the cross-node trace needs orders: only with the example
       assert files["deploy/cluster-proof.sh"] =~ "one trace, two nodes" == example?
     end
+  end
+
+  test "the example sends webhooks: a domain, a signed delivery, a receiver to try it on" do
+    files = files("my_app", "MyApp")
+
+    assert files["lib/app/webhooks/workers/deliver.ex"] =~ "Dandelion.Resilience"
+    assert files["lib/app/router.ex"] =~ "App.Webhooks.Routes.routes()"
+    assert files["mix.exs"] =~ ~S({:req, "~> 0.5"})
+    assert files["lib/platform/queue.ex"] =~ "webhooks: 5"
+    assert files["lib/platform/pubsub.ex"] =~ "FanOut"
+    assert files["deploy/compose.cluster.yaml"] =~ "hook-receiver"
+    assert files["deploy/webhook-proof.sh"] =~ "webhook proof passed"
+    assert files["config/runtime.exs"] =~ "WEBHOOK_ALLOW_PRIVATE"
+    refute files["mix.exs"] =~ "@example"
   end
 
   test "the example has logins: an accounts domain, guarded routes, a token socket" do
