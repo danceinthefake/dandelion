@@ -8,7 +8,7 @@
 #   2. Postgres goes away while orders are being made through the load balancer:
 #      killed (a crash), stopped cleanly, and frozen (connections open, no
 #      answers). Every order that was answered 201 is still there, every order has
-#      both its events (never one without the other), each handled exactly once,
+#      all its events (never some without the others), each handled exactly once,
 #      no node restarted, and one leader is back. While it hangs, requests get a
 #      quick 503, not a hung request or a 500.
 set -eu
@@ -48,6 +48,7 @@ for n in node1 node2 node3; do
   done
 done
 ./seed.sh >/dev/null
+SUBS=$(rpc node1 'IO.write(length(Platform.PubSub.subscriptions()["order.created"]))')
 tag="fail-$(date +%s)"
 
 # The leader is the node to cut off: the interesting one, the node whose job it is
@@ -57,7 +58,7 @@ N1=
 
 # ex NODE: runs the Elixir code on stdin on NODE (__TAG__, __N1__ filled in)
 ex() {
-  code=$(sed -e "s/__TAG__/$tag/g" -e "s/__N1__/$N1/g")
+  code=$(sed -e "s/__TAG__/$tag/g" -e "s/__SUBS__/$SUBS/g" -e "s/__N1__/$N1/g")
   rpc "$1" "$code"
 }
 db_up() { # NODE -> up | down
@@ -79,13 +80,13 @@ IO.write(:ok)
 ELIXIR
   done
 }
-# orders of this run that don't have exactly two completed order.created jobs
+# orders of this run that don't have exactly one completed order.created job per subscriber
 unfinished() {
   ex "$O1" <<'ELIXIR'
 %{rows: [[n]]} = Platform.Database.Repo.query!("""
   SELECT count(*) FROM orders o WHERE o.customer_email LIKE '__TAG__-%' AND
     (SELECT count(*) FROM oban_jobs j WHERE j.args->>'topic' = 'order.created'
-       AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> 2
+       AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> __SUBS__
 """)
 IO.write(n)
 ELIXIR
@@ -265,7 +266,7 @@ outage() {
   [ "$found" = "$good" ] || fail "$good orders were acknowledged, $found are in the database"
   ok "every one of the $good acknowledged orders is in the database afterwards"
 
-  until_is unfinished 0 120 || fail "$(unfinished) order(s) don't have exactly two completed subscriber jobs"
+  until_is unfinished 0 120 || fail "$(unfinished) order(s) don't have exactly one completed job per subscriber"
   discarded=$(ex "$O1" <<'ELIXIR'
 %{rows: [[n]]} = Platform.Database.Repo.query!("SELECT count(*) FROM oban_jobs WHERE args->'payload'->>'customer_email' LIKE '__TAG__-%' AND state = 'discarded'")
 IO.write(n)
@@ -277,7 +278,7 @@ ELIXIR
 IO.write(n)
 ELIXIR
 )
-  ok "all $total orders in the database (some of the $bad failures may have committed first) have exactly two completed subscriber jobs: an order never lacks its events, none ran twice"
+  ok "all $total orders in the database (some of the $bad failures may have committed first) have exactly one completed job per subscriber: an order never lacks its events, none ran twice"
 
   [ "$(restarts)" = "$before_restarts" ] || fail "a node restarted"
   for n in node1 node2 node3; do

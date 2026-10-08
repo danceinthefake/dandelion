@@ -9,7 +9,7 @@ cluster promises:
    not a second longer; when its database comes back it is whole again.
 2. **Postgres goes away under load** — killed, stopped cleanly, or frozen — while
    three clients make orders through the load balancer. Every order that was
-   answered 201 is still there afterwards, and **every order has both its events —
+   answered 201 is still there afterwards, and **every order has all its events —
    never an order without them, never an event twice** — and no node restarted.
 
 **Code:** nothing new in the library; this is Oban's leader election, the
@@ -44,7 +44,7 @@ orders through the load balancer the whole time. The same promises each time:
 |---|---|
 | a few hundred orders were answered 201 (251, 280 and 282 in the recorded run) and some failed during the outage | the outage was real |
 | **every acknowledged order is in the database** afterwards | Postgres's write-ahead log |
-| every order in the database has exactly **two completed subscriber jobs**, none discarded | the order and its events are one transaction |
+| every order in the database has exactly **one completed job per subscriber** (three of them now: confirmation, customer stats, webhook fan-out), none discarded | the order and its events are one transaction |
 | no node restarted, 3 nodes, `/health` 200, **exactly one cron leader again** | the pool and the cluster reconnect |
 
 **While the database is frozen**, the proof also checks what a client and a load

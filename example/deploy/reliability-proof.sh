@@ -6,7 +6,7 @@
 #      retry-after, while /health and the rest of the API keep working.
 #   2. Graceful shutdown: a node that is stopped under load says "draining" on
 #      /health first, finishes its requests, and exits cleanly; not one order
-#      is lost or made twice, none is cut off, and every order has both its events.
+#      is lost or made twice, none is cut off, and every order has all its events.
 #   3. Request timeouts: a client that promises a body and never sends it, and one
 #      that connects and says nothing, are cut off — they do not hold a node.
 #      (Last: the silent client takes two minutes.)
@@ -38,6 +38,7 @@ for n in node1 node2 node3; do
   done
 done
 ./seed.sh >/dev/null
+SUBS=$(rpc node1 'IO.write(length(Platform.PubSub.subscriptions()["order.created"]))')
 tag="rel-$(date +%s)"
 
 login() { # PASSWORD -> status; the response headers go to $hdr
@@ -166,15 +167,15 @@ for _ in $(seq 1 60); do
     %{rows: [[n]]} = Platform.Database.Repo.query!(\"\"\"
       SELECT count(*) FROM orders o WHERE o.customer_email LIKE '$tag-%' AND
         (SELECT count(*) FROM oban_jobs j WHERE j.args->>'topic' = 'order.created'
-           AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> 2
+           AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> $SUBS
     \"\"\")
     IO.write(n)
   ")
   [ "$open" = 0 ] && break
   sleep 1
 done
-[ "$open" = 0 ] || fail "$open orders don't have exactly two completed events"
-ok "every order has both its events, handled once"
+[ "$open" = 0 ] || fail "$open orders don't have exactly one completed job per subscriber"
+ok "every order has all its events (one per subscriber), handled once"
 echo "request timeouts:"
 answer=$(raw node1 '"POST /api/users HTTP/1.1\r\nhost: localhost\r\ncontent-type: application/json\r\ncontent-length: 100\r\n\r\n{"' 30000)
 case "$answer" in

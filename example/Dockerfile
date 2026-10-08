@@ -103,6 +103,11 @@ ENV LC_ALL=en_US.UTF-8
 WORKDIR "/app"
 RUN chown nobody /app
 
+# @example-start
+# where uploads go (a volume mounted here starts with this owner)
+RUN mkdir -p /data/uploads && chown nobody /data/uploads
+# @example-end
+
 # set runner ENV
 ENV MIX_ENV="prod"
 

@@ -1,0 +1,24 @@
+# commit: dd37a1a (+ uncommitted changes)
+# recorded: 2026-10-08T09:53Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/uploads-proof.sh (3 containers sharing one Docker volume; all three killed while a file is arriving)
+
+09:54:22 upload and download:
+09:54:22   ok  uploaded through the load balancer: file 1, sha256 fbad6c04b175782b…
+09:54:22   ok  12 downloads, answered by all 3 nodes, each byte for byte the file that was uploaded
+09:54:22   ok  a download is an attachment with nosniff: a browser never shows it as a page of ours
+09:54:22 whose it is:
+09:54:22   ok  another customer gets 404, no login gets 401
+09:54:22 what is accepted:
+09:54:23   ok  a script named picture.png and typed image/png is kept as what it is, text/plain (never as an image)
+09:54:23   ok  an executable named picture.png and typed image/png is refused (400): the bytes decide
+09:54:23   ok  5.5 MB and 7.5 MB are refused (413)
+09:54:23   ok  and the refused uploads left nothing in the directory
+09:54:23 ten at once:
+09:54:24   ok  10 uploads at once: 10 files, 10 ids, 10 keys, contents intact
+09:54:24 deleting:
+09:54:24   ok  deleted: 404 from every node, and the bytes are gone from the directory
+09:54:24 a node killed while a file is arriving:
+09:54:35   ok  all three nodes killed mid-upload: no half file in the directory, no row in the table
+09:54:35   ok  and the same upload works afterwards

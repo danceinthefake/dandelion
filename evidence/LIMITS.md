@@ -68,6 +68,12 @@ Said plainly, so nobody has to find out the hard way.
   (as in 09), not by dropping packets. The bound on staleness is the cache's TTL, one
   minute (measured 51 to 57 s); a flag read that can't reach Postgres returns the
   default, which is only right if you chose the default for that.
+- **Uploads** ([19](19-uploads/)). The directory is a Docker volume on one host: it
+  shows that nodes see one directory, not how NFS or a cloud file system behaves under
+  load, with locks, or when it is briefly unavailable. A file nothing points at (a
+  crash between the file and the row) is not collected automatically. No virus scan, no
+  quotas, nothing larger than 5 MB, no resumable upload. Downloads read the file from
+  disk each time (no cache, no range requests).
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

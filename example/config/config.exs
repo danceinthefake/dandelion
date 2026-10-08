@@ -37,6 +37,16 @@ config :acme, :drain_delay, 0
 # the first retry doubles each time (up to an hour); the circuit for a receiver that
 # keeps failing stays open this long before one request is tried again.
 # @example-start
+# Uploaded files (App.Files): one directory, which with several nodes must be a shared
+# mount (Dandelion.Storage), and the largest file accepted in bytes. The endpoint reads
+# a multipart body of up to 6 000 000 bytes (lib/platform/web/endpoint.ex).
+config :acme,
+  uploads_dir: "tmp/uploads",
+  upload_max_bytes: 5_000_000
+
+# @example-end
+
+# @example-start
 config :acme,
   webhook_allow_http: false,
   webhook_allow_private: false,

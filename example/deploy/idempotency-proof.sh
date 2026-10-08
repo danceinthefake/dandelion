@@ -28,6 +28,7 @@ for n in node1 node2 node3; do
   done
 done
 ./seed.sh >/dev/null
+SUBS=$(rpc node1 'IO.write(length(Platform.PubSub.subscriptions()["order.created"]))')
 tag="idem-$(date +%s)"
 admin=$(curl -s -X POST http://localhost:8080/api/session -H 'content-type: application/json' \
   -d '{"email":"admin@example.com","password":"local-password-1"}' | sed -n 's/.*"token":"\([^"]*\)".*/\1/p')
@@ -62,11 +63,11 @@ id=$(awk '{print $2}' "$out" | head -1)
 
 for _ in $(seq 1 60); do
   done_jobs=$(rpc node1 "%{rows: [[n]]} = Platform.Database.Repo.query!(\"SELECT count(*) FROM oban_jobs WHERE args->'payload'->>'order_id' = '$id' AND state = 'completed'\"); IO.write(n)")
-  [ "$done_jobs" = 2 ] && break
+  [ "$done_jobs" = "$SUBS" ] && break
   sleep 1
 done
-[ "$done_jobs" = 2 ] || fail "the order has $done_jobs completed events, want 2"
-ok "its two events ran once each (no event for the retries)"
+[ "$done_jobs" = "$SUBS" ] || fail "the order has $done_jobs completed events, want $SUBS"
+ok "its events ran once each, one per subscriber (no event for the retries)"
 
 echo "asking again later:"
 again=$(order "$tag-race" "$email")

@@ -28,6 +28,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`noinvalidate.log`](noinvalidate.log) | changing a flag does not clear the cached copy | `after the pause, orders answered: 201 …` (claim 18) | every node kept serving the old value |
 
+| [`uploadtype.log`](uploadtype.log) | the type of an upload is taken on trust (everything is an image) | `a script called picture.png … was kept as` (claim 19) | a script was stored and served as a PNG |
+
+| [`unshared.log`](unshared.log) | each node has its own uploads directory | `download 1 is not the uploaded file` (claim 19) | the other nodes did not have the file |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

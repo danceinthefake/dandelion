@@ -10,6 +10,12 @@ config :acme, Platform.Web.RateLimit,
   trust_forwarded_for: false
 
 # @example-start
+# uploads go to a directory of their own, emptied by the tests that use it
+config :acme, uploads_dir: Path.join(System.tmp_dir!(), "acme_test_uploads")
+
+# @example-end
+
+# @example-start
 # webhooks: no real network. Requests go to Req.Test stubs, hosts are not resolved.
 config :acme,
   webhook_allow_private: true,

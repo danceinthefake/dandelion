@@ -1,0 +1,14 @@
+# control: uploadtype
+# broken on purpose: the type of an upload is taken on trust: every file is an image (ContentType.detect/1)
+# expected: the proof FAILS after 'what is accepted:' and never reaches 'is kept as what it is, text/plain'
+# commit: dd37a1a, recorded 2026-10-08T09:51Z
+# verdict: ok
+
+09:50:56 upload and download:
+09:50:56   ok  uploaded through the load balancer: file 1, sha256 f7852e1ed165e83a…
+09:50:56   ok  12 downloads, answered by all 3 nodes, each byte for byte the file that was uploaded
+09:50:56   ok  a download is an attachment with nosniff: a browser never shows it as a page of ours
+09:50:56 whose it is:
+09:50:56   ok  another customer gets 404, no login gets 401
+09:50:56 what is accepted:
+09:50:56 FAIL  a script called picture.png, typed image/png, was kept as: {"id":2,"size":25,"filename":"picture.png","sha256":"5c140d35dcb46a622e2cedf5ef5cc3638cdffd1c118c9331f8c84669f0b74783","content_type":"image/png","created_at":"2026-10-08T09:50:56.731421Z"} 201

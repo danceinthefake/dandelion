@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- `Dandelion.Storage.Local`: uploaded files in a directory — `put/2` (atomic: copied
+  to a temporary file, then renamed; returns a random key, the size and the SHA-256),
+  `path/2`, `delete/2`, `keys/1`. A key is 128 bits of hex and nothing the client sent,
+  and a malformed one is never turned into a path. The directory must be shared by
+  all nodes (a mount) in a cluster.
+- The example takes uploads (`/api/files`): a customer uploads PNG, JPEG, PDF or text
+  (what a file is comes from its bytes, not from the name or the content type the client
+  gave), up to 5 MB, and downloads, lists or deletes their own files; an admin sees all.
+  Downloads are attachments with `nosniff`. New migration `create_stored_files`, a
+  multipart limit in the endpoint, `UPLOADS_DIR` / `UPLOAD_MAX_BYTES`, and a volume in
+  the cluster compose file.
 - `Dandelion.Flags`: settings and feature flags in a Postgres table
   (`Dandelion.Flags.Migration`), read through `Dandelion.Cache` and cleared on every
   node when one changes: `get/2`, `enabled?/2`, `put/2`, `delete/1`, `all/0`. A node

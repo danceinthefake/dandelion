@@ -9,7 +9,7 @@ stopped:
    **"draining"** on `/health` (503) while it still serves, then finishes its
    requests and exits **0** — no request is cut off, no order made through the load
    balancer is lost or made twice (clients retry with an `Idempotency-Key`), and
-   every order has both its events.
+   every order has all its events (one job per subscriber of `order.created`).
 3. **Request timeouts.** A client that promises a body and never sends it is
    answered 408 after 10 s; one that connects and says nothing is answered 408 and
    disconnected after about two minutes (two read timeouts); neither holds a node.
@@ -28,7 +28,7 @@ why each number is what it is.
 | the refusal says `retry-after`; `/health` and the catalogue answer 200 meanwhile | logins have their own count, and `/health` is never limited |
 | node2, told to stop, answers `/health` **503** while still serving; it is gone after ~5 s with exit code 0 | `Dandelion.Drain`, then the endpoint drains |
 | no request was cut off by the stopping node, and every order made through nginx during it was accepted (a few may have been refused by a database stall and retried: see claim 15) | the node kept accepting until the end of the delay, and finished what it had |
-| the database has exactly the orders that were accepted, each with two completed events | the order and its events are one transaction (claim 06); idempotency keys (claim 16) |
+| the database has exactly the orders that were accepted, each with one completed job per subscriber | the order and its events are one transaction (claim 06); idempotency keys (claim 16) |
 | a promised body that never arrives: `408` after 10 s; a silent client: `408` and closed after ~2 min | `Plug.Parsers` `read_timeout`; Thousand Island `read_timeout` |
 
 **Negative controls** ([`ratelimit.log`](../controls/ratelimit.log),

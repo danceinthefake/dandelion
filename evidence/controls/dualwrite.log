@@ -1,10 +1,10 @@
 # control: dualwrite
 # broken on purpose: an order's events are saved after its transaction, with a 1.5 s gap, not inside it (OrderService.create/2)
 # expected: the proof FAILS after 'acknowledged orders is in the database afterwards' and never reaches 'an order never lacks its events'
-# commit: 07285d7, recorded 2026-10-03T06:26Z
+# commit: dd37a1a, recorded 2026-10-08T10:40Z
 # verdict: ok
 
-06:23:47 Postgres killed (SIGKILL) under load:
-06:24:17   ok  orders made through nginx while Postgres was killed (SIGKILL) and started again: 30 answered 201, 14 failed during the outage
-06:24:17   ok  every one of the 30 acknowledged orders is in the database afterwards
-06:26:47 FAIL  3 order(s) don't have exactly two completed subscriber jobs
+10:37:34 Postgres killed (SIGKILL) under load:
+10:38:05   ok  orders made through nginx while Postgres was killed (SIGKILL) and started again: 36 answered 201, 7 failed during the outage
+10:38:05   ok  every one of the 36 acknowledged orders is in the database afterwards
+10:40:37 FAIL  3 order(s) don't have exactly one completed job per subscriber

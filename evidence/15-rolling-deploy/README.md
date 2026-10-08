@@ -10,7 +10,7 @@ orders are being made, and no client notices more than a retry:
   body (two of the four workers take about 1.5 s per order) are mid-request when a
   node is told to stop, and still get their answer;
 - clients that are told 503 (see below) ask again with the same `Idempotency-Key`:
-  **every order is accepted, none lost, none made twice**, each has both its events;
+  **every order is accepted, none lost, none made twice**, each has all its events (one job per subscriber);
 - Docker restarted nothing; exactly one cron leader afterwards.
 
 **Code:** `Dandelion.Drain` and the shutdown order (claim 14), idempotency keys

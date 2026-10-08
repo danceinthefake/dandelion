@@ -1,0 +1,9 @@
+# control: unshared
+# broken on purpose: each node has its own uploads directory instead of a shared one
+# expected: the proof FAILS after 'upload and download:' and never reaches '12 downloads, answered by all 3 nodes'
+# commit: dd37a1a, recorded 2026-10-08T09:52Z
+# verdict: ok
+
+09:51:53 upload and download:
+09:51:55   ok  uploaded through the load balancer: file 1, sha256 7b2ab2f30f0c1cb8…
+09:51:55 FAIL  download 1 is not the uploaded file

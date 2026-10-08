@@ -22,7 +22,10 @@ docker compose -f compose.cluster.yaml exec -T node1 bin/acme rpc '
 
   for {email, role} <- [{"admin@example.com", "admin"}, {"customer@example.com", "customer"}] do
     unless Platform.Database.Repos.UserRepo.get_by_email(email) do
-      {:ok, _} = App.Accounts.Services.UserService.register(%{"email" => email, "password" => "local-password-1"}, role)
+      # (two seeds at once: the one that lost finds the user is there)
+      with {:error, _} <- App.Accounts.Services.UserService.register(%{"email" => email, "password" => "local-password-1"}, role),
+           nil <- Platform.Database.Repos.UserRepo.get_by_email(email),
+           do: raise("can not seed #{email}")
     end
   end
 

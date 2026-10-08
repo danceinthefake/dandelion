@@ -31,7 +31,8 @@ defmodule Platform.Web.Endpoint do
   plug Platform.Web.RateLimit
 
   plug Plug.Parsers,
-    parsers: [:urlencoded, :multipart, :json],
+    # a multipart body (an upload) may be larger than the JSON and form ones
+    parsers: [:urlencoded, {:multipart, length: 6_000_000}, :json],
     pass: ["*/*"],
     # a client that stops sending its body is cut off, not waited for
     length: 1_000_000,

@@ -31,6 +31,8 @@ defmodule Dandelion.MixProject do
           "Jobs and events": [Dandelion.Queue, Dandelion.Queue.Ordered, Dandelion.PubSub],
           Reliability: [Dandelion.RateLimit, Dandelion.Drain, Dandelion.Resilience],
           "Talking to other services": [Dandelion.Webhook],
+          Files: [Dandelion.Storage, Dandelion.Storage.Local],
+          Settings: [Dandelion.Flags, Dandelion.Flags.Migration],
           Database: [Dandelion.Migration]
         ]
       ]

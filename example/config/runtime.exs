@@ -126,6 +126,16 @@ if config_env() == :prod do
     trust_forwarded_for: System.get_env("TRUST_FORWARDED_FOR") in ["1", "true"]
 
   # @example-start
+  # Uploaded files: a directory every node can see (a shared mount when there are
+  # several nodes); UPLOAD_MAX_BYTES is the largest file accepted (up to 5 000 000).
+  config :acme,
+    uploads_dir: System.get_env("UPLOADS_DIR") || "/data/uploads",
+    upload_max_bytes:
+      min(String.to_integer(System.get_env("UPLOAD_MAX_BYTES") || "5000000"), 5_000_000)
+
+  # @example-end
+
+  # @example-start
   # Webhooks we send: http and private addresses are refused unless allowed (a
   # private network's own receiver); WEBHOOK_BACKOFF_SECONDS is the wait before the
   # first retry, doubling each time up to an hour.

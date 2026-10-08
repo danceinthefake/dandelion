@@ -21,17 +21,18 @@ repository, and the commit it came from is at the top of each log.
 | [16](16-idempotency/) | The same order request 20 times at once is one order; a retry later, or after the nodes were killed mid-request, is that order again; the same key with another request is 409 | (the app: not in the library) | log + control |
 | [17](17-webhooks/) | An admin registers a URL; each order is sent to it once, signed (recomputed outside the app); with the receiver down the circuit opens and deliveries wait; when it returns every event arrives under its own id | `Dandelion.Webhook`, `Dandelion.Resilience` | log + 2 controls |
 | [18](18-flags/) | A flag changed through one node is seen by all three at once; a node that never heard the change serves the old value for at most the cache's minute, then reads Postgres | `Dandelion.Flags`, `Dandelion.Cache` | log + control |
+| [19](19-uploads/) | A file uploaded through the load balancer is downloaded byte for byte from all three nodes; it is the customer's own; what it is comes from its bytes; ten at once all arrive; nodes killed mid-upload leave no half file and no row | `Dandelion.Storage.Local` | log + 2 controls |
 | [12](12-auth/) | One login is accepted by all 3 nodes (signed token, no session); a customer sees only their own orders (404 for others'); prices are admin-only; a tampered token and an anonymous WebSocket are refused | (the app: not in the library) | log + GIF |
 | [11](11-tracing/) | One request is one trace in Jaeger, kept under the caller's trace id, and an order's jobs on another node are spans of the same trace | `Dandelion.PubSub`, `Queue.Ordered` (they carry the context) | log + GIF |
 | [10](10-metrics/) | `/metrics` is Prometheus text on every node, and the cluster size it reports follows the nodes (3 → 2 → 3 around a kill) | (the app; `Dandelion.Cache` emits the cache events) | log + GIF |
 | [09](09-network-partition/) | A network split: jobs and payments still run once, one cron leader; broadcasts lost, a cache goes stale and is emptied on the heal, presence merges | `Dandelion.Cache`, `Queue`, `Queue.Ordered`, `PubSub` | log + GIF + control |
 | [08](08-generated-projects/) | Generated projects compile, test and run as a cluster (with everything, without the frontend, without the example) | the generator | test output |
 
-**Negative controls** ([`controls/`](controls/)): twelve logs where one thing is
+**Negative controls** ([`controls/`](controls/)): fourteen logs where one thing is
 broken on purpose and the same proof **fails** where it should — ordering off
 (04), cache broadcast off (05), job rescue off (03), cache not emptied on rejoin
 (09), an order's events saved outside its transaction (13), the rate limit out (14), a node that
-does not say it is draining (14), the idempotency key ignored (16), a node that stops at once and cuts the requests it serves (15), webhooks signed with the wrong secret (17), a circuit that never opens (17), a flag change that doesn't clear the cache (18). A check that can't
+does not say it is draining (14), the idempotency key ignored (16), a node that stops at once and cuts the requests it serves (15), webhooks signed with the wrong secret (17), a circuit that never opens (17), a flag change that doesn't clear the cache (18), upload types taken on trust (19), nodes that don't share the directory (19). A check that can't
 fail proves nothing; these show these can.
 
 **Read [LIMITS.md](LIMITS.md)** — what is *not* proven.

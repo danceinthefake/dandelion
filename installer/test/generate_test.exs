@@ -64,6 +64,10 @@ defmodule DandelionNew.GenerateTest do
     refute files["lib/app/router.ex"] =~ "Accounts"
     refute files["lib/app/router.ex"] =~ "Webhooks"
     refute files["lib/app/router.ex"] =~ "Settings"
+    refute files["lib/app/router.ex"] =~ "Files"
+    refute files["config/config.exs"] =~ "uploads_dir"
+    refute files["Dockerfile"] =~ "uploads"
+    refute files["deploy/compose.cluster.yaml"] =~ "uploads"
     refute files["mix.exs"] =~ ":req"
     refute files["config/config.exs"] =~ "webhook"
     refute files["config/runtime.exs"] =~ "WEBHOOK"
@@ -163,6 +167,18 @@ defmodule DandelionNew.GenerateTest do
 
       assert Map.has_key?(files, "lib/app/settings/handlers/flag_handler.ex") == example?
     end
+  end
+
+  test "the example takes uploads: a files domain, a shared directory in the cluster" do
+    files = files("my_app", "MyApp")
+
+    assert files["lib/app/files/services/file_service.ex"] =~ "Dandelion.Storage.Local"
+    assert files["lib/app/router.ex"] =~ "App.Files.Routes.routes()"
+    assert files["deploy/compose.cluster.yaml"] =~ ~s("uploads:/data/uploads")
+    assert files["Dockerfile"] =~ "/data/uploads"
+    assert files["config/runtime.exs"] =~ "UPLOADS_DIR"
+    assert files["deploy/uploads-proof.sh"] =~ "uploads proof passed"
+    refute files["Dockerfile"] =~ "@example"
   end
 
   test "the example has logins: an accounts domain, guarded routes, a token socket" do

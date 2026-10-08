@@ -169,6 +169,26 @@ assert a in s; open(p, "w").write(s.replace(a, "      [key] when byte_size(key) 
 PY
 }
 
+# The type of an upload is taken on trust: anything is an image.
+patch_uploadtype() {
+  break_file "$example/lib/app/files/services/content_type.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "  def detect(path) do\n"
+assert a in s; open(p, "w").write(s.replace(a, "  def detect(_path), do: {:ok, \"image/png\"}\n\n  @doc false\n  def detect_for_real(path) do\n"))
+PY
+}
+
+# The nodes do not share the uploads directory: each has its own.
+patch_unshared() {
+  break_file "$example/deploy/compose.cluster.yaml" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = '  volumes: ["uploads:/data/uploads"]\n'
+assert a in s; open(p, "w").write(s.replace(a, ""))
+PY
+}
+
 # Changing a flag does not clear the other nodes' cached copy.
 patch_noinvalidate() {
   python3 - "$vendor/lib/dandelion/flags.ex" <<'PY'
@@ -229,6 +249,12 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected uploadtype && control uploadtype "the type of an upload is taken on trust: every file is an image (ContentType.detect/1)" \
+  "what is accepted:" "is kept as what it is, text/plain" "" uploads-proof.sh
+
+selected unshared && control unshared "each node has its own uploads directory instead of a shared one" \
+  "upload and download:" "12 downloads, answered by all 3 nodes" "" uploads-proof.sh
 
 selected noinvalidate && control noinvalidate "a flag change does not clear the cached copy (Dandelion.Flags.put/2 no longer calls Cache.delete)" \
   "pausing orders on a running cluster:" "the flag was set through one node" "" flags-proof.sh

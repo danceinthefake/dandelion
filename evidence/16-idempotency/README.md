@@ -5,7 +5,7 @@ however many times it is sent:
 
 1. **20 identical requests at once**, through the load balancer and so on all three
    nodes: one is answered 201, 19 are answered 200 (`idempotent-replayed: true`)
-   with the same order id; the database has **one** order; its two events ran
+   with the same order id; the database has **one** order; its events (one job per subscriber) ran
    **once** each.
 2. **A retry later**, on whichever node, is that order again (200).
 3. **The same key with a different request** is **409**, and makes nothing.

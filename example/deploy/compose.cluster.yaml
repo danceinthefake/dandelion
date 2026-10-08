@@ -16,9 +16,18 @@
 networks:
   db: {}
 
+# @example-start
+volumes:
+  uploads: {}
+# @example-end
+
 x-node: &node
   build: ..
   networks: [default, db]
+  # @example-start
+  # one directory for all three nodes: a file uploaded through one is downloaded from any
+  volumes: ["uploads:/data/uploads"]
+  # @example-end
   depends_on:
     migrate: { condition: service_completed_successfully }
   environment: &env

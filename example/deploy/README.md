@@ -38,6 +38,10 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/uploads-proof.sh`: a file uploaded through the load balancer is downloaded
+  byte for byte from all three nodes (one shared volume); it is the customer's own; what
+  it is comes from its bytes; ten uploads at once; deleting removes the bytes; nodes
+  killed mid-upload leave no half file and no row;
 - `./deploy/flags-proof.sh`: an admin pauses new orders with a flag, through one node: the
   next orders, answered by all three, are refused with a 503; a node split off from the
   cluster serves the old value for at most the cache's minute, then reads Postgres;

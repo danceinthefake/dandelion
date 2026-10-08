@@ -9,7 +9,7 @@
 #     again with the same Idempotency-Key, so an order is made once, never twice;
 #   - each node stops itself (exit 0, not killed) and rejoins: 3 nodes again
 #     before the next one is touched;
-#   - every acknowledged order is in the database, with exactly two completed
+#   - every acknowledged order is in the database, with exactly one completed job per subscriber
 #     events; one cron leader at the end; no container restarted by Docker.
 set -eu
 cd "$(dirname "$0")"
@@ -36,6 +36,7 @@ cluster_whole() { # every node sees the other two
 }
 cluster_whole || fail "the cluster is not whole before the deploy"
 ./seed.sh >/dev/null
+SUBS=$(rpc node1 'IO.write(length(Platform.PubSub.subscriptions()["order.created"]))')
 tag="roll-$(date +%s)"
 restarts() { docker inspect --format '{{.RestartCount}}' $(compose ps -q node1 node2 node3) | awk '{ s += $1 } END { print s }'; }
 before_restarts=$(restarts)
@@ -127,15 +128,15 @@ for _ in $(seq 1 90); do
     %{rows: [[n]]} = Platform.Database.Repo.query!(\"\"\"
       SELECT count(*) FROM orders o WHERE o.customer_email LIKE '$tag-%' AND
         (SELECT count(*) FROM oban_jobs j WHERE j.args->>'topic' = 'order.created'
-           AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> 2
+           AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> $SUBS
     \"\"\")
     IO.write(n)
   ")
   [ "$open" = 0 ] && break
   sleep 1
 done
-[ "$open" = 0 ] || fail "$open orders don't have exactly two completed events"
-ok "every order has both its events, handled once"
+[ "$open" = 0 ] || fail "$open orders don't have exactly one completed job per subscriber"
+ok "every order has all its events (one per subscriber), handled once"
 
 leaders=0
 for _ in $(seq 1 60); do

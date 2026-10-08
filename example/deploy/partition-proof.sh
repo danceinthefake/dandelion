@@ -40,7 +40,7 @@ tag="split-$(date +%s)"
 
 # ex NODE: runs the Elixir code on stdin on NODE (__N1__ … __SKU__ filled in)
 ex() {
-  code=$(sed -e "s/__N1__/$N1/g" -e "s/__N2__/$N2/g" -e "s/__N3__/$N3/g" \
+  code=$(sed -e "s/__SUBS__/$SUBS/g" -e "s/__N1__/$N1/g" -e "s/__N2__/$N2/g" -e "s/__N3__/$N3/g" \
              -e "s/__SKU2__/$sku2/g" -e "s/__SKU__/$sku/g" -e "s/__TAG__/$tag/g")
   rpc "$1" "$code"
 }
@@ -74,6 +74,7 @@ price_on() { rpc "$1" "{:ok, p} = App.Shop.Services.ProductService.get(\"$2\"); 
 cached_on() { rpc "$1" "IO.write(elem(Cachex.exists?(Dandelion.Cache, {:product, \"$2\"}), 1))"; }
 
 ./seed.sh >/dev/null
+SUBS=$(rpc node1 'IO.write(length(Platform.PubSub.subscriptions()["order.created"]))')
 for s in "$sku:1500" "$sku2:900"; do
   rpc node1 "Platform.Database.Repo.insert!(%App.Shop.Models.Product{sku: \"${s%%:*}\", name: \"Split\", price_cents: ${s##*:}})" >/dev/null
 done
@@ -170,8 +171,8 @@ rows = Platform.Database.Repo.all(from j in Oban.Job,
 IO.write("#{length(rows)} #{Enum.max(rows, fn -> 0 end)}")
 ELIXIR
 }
-until_is subs "20 1" 60 || fail "10 orders made on both sides: want 20 subscriber jobs completed in 1 attempt each, got '$(subs)'"
-ok "10 orders made on both sides: 20 subscriber jobs, each completed once (1 attempt)"
+until_is subs "$((10 * SUBS)) 1" 60 || fail "10 orders made on both sides: want $((10 * SUBS)) subscriber jobs completed in 1 attempt each, got '$(subs)'"
+ok "10 orders made on both sides: $((10 * SUBS)) subscriber jobs (one per subscriber per order), each completed once (1 attempt)"
 
 [ "$(leaders)" = 1 ] || fail "want exactly one cron leader during the split, got $(leaders)"
 ok "still exactly one cron leader during the split"
@@ -290,18 +291,18 @@ ok "presence has merged: every node sees all 3 viewers"
 until_is leaders 1 90 || fail "$(leaders) cron leaders after the flapping, want 1"
 ok "exactly one cron leader"
 
-orders_not_done() { # orders of this run without exactly two completed order.created jobs
+orders_not_done() { # orders of this run without exactly one completed order.created job per subscriber
   ex node1 <<'ELIXIR'
 %{rows: [[n]]} = Platform.Database.Repo.query!("""
   SELECT count(*) FROM orders o WHERE o.customer_email LIKE '__TAG__-%' AND
     (SELECT count(*) FROM oban_jobs j WHERE j.args->>'topic' = 'order.created'
-       AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> 2
+       AND j.args->'payload'->>'order_id' = o.id::text AND j.state = 'completed') <> __SUBS__
 """)
 IO.write(n)
 ELIXIR
 }
-until_is orders_not_done 0 90 || fail "$(orders_not_done) of the flapping orders lack exactly two completed subscriber jobs"
-ok "all 10 orders have exactly two completed subscriber jobs: nothing lost, nothing twice"
+until_is orders_not_done 0 90 || fail "$(orders_not_done) of the flapping orders lack exactly one completed job per subscriber"
+ok "all 10 orders have exactly one completed job per subscriber: nothing lost, nothing twice"
 not_refunded() {
   ex node1 <<'ELIXIR'
 %{rows: [[n]]} = Platform.Database.Repo.query!("SELECT count(*) FROM orders WHERE customer_email LIKE '__TAG__-pay-%' AND status <> 'refunded'")

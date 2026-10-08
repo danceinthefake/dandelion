@@ -819,6 +819,35 @@ Decided 2026-10-08. A kill switch is the first thing wanted in an incident, and
   retry with an idempotency key); admins change flags at `/api/flags`. Every project,
   with or without the example, starts `Dandelion.Flags` and gets its table.
 
+### 10.17 Uploads on a directory the nodes share
+
+Decided 2026-10-08, for local disk (no cloud budget, and S3 is a second adapter away).
+
+- **Bytes in files, meaning in Postgres.** `Dandelion.Storage.Local` (library) keeps the
+  bytes under a random key; the app's `stored_files` row says whose they are, the name
+  to show, the type, the size and the SHA-256. A key is never made from what the client
+  sent, so no name can reach outside the directory.
+- **Write the file first, then the row.** A crash between them leaves a file nothing
+  points at (collectable: `Local.keys/1` lists what is there), never a row that points
+  at nothing. If the row can't be saved the file is removed. `put/2` copies to a
+  temporary file and renames, so a reader never sees half a file and a node killed
+  mid-upload leaves no file at all (the proof kills all three).
+- **What a file is comes from its bytes.** PNG, JPEG, PDF by their magic numbers; text
+  if the first 8 KB are valid UTF-8 with no NUL. A script called `picture.png` and typed
+  `image/png` is kept as `text/plain`; an executable called `picture.png` is refused. The
+  name is only for showing back (no path, no control characters, 255 characters).
+  Downloads are `attachment` + `nosniff`, with the type we worked out: a browser never
+  runs or renders an upload as a page of ours.
+- **The directory must be shared.** The load balancer sends a download to any node, so
+  the file a node took has to be readable by the others: a mount (NFS, EFS, a
+  `ReadWriteMany` volume, a Docker volume on one host). The proof shares one volume; its
+  negative control gives each node its own and fails. Without a shared mount, put the
+  files in object storage — an adapter with the same three functions.
+- **Limits:** 5 MB a file (`UPLOAD_MAX_BYTES`, at most 5 000 000), the endpoint reads a
+  multipart body up to 6 000 000 bytes (413 beyond), 10 s between reads of the body.
+  Nothing resumable, no virus scan, no image processing, no quotas per user (the rate
+  limit is the only brake).
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:
@@ -966,8 +995,8 @@ already emit `:telemetry` events, and tracing is another reader of them.
   jobs and its cache serves until the entries expire. On reconnect it recovers by
   itself.
 - **Postgres killed under load** (SIGKILL, three concurrent order-makers through
-  nginx): every acknowledged order survives, every order has exactly two completed
-  events — the property that publishing inside the transaction buys. A negative
+  nginx): every acknowledged order survives, every order has exactly one completed job per subscriber
+  (two when this was written, three with the webhook fan-out, 10.15) — the property that publishing inside the transaction buys. A negative
   control (events saved after the transaction, with a gap) fails it.
 - **A flapping split** (the partition proof's last part): five splits and heals
   in a row with orders, payments and refunds meanwhile; everything converges.

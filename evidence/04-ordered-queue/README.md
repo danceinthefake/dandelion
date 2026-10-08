@@ -11,7 +11,7 @@ back only its own order, until it is given back.
 
 **What the log shows** ([`run.log`](run.log)):
 
-- both subscribers of `order.created` completed, once each;
+- every subscriber of `order.created` completed, once each (the count is read from `Platform.PubSub`);
 - the webhook refuses a request without the token (401);
 - ten orders each get *payment, then refund*, sent in that order while the
   queue is held, then released to all three nodes. A refund that ran before

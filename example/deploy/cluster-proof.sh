@@ -88,6 +88,7 @@ ok "GET / serves the Vue app ($asset: 200)"
 # the products the orders below are made of (prices come from this table), and
 # the two users who make them
 ./seed.sh >/dev/null
+SUBS=$(rpc node1 'IO.write(length(Platform.PubSub.subscriptions()["order.created"]))')
 login() { # EMAIL -> a login token, through nginx
   curl -s -X POST http://localhost:8080/api/session -H 'content-type: application/json' \
     -d "{\"email\":\"$1\",\"password\":\"local-password-1\"}" |
@@ -132,9 +133,9 @@ subs() { # ORDER_ID -> how many order.created jobs for it are completed
     IO.write(Platform.Database.Repo.aggregate(from(j in Oban.Job, where: j.state == \"completed\" and fragment(\"args->>'topic' = 'order.created' AND args->'payload'->>'order_id' = ?\", ^\"$1\")), :count))
   "
 }
-for _ in $(seq 1 30); do [ "$(subs "$oid")" = 2 ] && break; sleep 1; done
-[ "$(subs "$oid")" = 2 ] || fail "order $oid: want both subscribers completed, got $(subs "$oid")"
-ok "order $oid: both order.created subscribers completed, once each"
+for _ in $(seq 1 30); do [ "$(subs "$oid")" = "$SUBS" ] && break; sleep 1; done
+[ "$(subs "$oid")" = "$SUBS" ] || fail "order $oid: want all $SUBS subscribers completed, got $(subs "$oid")"
+ok "order $oid: all $SUBS order.created subscribers completed, once each"
 
 # wait_status ORDER_ID STATUS: until the order has that status (40 s at most)
 order_status() { rpc node1 "{:ok, o} = App.Shop.Services.OrderService.get($1); IO.write(o.status)"; }

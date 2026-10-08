@@ -9,6 +9,7 @@ defmodule App.Router do
 
   require App.Accounts.Routes
   require App.Shop.Routes
+  require App.Files.Routes
   require App.Settings.Routes
   require App.Webhooks.Routes
   import Platform.Web.Routes
@@ -34,6 +35,9 @@ defmodule App.Router do
 
   # domain: shop
   App.Shop.Routes.routes()
+
+  # domain: files
+  App.Files.Routes.routes()
 
   # domain: settings
   App.Settings.Routes.routes()
