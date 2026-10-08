@@ -35,6 +35,8 @@ defmodule Platform.Application do
         {Dandelion.Cache, pubsub: Platform.Broadcast},
         # ≈ LaunchDarkly: settings an admin changes while the app runs, on every node
         {Dandelion.Flags, repo: Platform.Database.Repo},
+        # ≈ CloudTrail: who did what, appended in the transaction of the change
+        {Dandelion.Audit, repo: Platform.Database.Repo},
         # ≈ Redis INCR with an expiry: request limits, in memory on each node
         Dandelion.RateLimit,
         # ≈ a circuit breaker + timeout + retry for calls to other services

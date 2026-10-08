@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- `Dandelion.Audit`: `record/4` adds an entry (actor, action, subject, details, and the
+  request id) inside the transaction of the change it describes; `list/1` reads back, newest
+  first, filtered and paged; `prune/1` is retention. The table (`Dandelion.Audit.Migration`)
+  refuses UPDATE, DELETE and TRUNCATE with a trigger. `Dandelion.Flags.put/3` and
+  `delete/2` take `in_transaction:` to record with the change.
+- The example records its admin and security actions (flags, webhooks, prices, order
+  cancels and payments, file deletes, registrations, logins and failed logins) and serves
+  them at `/api/audit` (admins). Every project starts `Dandelion.Audit` and gets the table
+  (migration `add_audit`).
 - `Dandelion.Storage.Local`: uploaded files in a directory — `put/2` (atomic: copied
   to a temporary file, then renamed; returns a random key, the size and the SHA-256),
   `path/2`, `delete/2`, `keys/1`. A key is 128 bits of hex and nothing the client sent,

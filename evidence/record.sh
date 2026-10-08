@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
@@ -13,6 +13,7 @@
 #   webhooks  signed deliveries, a receiver that goes away and returns → 17
 #   flags     a setting changed while running, seen by every node → 18
 #   uploads   files kept on a directory the nodes share → 19
+#   audit     who did what, in an append-only table → 20
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -191,6 +192,8 @@ flags() { mkdir -p "$here/18-flags"; proof_run flags flags-proof.sh "$here/18-fl
 
 uploads() { mkdir -p "$here/19-uploads"; proof_run uploads uploads-proof.sh "$here/19-uploads" "3 containers sharing one Docker volume; all three killed while a file is arriving"; }
 
+audit() { mkdir -p "$here/20-audit"; proof_run audit audit-proof.sh "$here/20-audit" "3 containers behind nginx; changes made through the load balancer, then the table attacked from every node"; }
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -225,6 +228,7 @@ case "${1:-all}" in
   webhooks) webhooks ;;
   flags) flags ;;
   uploads) uploads ;;
-  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|controls|tests]" >&2; exit 2 ;;
+  audit) audit ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|controls|tests]" >&2; exit 2 ;;
 esac

@@ -5,6 +5,7 @@ defmodule App.Shop.Services.OrderService do
   No HTTP here (handlers do that) and no SQL (repos do that). Every function
   returns `{:ok, value}` or `{:error, reason}` — Elixir's `(value, err)`.
   """
+  alias App.Audit.Services.AuditService
   alias App.Shop.Models.Order
   alias App.Shop.Services.ProductService
   alias Platform.Database.Repo
@@ -192,8 +193,12 @@ defmodule App.Shop.Services.OrderService do
     Repo.transact(fn ->
       with {:ok, order} <- locked(id, scope(viewer)),
            :ok <- cancellable(order),
-           {:ok, order} <- OrderRepo.update_status(order, "cancelled") do
-        {:ok, Repo.preload(order, :items)}
+           {:ok, cancelled} <- OrderRepo.update_status(order, "cancelled") do
+        AuditService.record(AuditService.actor(viewer), "order.cancelled", "order:#{id}", %{
+          from: order.status
+        })
+
+        {:ok, Repo.preload(cancelled, :items)}
       end
     end)
   end
@@ -223,9 +228,24 @@ defmodule App.Shop.Services.OrderService do
   """
   @spec expire_unpaid(pos_integer()) :: non_neg_integer()
   def expire_unpaid(max_age_seconds) do
-    DateTime.utc_now()
-    |> DateTime.add(-max_age_seconds, :second)
-    |> OrderRepo.cancel_pending_before()
+    {:ok, count} =
+      Repo.transact(fn ->
+        count =
+          DateTime.utc_now()
+          |> DateTime.add(-max_age_seconds, :second)
+          |> OrderRepo.cancel_pending_before()
+
+        if count > 0,
+          do:
+            AuditService.record("system:expiry", "orders.expired", "orders", %{
+              count: count,
+              max_age_seconds: max_age_seconds
+            })
+
+        {:ok, count}
+      end)
+
+    count
   end
 
   # -- helpers -----------------------------------------------------------------
@@ -274,8 +294,10 @@ defmodule App.Shop.Services.OrderService do
 
   defp move(%Order{status: status} = order, to, from) when is_list(from) do
     if status in from do
-      with {:ok, order} <- OrderRepo.update_status(order, to) do
-        {:ok, Repo.preload(order, :items)}
+      with {:ok, moved} <- OrderRepo.update_status(order, to) do
+        # nobody asked: the payment provider did, through the webhook and its job
+        AuditService.record("system:payment", "order.#{to}", "order:#{order.id}", %{from: status})
+        {:ok, Repo.preload(moved, :items)}
       end
     else
       {:error, {:conflict, "a #{status} order can't become #{to}"}}

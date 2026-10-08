@@ -16,7 +16,7 @@ defmodule App.Shop.Handlers.ProductHandler do
 
   # PUT /api/products/TEA-01   {"price_cents": 1600}
   def update(conn, %{"sku" => sku} = params) do
-    with {:ok, product} <- ProductService.update_price(sku, params),
+    with {:ok, product} <- ProductService.update_price(sku, params, conn.assigns.current_user),
          do: json(conn, product_json(product))
   end
 

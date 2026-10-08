@@ -848,6 +848,34 @@ Decided 2026-10-08, for local disk (no cloud budget, and S3 is a second adapter 
   Nothing resumable, no virus scan, no image processing, no quotas per user (the rate
   limit is the only brake).
 
+### 10.18 An audit log
+
+Decided 2026-10-09. The admin API (flags, webhooks, prices) and the money-adjacent states
+(cancel, paid, refunded) change things people will later ask about; "who set that flag?"
+should not be answered from application logs that rotate.
+
+- **Library:** `Dandelion.Audit`, one table, `record/4` and `list/1`. **In the same
+  transaction as the change** — the rule `Dandelion.PubSub` already has: an entry exists
+  exactly when its change does, so a refused or rolled-back change leaves nothing and a
+  committed one cannot lack its record. Flags needed a hook for it
+  (`in_transaction:`), because they save first and clear caches after the commit.
+- **Append-only by the database.** A trigger refuses UPDATE, DELETE and TRUNCATE, from any
+  node, any code path. Retention is `prune/1`, which says so for the length of its own
+  transaction. A superuser can still disable the trigger, and entries are not hash-chained:
+  this stops accidents and honest bugs, not someone who owns the database.
+- **What an entry holds:** actor (`user:5`, `system:payment`, `anonymous`), action (`order.cancelled`,
+  filter by family with a trailing dot), subject (`order:42`), JSON details (from and to), and
+  the **request id** of the request that made it — the same id the response carried and the logs
+  and the trace have. Never secrets: the webhook secret and passwords are in no entry, and
+  the proof greps for them.
+- **Who is recorded:** a viewer's `user:<id>`; the payment provider's webhook, through its
+  job, is `system:payment`; the unpaid-order sweep is `system:expiry`. Logins record success
+  and failure (the failed one as `anonymous`, with the email as typed, trimmed and cut to 100
+  characters) — it is rate-limited (10 a minute a node) but it is a row per attempt, so
+  prune on a schedule.
+- **Not recorded:** reads, order creation (the order is its own record), uploads. Add a
+  `record/4` in the transaction of whatever else you want to answer for.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

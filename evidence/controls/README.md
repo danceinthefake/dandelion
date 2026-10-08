@@ -32,6 +32,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`unshared.log`](unshared.log) | each node has its own uploads directory | `download 1 is not the uploaded file` (claim 19) | the other nodes did not have the file |
 
+| [`noaudit.log`](noaudit.log) | a flag change is not recorded | `the admin's flag, webhook and price changes are there` is never reached (claim 20) | the log lacked a change |
+
+| [`mutable.log`](mutable.log) | the trigger lets UPDATE, DELETE and TRUNCATE through | `from every node, an UPDATE, a DELETE and a TRUNCATE are refused` is never reached (claim 20) | the log could be rewritten |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

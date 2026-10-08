@@ -72,28 +72,37 @@ defmodule Dandelion.Flags do
   @spec enabled?(String.t(), boolean()) :: boolean()
   def enabled?(key, default \\ false), do: get(key, default) == true
 
-  @doc "Sets a flag, on every node. Returns the value."
-  @spec put(String.t(), term()) :: {:ok, term()} | {:error, :invalid_key | :invalid_value}
-  def put(key, value) do
+  @doc """
+  Sets a flag, on every node. Returns the value.
+
+  `in_transaction: fun` runs `fun` in the same transaction as the change, before it
+  commits — the place for a `Dandelion.Audit.record/4`: the change and its record are
+  saved together. If `fun` raises, the flag is not changed.
+  """
+  @spec put(String.t(), term(), keyword()) ::
+          {:ok, term()} | {:error, :invalid_key | :invalid_value}
+  def put(key, value, opts \\ []) do
     with :ok <- check_key(key), :ok <- check_value(value) do
-      repo().query!(
-        """
-        INSERT INTO dandelion_flags (key, value, updated_at) VALUES ($1, $2, now())
-        ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
-        """,
-        [key, value]
-      )
+      changed(opts, fn ->
+        repo().query!(
+          """
+          INSERT INTO dandelion_flags (key, value, updated_at) VALUES ($1, $2, now())
+          ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = now()
+          """,
+          [key, value]
+        )
+      end)
 
       Cache.delete({:flag, key})
       {:ok, value}
     end
   end
 
-  @doc "Unsets a flag, on every node."
-  @spec delete(String.t()) :: :ok | {:error, :invalid_key}
-  def delete(key) do
+  @doc "Unsets a flag, on every node. Takes `in_transaction:` like `put/3`."
+  @spec delete(String.t(), keyword()) :: :ok | {:error, :invalid_key}
+  def delete(key, opts \\ []) do
     with :ok <- check_key(key) do
-      repo().query!("DELETE FROM dandelion_flags WHERE key = $1", [key])
+      changed(opts, fn -> repo().query!("DELETE FROM dandelion_flags WHERE key = $1", [key]) end)
       Cache.delete({:flag, key})
       :ok
     end
@@ -128,6 +137,17 @@ defmodule Dandelion.Flags do
         Logger.warning("Dandelion.Flags: can't read #{key}: #{Exception.message(error)}")
         nil
     end
+  end
+
+  # the change, and what the caller wants saved with it, in one transaction
+  defp changed(opts, change) do
+    {:ok, _} =
+      repo().transaction(fn ->
+        change.()
+        if fun = opts[:in_transaction], do: fun.()
+      end)
+
+    :ok
   end
 
   defp check_key(key), do: if(valid_key?(key), do: :ok, else: {:error, :invalid_key})

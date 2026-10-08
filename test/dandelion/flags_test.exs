@@ -107,4 +107,24 @@ defmodule Dandelion.FlagsTest do
     :persistent_term.put({Flags, :repo}, Dandelion.TestRepo)
     assert Flags.get(k, :safe) == "real"
   end
+
+  test "in_transaction runs with the change, and a failure there undoes it" do
+    k = key()
+    me = self()
+
+    assert {:ok, 1} = Flags.put(k, 1, in_transaction: fn -> send(me, :in_the_transaction) end)
+    assert_received :in_the_transaction
+
+    assert_raise RuntimeError, "audit failed", fn ->
+      Flags.put(k, 2, in_transaction: fn -> raise "audit failed" end)
+    end
+
+    Cache.delete({:flag, k})
+    assert Flags.get(k) == 1
+
+    assert_raise RuntimeError, fn -> Flags.delete(k, in_transaction: fn -> raise "no" end) end
+    assert Flags.get(k) == 1
+    assert :ok = Flags.delete(k, in_transaction: fn -> :ok end)
+    assert Flags.get(k) == nil
+  end
 end

@@ -33,6 +33,7 @@ defmodule Dandelion.MixProject do
           "Talking to other services": [Dandelion.Webhook],
           Files: [Dandelion.Storage, Dandelion.Storage.Local],
           Settings: [Dandelion.Flags, Dandelion.Flags.Migration],
+          Audit: [Dandelion.Audit, Dandelion.Audit.Migration],
           Database: [Dandelion.Migration]
         ]
       ]

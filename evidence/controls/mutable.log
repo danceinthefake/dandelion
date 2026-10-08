@@ -1,0 +1,21 @@
+# control: mutable
+# broken on purpose: the audit table accepts UPDATE, DELETE and TRUNCATE (the trigger lets everything through)
+# expected: the proof FAILS after 'the log cannot be rewritten:' and never reaches 'from every node, an UPDATE, a DELETE and a TRUNCATE are refused'
+# commit: fc116b0, recorded 2026-10-08T20:52Z
+# verdict: ok
+
+20:52:38 making changes through the load balancer:
+20:52:38   ok  7 changes made as the admin, answered by 3 different node(s)
+20:52:38   ok  and a customer registered, failed a login, logged in, ordered and cancelled
+20:52:38 what the log says:
+20:52:38   ok  the admin's flag, webhook and price changes are there, under user:1
+20:52:38   ok  the price change says what it was and what it became: 100 to 123
+20:52:38   ok  an entry carries the request id of the request that made it (GNypLAKPMCO7eMkAAA9N): the same one the response had
+20:52:38   ok  the customer's login and cancel are there, under user:3, about order 1
+20:52:38   ok  the failed login is there (actor anonymous, the email typed)
+20:52:38   ok  and the registration
+20:52:38   ok  no webhook secret and no password in any entry
+20:52:38 a refused change leaves nothing:
+20:52:38   ok  three refused changes (422, 404, 400): not one entry
+20:52:38 the log cannot be rewritten:
+20:52:39 FAIL  node1: 'UPDATE dandelion_audit SET actor = 'someone-else'' answered: ACCEPTED

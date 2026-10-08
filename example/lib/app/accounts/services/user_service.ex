@@ -5,6 +5,8 @@ defmodule App.Accounts.Services.UserService do
   """
   alias App.Accounts.Models.User
   alias App.Accounts.Services.Password
+  alias App.Audit.Services.AuditService
+  alias Platform.Database.Repo
   alias Platform.Database.Repos.UserRepo
 
   @doc """
@@ -19,11 +21,22 @@ defmodule App.Accounts.Services.UserService do
       changeset
       |> Ecto.Changeset.put_change(:password_hash, Password.hash(changeset.changes.password))
       |> Ecto.Changeset.delete_change(:password)
-      |> UserRepo.insert()
+      |> insert_and_record(role)
     else
       # (no hashing for input we are going to refuse)
       {:error, %{changeset | action: :insert}}
     end
+  end
+
+  # (the role is recorded: the one place an admin can come into being)
+  defp insert_and_record(changeset, role) do
+    Repo.transact(fn ->
+      with {:ok, user} <- UserRepo.insert(changeset) do
+        AuditService.record("user:#{user.id}", "user.registered", "user:#{user.id}", %{role: role})
+
+        {:ok, user}
+      end
+    end)
   end
 
   @doc """

@@ -74,6 +74,11 @@ Said plainly, so nobody has to find out the hard way.
   crash between the file and the row) is not collected automatically. No virus scan, no
   quotas, nothing larger than 5 MB, no resumable upload. Downloads read the file from
   disk each time (no cache, no range requests).
+- **Audit** ([20](20-audit/)). The log is append-only for the application and for anyone
+  using the app's database role without owning the table: a superuser or the table's owner can
+  disable the trigger, and entries are not hash-chained or signed, so this is not tamper-proof
+  evidence against a malicious DBA. Reads are not recorded. Each login attempt is a row (prune
+  it). The request id ties an entry to a request only as long as the logs and traces are kept.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

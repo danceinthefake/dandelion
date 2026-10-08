@@ -10,9 +10,11 @@ defmodule App.Files.Services.FileService do
   the file is removed; a crash in between leaves a file nothing points at (found with
   `Dandelion.Storage.Local.keys/1`), never a row that points at nothing.
   """
+  alias App.Audit.Services.AuditService
   alias App.Files.Models.StoredFile
   alias App.Files.Services.ContentType
   alias Dandelion.Storage.Local
+  alias Platform.Database.Repo
   alias Platform.Database.Repos.StoredFileRepo
 
   @max_name 255
@@ -84,8 +86,20 @@ defmodule App.Files.Services.FileService do
   @doc "Removes the row, then the bytes."
   @spec delete(integer(), viewer()) :: :ok | {:error, :not_found}
   def delete(id, viewer) do
-    with %StoredFile{} = file <- StoredFileRepo.get(id, scope(viewer)) || {:error, :not_found},
-         {:ok, _} <- StoredFileRepo.delete(file) do
+    result =
+      Repo.transact(fn ->
+        with %StoredFile{} = file <- StoredFileRepo.get(id, scope(viewer)) || {:error, :not_found},
+             {:ok, _} <- StoredFileRepo.delete(file) do
+          AuditService.record(AuditService.actor(viewer), "file.deleted", "file:#{id}", %{
+            filename: file.filename,
+            owner: file.user_id
+          })
+
+          {:ok, file}
+        end
+      end)
+
+    with {:ok, file} <- result do
       Local.delete(root(), file.storage_key)
       :ok
     end

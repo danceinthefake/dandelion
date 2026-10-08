@@ -169,6 +169,26 @@ assert a in s; open(p, "w").write(s.replace(a, "      [key] when byte_size(key) 
 PY
 }
 
+# Changing a flag is not recorded.
+patch_noaudit() {
+  break_file "$example/lib/app/settings/services/flag_service.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = 'AuditService.record(actor, "flag.set", "flag:#{key}", %{value: value})'
+assert a in s; open(p, "w").write(s.replace(a, ":ok"))
+PY
+}
+
+# The audit table accepts UPDATE, DELETE and TRUNCATE: the trigger lets everything through.
+patch_mutable() {
+  python3 - "$vendor/lib/dandelion/audit/migration.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "RAISE EXCEPTION 'dandelion_audit is append-only (% refused)', TG_OP;"
+assert a in s; open(p, "w").write(s.replace(a, "RETURN COALESCE(NEW, OLD);"))
+PY
+}
+
 # The type of an upload is taken on trust: anything is an image.
 patch_uploadtype() {
   break_file "$example/lib/app/files/services/content_type.ex" <<'PY'
@@ -249,6 +269,12 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected noaudit && control noaudit "a flag change is not recorded in the audit log (FlagService)" \
+  "making changes through the load balancer:" "the admin's flag, webhook and price changes are there" "" audit-proof.sh
+
+selected mutable && control mutable "the audit table accepts UPDATE, DELETE and TRUNCATE (the trigger lets everything through)" \
+  "the log cannot be rewritten:" "from every node, an UPDATE, a DELETE and a TRUNCATE are refused" "" audit-proof.sh
 
 selected uploadtype && control uploadtype "the type of an upload is taken on trust: every file is an image (ContentType.detect/1)" \
   "what is accepted:" "is kept as what it is, text/plain" "" uploads-proof.sh

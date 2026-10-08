@@ -16,13 +16,15 @@ defmodule App.Settings.Handlers.FlagHandler do
 
   # PUT /api/flags/orders.enabled   {"value": false}
   def update(conn, %{"key" => key, "value" => value}) do
-    with {:ok, flag} <- FlagService.put(key, value), do: json(conn, flag)
+    with {:ok, flag} <- FlagService.put(key, value, conn.assigns.current_user),
+         do: json(conn, flag)
   end
 
   def update(_conn, _params), do: {:error, {:invalid, "send {\"value\": …}"}}
 
   # DELETE /api/flags/orders.enabled
   def delete(conn, %{"key" => key}) do
-    with :ok <- FlagService.delete(key), do: send_resp(conn, :no_content, "")
+    with :ok <- FlagService.delete(key, conn.assigns.current_user),
+         do: send_resp(conn, :no_content, "")
   end
 end

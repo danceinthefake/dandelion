@@ -1,0 +1,11 @@
+# control: noaudit
+# broken on purpose: a flag change is not recorded in the audit log (FlagService)
+# expected: the proof FAILS after 'making changes through the load balancer:' and never reaches 'the admin's flag, webhook and price changes are there'
+# commit: fc116b0, recorded 2026-10-08T20:51Z
+# verdict: ok
+
+20:51:10 making changes through the load balancer:
+20:51:10   ok  7 changes made as the admin, answered by 3 different node(s)
+20:51:10   ok  and a customer registered, failed a login, logged in, ordered and cancelled
+20:51:10 what the log says:
+20:51:10 FAIL  no flag.set entry

@@ -12,7 +12,7 @@ defmodule App.Webhooks.Handlers.EndpointHandler do
 
   # POST /api/webhooks   {"url": "https://example.com/hook", "events": ["order.created"]}
   def create(conn, params) do
-    with {:ok, endpoint} <- EndpointService.create(params) do
+    with {:ok, endpoint} <- EndpointService.create(params, conn.assigns.current_user) do
       conn |> put_status(:created) |> json(EndpointJSON.endpoint(endpoint, secret: true))
     end
   end
@@ -24,7 +24,7 @@ defmodule App.Webhooks.Handlers.EndpointHandler do
   # DELETE /api/webhooks/:id
   def delete(conn, %{"id" => id}) do
     with {id, ""} <- Integer.parse(id),
-         :ok <- EndpointService.delete(id) do
+         :ok <- EndpointService.delete(id, conn.assigns.current_user) do
       send_resp(conn, :no_content, "")
     else
       :error -> {:error, :not_found}

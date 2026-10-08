@@ -65,6 +65,7 @@ defmodule DandelionNew.GenerateTest do
     refute files["lib/app/router.ex"] =~ "Webhooks"
     refute files["lib/app/router.ex"] =~ "Settings"
     refute files["lib/app/router.ex"] =~ "Files"
+    refute files["lib/app/router.ex"] =~ "Audit"
     refute files["config/config.exs"] =~ "uploads_dir"
     refute files["Dockerfile"] =~ "uploads"
     refute files["deploy/compose.cluster.yaml"] =~ "uploads"
@@ -179,6 +180,20 @@ defmodule DandelionNew.GenerateTest do
     assert files["config/runtime.exs"] =~ "UPLOADS_DIR"
     assert files["deploy/uploads-proof.sh"] =~ "uploads proof passed"
     refute files["Dockerfile"] =~ "@example"
+  end
+
+  test "every project keeps an audit log; the example records its admin actions and serves the log" do
+    for example? <- [true, false] do
+      files = files("my_app", "MyApp", example?, example?)
+
+      assert files["lib/platform/application.ex"] =~ "{Dandelion.Audit, repo:"
+
+      assert files["priv/repo/migrations/20261009000001_add_audit.exs"] =~
+               "Dandelion.Audit.Migration"
+
+      assert Map.has_key?(files, "lib/app/audit/handlers/audit_handler.ex") == example?
+      assert Map.has_key?(files, "deploy/audit-proof.sh") == example?
+    end
   end
 
   test "the example has logins: an accounts domain, guarded routes, a token socket" do

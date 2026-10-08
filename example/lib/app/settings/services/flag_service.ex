@@ -9,12 +9,19 @@ defmodule App.Settings.Services.FlagService do
       are answered 503 until it is turned back on. A kill switch for an incident or a
       migration; `OrderService.create/3` reads it.
   """
+  alias App.Audit.Services.AuditService
   alias Dandelion.Flags
 
   def list, do: Flags.all()
 
-  def put(key, value) do
-    case Flags.put(key, value) do
+  def put(key, value, viewer) do
+    actor = AuditService.actor(viewer)
+
+    case Flags.put(key, value,
+           in_transaction: fn ->
+             AuditService.record(actor, "flag.set", "flag:#{key}", %{value: value})
+           end
+         ) do
       {:ok, value} ->
         {:ok, %{key: key, value: value}}
 
@@ -26,8 +33,12 @@ defmodule App.Settings.Services.FlagService do
     end
   end
 
-  def delete(key) do
-    case Flags.delete(key) do
+  def delete(key, viewer) do
+    actor = AuditService.actor(viewer)
+
+    case Flags.delete(key,
+           in_transaction: fn -> AuditService.record(actor, "flag.deleted", "flag:#{key}") end
+         ) do
       :ok -> :ok
       {:error, :invalid_key} -> {:error, :not_found}
     end

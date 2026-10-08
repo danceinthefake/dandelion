@@ -3,7 +3,9 @@ defmodule App.Webhooks.Services.EndpointService do
   Who is told about what. ≈ Stripe's "webhook endpoints" API. Only admins manage
   them (the router says so); the secret is shown once, when the endpoint is made.
   """
+  alias App.Audit.Services.AuditService
   alias App.Webhooks.Models.Endpoint
+  alias Platform.Database.Repo
   alias Platform.Database.Repos.EndpointRepo
 
   # the events a receiver may ask for: the topics Platform.PubSub has a webhook
@@ -12,8 +14,26 @@ defmodule App.Webhooks.Services.EndpointService do
 
   def events, do: @events
 
-  @spec create(map()) :: {:ok, Endpoint.t()} | {:error, Ecto.Changeset.t()}
-  def create(params), do: params |> Endpoint.create_changeset(@events) |> EndpointRepo.insert()
+  @doc "Registers an endpoint, and records who did (never its secret)."
+  @spec create(map(), AuditService.viewer()) :: {:ok, Endpoint.t()} | {:error, Ecto.Changeset.t()}
+  def create(params, viewer \\ nil) do
+    Repo.transact(fn ->
+      with {:ok, endpoint} <-
+             params |> Endpoint.create_changeset(@events) |> EndpointRepo.insert() do
+        AuditService.record(
+          AuditService.actor(viewer),
+          "webhook.created",
+          "webhook:#{endpoint.id}",
+          %{
+            url: endpoint.url,
+            events: endpoint.events
+          }
+        )
+
+        {:ok, endpoint}
+      end
+    end)
+  end
 
   @spec list() :: [Endpoint.t()]
   def list, do: EndpointRepo.list()
@@ -26,9 +46,20 @@ defmodule App.Webhooks.Services.EndpointService do
     end
   end
 
-  @spec delete(integer()) :: :ok | {:error, :not_found}
-  def delete(id) do
-    with {:ok, endpoint} <- get(id), {:ok, _} <- EndpointRepo.delete(endpoint), do: :ok
+  @spec delete(integer(), AuditService.viewer()) :: :ok | {:error, :not_found}
+  def delete(id, viewer \\ nil) do
+    result =
+      Repo.transact(fn ->
+        with {:ok, endpoint} <- get(id), {:ok, _} <- EndpointRepo.delete(endpoint) do
+          AuditService.record(AuditService.actor(viewer), "webhook.deleted", "webhook:#{id}", %{
+            url: endpoint.url
+          })
+
+          {:ok, endpoint}
+        end
+      end)
+
+    with {:ok, _} <- result, do: :ok
   end
 
   @doc "The endpoints to tell about `event`."
