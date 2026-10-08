@@ -98,7 +98,10 @@ mix phx.server                 # http://localhost:4000
 ```
 
 It writes the model, repo, service, handler, migration, tests and routes in the
-project's own layout, behind the login. Add the rules (who may see what, a
+project's own layout, behind the login. The routes go in the domain's own file,
+`lib/app/billing/routes.ex`; a new domain also gets one line in
+[`lib/app/router.ex`](example/lib/app/router.ex), which mounts every domain
+(`mix phx.routes App.Router` lists them all). Add the rules (who may see what, a
 cancel, an event) by hand the way `lib/app/shop/` does.
 
 ## 8. Clean up
