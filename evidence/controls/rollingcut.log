@@ -1,0 +1,14 @@
+# control: rollingcut
+# broken on purpose: a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)
+# expected: the proof FAILS after 'a rolling deploy under load:' and never reaches 'no request was cut off by a node stopping'
+# commit: cdd383a, recorded 2026-10-08T07:50Z
+# verdict: ok
+
+07:49:50 a rolling deploy under load:
+07:49:50   14:49:50 stopping node1
+07:49:54   ok  node1 stopped itself (exit 0), started again, and the cluster is whole: 4 s
+07:49:57   14:49:57 stopping node2
+07:50:01   ok  node2 stopped itself (exit 0), started again, and the cluster is whole: 4 s
+07:50:04   14:50:04 stopping node3
+07:50:07   ok  node3 stopped itself (exit 0), started again, and the cluster is whole: 3 s
+07:50:12 FAIL  requests were cut off by a stopping node (status, count):       1 502 14:49:50 slow1       1 502 14:49:57 slow2 

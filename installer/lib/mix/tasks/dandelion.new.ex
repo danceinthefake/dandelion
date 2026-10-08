@@ -35,10 +35,13 @@ defmodule Mix.Tasks.Dandelion.New do
     priv/repo/migrations/20260930000002_create_products.exs
     priv/repo/migrations/20261002000001_create_users.exs
     priv/repo/migrations/20261002000002_add_user_to_orders.exs
+    priv/repo/migrations/20261008000001_add_idempotency_to_orders.exs
     deploy/seed.sh
     deploy/partition-proof.sh
     deploy/failure-proof.sh
     deploy/reliability-proof.sh
+    deploy/rolling-proof.sh
+    deploy/idempotency-proof.sh
     test/platform/pubsub_test.exs
   )
 

@@ -159,6 +159,19 @@ assert a in s; open(p, "w").write(s.replace(a, ""))
 PY
 }
 
+# The Idempotency-Key header is ignored: every request makes an order.
+patch_idempotency() {
+  break_file "$example/lib/app/shop/handlers/order_handler.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "      [key] when byte_size(key) in 1..255 -> {:ok, key}\n"
+assert a in s; open(p, "w").write(s.replace(a, "      [key] when byte_size(key) in 1..255 -> {:ok, nil}\n"))
+PY
+}
+
+# A node that is told to stop stops at once, cutting the requests it is serving.
+patch_rollingcut() { :; }
+
 # A job left by a dead node is given back after a day, not 10 seconds.
 patch_lifeline() { :; }
 
@@ -180,6 +193,12 @@ selected ratelimit && control ratelimit "nothing counts requests: the rate limit
 
 selected drain && control drain "a node told to stop does not say so: Dandelion.Drain.start/1 is no longer called (Platform.Application.prep_stop/1)" \
   "the limit is per node, 3 nodes x 3" "answered /health with 503 while it was still serving" "" reliability-proof.sh
+
+selected idempotency && control idempotency "the Idempotency-Key header is ignored: a repeated request makes another order (OrderHandler)" \
+  "the same request twenty times at once:" "its two events ran once each" "" idempotency-proof.sh
+
+selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
+  "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
 
 "$example/deploy/vendor-dandelion.sh" >/dev/null   # leave the copy unbroken
 echo "the controls run fail where they should"

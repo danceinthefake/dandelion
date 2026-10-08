@@ -38,6 +38,11 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/rolling-proof.sh`: a rolling deploy — node1, node2, node3 stopped and started
+  in turn under load, with slow clients mid-request: no request is cut off by a stopping
+  node, no order is lost or made twice, one cron leader after;
+- `./deploy/idempotency-proof.sh`: the same order request twenty times at once makes one
+  order; asking again later, or after the nodes were killed mid-request, returns it;
 - `./deploy/partition-proof.sh`: a network split (`node1 | node2 + node3`, both
   halves still reach Postgres): a live broadcast doesn't cross it, a cut-off
   cache goes stale and is emptied on the heal, jobs and ordered payments still

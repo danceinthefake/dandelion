@@ -96,4 +96,60 @@ defmodule App.Shop.Handlers.OrderHandlerTest do
              )
              |> json_response(409)
   end
+
+  describe "Idempotency-Key" do
+    defp keyed(conn, key), do: Plug.Conn.put_req_header(conn, "idempotency-key", key)
+
+    test "a retry with the same key and body returns the same order, once", %{conn: conn} do
+      first = conn |> keyed("k-1") |> post("/api/orders", order_params())
+      %{"id" => id} = json_response(first, 201)
+
+      second = conn |> keyed("k-1") |> post("/api/orders", order_params())
+      assert %{"id" => ^id} = json_response(second, 200)
+      assert Plug.Conn.get_resp_header(second, "idempotent-replayed") == ["true"]
+      assert Plug.Conn.get_resp_header(first, "idempotent-replayed") == []
+
+      assert %{"orders" => [%{"id" => ^id}]} =
+               conn |> get("/api/orders") |> json_response(200)
+    end
+
+    test "the same key with another request is a 409, and makes nothing", %{conn: conn} do
+      conn |> keyed("k-2") |> post("/api/orders", order_params()) |> json_response(201)
+
+      other = order_params(%{"customer_email" => "someone-else@example.com"})
+
+      assert %{"error" => message} =
+               conn |> keyed("k-2") |> post("/api/orders", other) |> json_response(409)
+
+      assert message =~ "Idempotency-Key"
+      assert %{"orders" => [_]} = conn |> get("/api/orders") |> json_response(200)
+    end
+
+    test "without a key, two identical requests are two orders", %{conn: conn} do
+      post(conn, "/api/orders", order_params()) |> json_response(201)
+      post(conn, "/api/orders", order_params()) |> json_response(201)
+      assert %{"orders" => [_, _]} = conn |> get("/api/orders") |> json_response(200)
+    end
+
+    test "a request that failed validation made nothing: the key can be used again", %{conn: conn} do
+      bad = order_params(%{"customer_email" => ""})
+      conn |> keyed("k-3") |> post("/api/orders", bad) |> json_response(422)
+      conn |> keyed("k-3") |> post("/api/orders", order_params()) |> json_response(201)
+    end
+
+    test "keys are per customer", %{conn: conn} do
+      conn |> keyed("k-4") |> post("/api/orders", order_params()) |> json_response(201)
+
+      other = Phoenix.ConnTest.build_conn() |> log_in(user_fixture())
+
+      assert %{"id" => _} =
+               other |> keyed("k-4") |> post("/api/orders", order_params()) |> json_response(201)
+    end
+
+    test "a key that is empty or too long is a 400", %{conn: conn} do
+      assert conn |> keyed("") |> post("/api/orders", order_params()) |> json_response(400)
+      long = String.duplicate("x", 256)
+      assert conn |> keyed(long) |> post("/api/orders", order_params()) |> json_response(400)
+    end
+  end
 end

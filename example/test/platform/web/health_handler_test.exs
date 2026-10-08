@@ -18,6 +18,17 @@ defmodule Platform.Web.HealthHandlerTest do
     assert Plug.Exception.actions(error) == []
   end
 
+  test "a statement the database cancelled (our timeout) is a 503, other database errors a 500" do
+    cancelled = %Postgrex.Error{
+      postgres: %{code: :query_canceled, message: "canceling statement"}
+    }
+
+    assert Plug.Exception.status(cancelled) == 503
+
+    other = %Postgrex.Error{postgres: %{code: :unique_violation, message: "duplicate"}}
+    assert Plug.Exception.status(other) == 500
+  end
+
   test "a database error that is not a connection problem stays a 500" do
     assert Plug.Exception.status(%RuntimeError{message: "boom"}) == 500
   end

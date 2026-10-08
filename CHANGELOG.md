@@ -10,6 +10,10 @@
   database stop), and rate limiting on `/api` (`Platform.Web.RateLimit`). Settings:
   `RATE_LIMIT_API`, `RATE_LIMIT_AUTH`, `TRUST_FORWARDED_FOR`, `MAX_CONNECTIONS`,
   `READ_TIMEOUT_MS`, `SHUTDOWN_TIMEOUT_MS`, `DRAIN_DELAY_MS`, `DB_QUERY_TIMEOUT_MS`.
+  - The example's `POST /api/orders` takes an `Idempotency-Key` (a retry returns the
+  same order, 200; another request with the same key is 409); a statement the
+  database cancelled at the query timeout is a 503, not a 500; nginx streams request
+  bodies. New migration `add_idempotency_to_orders`.
   These need the new library modules, so the next release raises the requirement
   (`dandelion ~> 0.2.1`).
 

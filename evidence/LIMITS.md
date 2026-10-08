@@ -44,6 +44,17 @@ Said plainly, so nobody has to find out the hard way.
   nginx, which does not read `/health`: it shows that nothing is lost, not that a
   health-checking balancer moves away within the delay. A stop longer than
   `stop_grace_period` is still a kill, and so is `SIGKILL` (that case is claim 03/13).
+- **Rolling deploy and retries** ([15](15-rolling-deploy/), [16](16-idempotency/)).
+  The deploy restarts the same image, not a new version, so a change of schema or
+  of the message format between versions is not exercised. Slow clients are
+  simulated with `curl --limit-rate` and nginx streaming the body. Several runs
+  saw a few requests answered 503 (some also 500 before the mapping was fixed)
+  while a node stopped: a Postgres `COMMIT` waited on the disk, and every commit
+  that notifies waited behind it. That is a property of Postgres's NOTIFY (and of
+  this machine's nearly full disk, which is not proven to be the cause); it
+  means a slow disk stalls all writers, and that clients must retry — which the
+  proof does, with idempotency keys. Idempotency keys are kept for the life of the
+  order, only on `POST /api/orders`, and a key is per customer.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

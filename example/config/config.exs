@@ -33,6 +33,9 @@ config :acme, Platform.Web.RateLimit,
 # "draining" (Dandelion.Drain), so the load balancer can move its traffic away.
 config :acme, :drain_delay, 0
 
+# lib/platform/web/database_unavailable.ex maps Postgrex.Error itself
+config :phoenix_ecto, exclude_ecto_exceptions_from_plug: [Postgrex.Error]
+
 # Tracing is off until an OTLP endpoint is given (config/runtime.exs): no
 # exporter means spans are made but go nowhere, and nothing tries to connect.
 config :opentelemetry, traces_exporter: :none

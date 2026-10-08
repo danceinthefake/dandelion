@@ -20,6 +20,9 @@ defmodule App.Shop.Models.Order do
     field :total_cents, :integer
     # who made it (App.Accounts); nil for orders made by the system
     field :user_id, :integer
+    # a client's retry key and a fingerprint of its request (OrderService.create/3)
+    field :idempotency_key, :string
+    field :request_hash, :string
     has_many :items, OrderItem
     timestamps()
   end

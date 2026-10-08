@@ -19,6 +19,12 @@ defmodule Platform.Database.Repos.OrderRepo do
     Order |> where(id: ^id) |> scoped(scope) |> Repo.one() |> Repo.preload(:items)
   end
 
+  @doc "A customer's order made with this idempotency key, with its items, or nil."
+  @spec get_by_key(integer(), String.t()) :: Order.t() | nil
+  def get_by_key(user_id, key) do
+    Order |> where(user_id: ^user_id, idempotency_key: ^key) |> Repo.one() |> Repo.preload(:items)
+  end
+
   @doc "Orders newest first, optionally by status, one page at a time, within `scope`."
   @spec list(%{
           required(:page) => pos_integer(),

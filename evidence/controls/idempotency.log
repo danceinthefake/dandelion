@@ -1,0 +1,8 @@
+# control: idempotency
+# broken on purpose: the Idempotency-Key header is ignored: a repeated request makes another order (OrderHandler)
+# expected: the proof FAILS after 'the same request twenty times at once:' and never reaches 'its two events ran once each'
+# commit: cdd383a, recorded 2026-10-08T07:46Z
+# verdict: ok
+
+07:46:27 the same request twenty times at once:
+07:46:27 FAIL  20 different orders came back

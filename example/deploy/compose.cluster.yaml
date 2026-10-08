@@ -30,6 +30,8 @@ x-node: &node
     # the proofs make hundreds of requests from one address: no limit in their way
     # (deploy/reliability-proof.sh sets real ones while it checks them). nginx
     # overwrites x-forwarded-for with the address it saw, so it is safe to trust.
+    SHUTDOWN_TIMEOUT_MS: "${SHUTDOWN_TIMEOUT_MS:-20000}"
+    DRAIN_DELAY_MS: "${DRAIN_DELAY_MS:-5000}"
     RATE_LIMIT_API: "100000"
     RATE_LIMIT_AUTH: "100000"
     TRUST_FORWARDED_FOR: "1"

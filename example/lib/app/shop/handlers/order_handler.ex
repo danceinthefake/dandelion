@@ -14,10 +14,23 @@ defmodule App.Shop.Handlers.OrderHandler do
 
   # POST /api/orders
   # {"customer_email": "sari@example.com", "items": [{"sku": "TEA-01", "quantity": 2}]}
-  # (prices come from the products table; see OrderService.create/1)
+  # (prices come from the products table; see OrderService.create/3)
+  #
+  # An `Idempotency-Key` header makes a retry safe: asking again with the same key
+  # and body answers 200 with the order that was made (and `idempotent-replayed:
+  # true`) instead of making a second one.
   def create(conn, params) do
-    with {:ok, order} <- OrderService.create(params, viewer(conn)) do
-      conn |> put_status(:created) |> json(OrderJSON.order(order))
+    with {:ok, key} <- idempotency_key(conn) do
+      case OrderService.create(params, viewer(conn), idempotency_key: key) do
+        {:ok, order} ->
+          conn |> put_status(:created) |> json(OrderJSON.order(order))
+
+        {:replayed, order} ->
+          conn |> put_resp_header("idempotent-replayed", "true") |> json(OrderJSON.order(order))
+
+        {:error, _} = error ->
+          error
+      end
     end
   end
 
@@ -47,6 +60,14 @@ defmodule App.Shop.Handlers.OrderHandler do
   # The logged-in user (App.Accounts.Handlers.Auth put them there): the service
   # decides what they may see.
   defp viewer(conn), do: conn.assigns.current_user
+
+  defp idempotency_key(conn) do
+    case get_req_header(conn, "idempotency-key") do
+      [] -> {:ok, nil}
+      [key] when byte_size(key) in 1..255 -> {:ok, key}
+      _ -> {:error, {:invalid, "Idempotency-Key must be one value of 1 to 255 characters"}}
+    end
+  end
 
   # Path ids are strings; anything that isn't a positive bigint is 404.
   defp id(value) do

@@ -724,6 +724,44 @@ with a number in config and a check in `deploy/reliability-proof.sh` (claim 14).
   that *overwrites* `x-forwarded-for`, `TRUST_FORWARDED_FOR=1` uses the header
   (nginx in the compose file does, with `$remote_addr`).
 
+### 10.14 Asking again: idempotency keys, and a rolling deploy
+
+Decided 2026-10-08. Telling clients "503, retry" (§10.13, §11.7) is only safe if a
+retry cannot make a second order. `POST /api/orders` takes an `Idempotency-Key`
+header (1 to 255 characters; optional).
+
+- **Saved with the order, in its transaction.** `orders.idempotency_key` and
+  `request_hash`, with a unique index on `(user_id, idempotency_key)`. An order
+  exists exactly when its key does, so whatever happened to the first request — the
+  node was stopped, the answer was lost, the database stalled — the retry finds the
+  order or makes it, never both. Postgres decides: no cache, no lock, nothing in
+  memory that a restart could lose.
+- **Same key, same request → the same order**, answered 200 with
+  `idempotent-replayed: true`, no new event. **Same key, different request → 409**,
+  nothing made. Keys are per customer. A request that failed validation made
+  nothing, so its key is free. The fingerprint is of what the client sent (email,
+  SKUs, quantities), not of the prices we added, so a price change between a request
+  and its retry is still the same request.
+- **Two retries racing** (twenty at once in the proof) are safe because of the
+  unique index: the loser's insert fails, and it answers with the winner's order.
+- **Not covered:** keys are kept as long as the order; there is no expiry. Only
+  `POST /api/orders` takes one — other writes (cancel, mark paid) are already safe to
+  repeat. `mix dandelion.gen.domain` does not generate keys.
+- **A rolling deploy** (stop and start the nodes one at a time under load) is the
+  test that ties §10.13 together: each node drains, exits 0, rejoins, and clients
+  that were told 503 retry with their key. Requests are held on the node by
+  streaming request bodies (`proxy_request_buffering off` in nginx; with buffering
+  the balancer absorbs a slow client and the node never sees it).
+- **Found while testing it:** on this machine, stopping a container made one
+  Postgres `COMMIT` wait several seconds on the disk (`IO:WalSync`), and every
+  commit that sends a `NOTIFY` waits behind it — Postgres takes a database-wide lock
+  while it queues a notification, held until the commit is on disk (our order
+  inserts notify through Oban). So a slow disk stalls every writer, not one. Those
+  requests hit the 5 s statement timeout and are now answered 503 (they were 500:
+  `Postgrex.Error` `query_canceled`), which is why retries with a key matter. Not
+  proven to be the host's disk rather than the app; it did not happen with the same
+  load and no node stopped, or with another container stopped (LIMITS.md).
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

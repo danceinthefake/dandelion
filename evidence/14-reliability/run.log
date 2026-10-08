@@ -1,21 +1,21 @@
-# commit: bc9374c (+ uncommitted changes)
-# recorded: 2026-10-08T02:07Z
+# commit: cdd383a (+ uncommitted changes)
+# recorded: 2026-10-08T07:57Z
 # machine: Linux 7.2.9-arch1-1, docker 29.8.2
 # runtime: 1.20.4, OTP 29
 # source: example/deploy/reliability-proof.sh (3 containers behind nginx; node2 stopped with docker stop under load)
 
-02:07:32 rate limiting (3 logins a minute per node, 20 wrong guesses):
-02:07:34   ok  of 20 guesses, 9 were checked (401) and 11 refused (429): the limit is per node, 3 nodes x 3
-02:07:34   ok  the refusal says when to come back: retry-after: 26
-02:07:34   ok  /health and the rest of the API still answer: logins have their own count
-02:07:35   ok  a limit lifted, the right password logs in again
-02:07:35 a node told to stop, under load:
-02:07:40   ok  node2, told to stop, answered /health with 503 while it was still serving
-02:07:45   ok  node2 stopped itself in 5 s and exited 0 (not killed)
-02:07:50   ok  all 408 orders made during it were answered 201, none refused
-02:07:53   ok  every acknowledged order is in the database
-02:07:54   ok  every order has both its events, handled once
-02:07:54 request timeouts:
-02:08:04   ok  a body that never arrives is cut off, not waited for (HTTP/1.1 408 Request Timeout)
-02:10:04   ok  a client that connects and says nothing is answered 408 and disconnected (after about two read timeouts: HTTP/1.0 408 Request Timeout)
-02:10:04   ok  connections are bounded at 4096 per node (set; not filled here: LIMITS.md)
+07:58:16 rate limiting (3 logins a minute per node, 20 wrong guesses):
+07:58:17   ok  of 20 guesses, 9 were checked (401) and 11 refused (429): the limit is per node, 3 nodes x 3
+07:58:17   ok  the refusal says when to come back: retry-after: 43
+07:58:17   ok  /health and the rest of the API still answer: logins have their own count
+07:58:18   ok  a limit lifted, the right password logs in again
+07:58:18 a node told to stop, under load:
+07:58:24   ok  node2, told to stop, answered /health with 503 while it was still serving
+07:58:29   ok  node2 stopped itself in 6 s and exited 0 (not killed)
+07:58:34   ok  no request was cut off (0 were refused by a database stall, and retried); all 387 orders were accepted
+07:58:37   ok  the database has exactly those 387 orders: none lost, none made twice
+07:58:37   ok  every order has both its events, handled once
+07:58:37 request timeouts:
+07:58:48   ok  a body that never arrives is cut off, not waited for (HTTP/1.1 408 Request Timeout)
+08:00:48   ok  a client that connects and says nothing is answered 408 and disconnected (after about two read timeouts: HTTP/1.0 408 Request Timeout)
+08:00:48   ok  connections are bounded at 4096 per node (set; not filled here: LIMITS.md)

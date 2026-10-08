@@ -5,8 +5,44 @@ defmodule App.Shop.Services.OrderServiceTest do
   import App.Shop.Fixtures
 
   alias App.Shop.Services.{OrderService, ProductService}
+  alias Platform.Database.Repo
 
   defp errors(changeset), do: Ecto.Changeset.traverse_errors(changeset, fn {msg, _} -> msg end)
+
+  describe "create/3 with an idempotency key" do
+    test "a retry returns the order and publishes nothing a second time" do
+      user = user_fixture()
+      viewer = %{id: user.id, role: user.role}
+
+      assert {:ok, order} = OrderService.create(order_params(), viewer, idempotency_key: "abc")
+      jobs = Repo.aggregate(Oban.Job, :count)
+
+      assert {:replayed, again} =
+               OrderService.create(order_params(), viewer, idempotency_key: "abc")
+
+      assert again.id == order.id
+      assert [_, _] = again.items
+      assert Repo.aggregate(Oban.Job, :count) == jobs
+    end
+
+    test "a price change between the request and its retry is still the same request" do
+      user = user_fixture()
+      viewer = %{id: user.id, role: user.role}
+      assert {:ok, order} = OrderService.create(order_params(), viewer, idempotency_key: "p")
+
+      Repo.update_all(App.Shop.Models.Product, set: [price_cents: 9999])
+
+      assert {:replayed, again} =
+               OrderService.create(order_params(), viewer, idempotency_key: "p")
+
+      assert again.id == order.id and again.total_cents == order.total_cents
+    end
+
+    test "without a user the key is ignored: the system has no one to retry for" do
+      assert {:ok, _} = OrderService.create(order_params(), nil, idempotency_key: "z")
+      assert {:ok, _} = OrderService.create(order_params(), nil, idempotency_key: "z")
+    end
+  end
 
   describe "create/1" do
     test "creates the order with its items and computes the total" do

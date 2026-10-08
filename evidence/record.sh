@@ -1,13 +1,15 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
 #   partition a network split, a flapping one, and the heal → 09
 #   failures  the leader cut off from Postgres; Postgres killed under load → 13
 #   reliability  rate limit, a node stopped under load, request timeouts → 14
+#   rolling   a rolling deploy under load → 15
+#   idempotency  a retried order is made once → 16
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -153,6 +155,33 @@ reliability() {
   } > "$here/14-reliability/run.log"
 }
 
+# proof_run NAME SCRIPT DIR SOURCE-NOTE: run one script of example/deploy on a fresh cluster, log -> DIR/run.log
+proof_run() {
+  local name=$1 script=$2 dir=$3 note=$4 marker
+  stamp
+  cluster_up
+  for _ in $(seq 1 40); do
+    n=$(docker compose -f "$example/deploy/compose.cluster.yaml" exec -T node1 bin/acme rpc 'IO.write(length(Node.list()))' 2>/dev/null || true)
+    [ "$n" = 2 ] && break
+    sleep 2
+  done
+  set +e
+  "$example/deploy/$script" 2>&1 | stamped > "$work/$name.log"
+  status=${PIPESTATUS[0]}
+  set -e
+  cluster_down
+  [ "$status" = 0 ] || { echo "$script failed, see $work/$name.log" >&2; exit 1; }
+  marker=$(grep -o "[a-z ]* proof passed$" "$work/$name.log" | tail -1 | sed 's/^[0-9: ]*//')
+  {
+    sed 's/^/# /' "$work/STAMP.txt"
+    echo "# source: example/deploy/$script ($note)"
+    echo
+    grep -v "proof passed" "$work/$name.log" | grep -v -E '^[0-9:]+ +Container '
+  } > "$dir/run.log"
+}
+rolling() { mkdir -p "$here/15-rolling-deploy"; proof_run rolling rolling-proof.sh "$here/15-rolling-deploy" "3 containers behind nginx; node1, node2, node3 stopped and started in turn under load"; }
+idempotency() { mkdir -p "$here/16-idempotency"; proof_run idempotency idempotency-proof.sh "$here/16-idempotency" "3 containers behind nginx; 20 identical requests at once; nodes killed mid-request"; }
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -182,6 +211,8 @@ case "${1:-all}" in
   partition) partition ;;
   failures) failures ;;
   reliability) reliability ;;
-  all) proof; live; partition; failures; reliability; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|controls|tests]" >&2; exit 2 ;;
+  rolling) rolling ;;
+  idempotency) idempotency ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|controls|tests]" >&2; exit 2 ;;
 esac

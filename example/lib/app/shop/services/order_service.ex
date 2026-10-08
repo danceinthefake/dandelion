@@ -40,21 +40,77 @@ defmodule App.Shop.Services.OrderService do
   The order belongs to `viewer` (a user, from the login — never from the
   request). Without one, it belongs to nobody: the system made it.
 
+  **Retrying safely.** With `idempotency_key: key` in `opts` (and a user), the key
+  is saved with the order in the same transaction. Asking again with the same key
+  and the same request returns `{:replayed, order}` — the order that was made,
+  nothing new, no second event. The same key with a different request is
+  `{:error, {:conflict, …}}`. Keys are per customer. A request that failed
+  validation made nothing, so its key is free to use again.
+
   After the commit the event also goes out live on `Platform.Broadcast`, for
   whoever is watching right now (every node).
   """
-  @spec create(map(), viewer()) :: {:ok, Order.t()} | {:error, error()}
-  def create(params, viewer \\ nil) do
-    with {:ok, params} <- price_items(params), do: insert_order(params, viewer)
+  @spec create(map(), viewer(), keyword()) ::
+          {:ok, Order.t()} | {:replayed, Order.t()} | {:error, error()}
+  def create(params, viewer \\ nil, opts \\ []) do
+    case {Keyword.get(opts, :idempotency_key), viewer} do
+      {key, %{}} when is_binary(key) -> create_once(params, viewer, key)
+      _ -> with {:ok, params} <- price_items(params), do: insert_order(params, viewer, nil)
+    end
   end
 
-  defp insert_order(params, viewer) do
+  # A client that didn't hear the answer asks again with the same key. The key is
+  # saved with the order in one transaction, so an order exists exactly when its
+  # key does: whatever happened to the first request (a node stopped, a 503, a
+  # lost response), the retry gets that order back, not a second one.
+  defp create_once(params, viewer, key) do
+    hash = fingerprint(params)
+
+    if OrderRepo.get_by_key(viewer.id, key),
+      do: replay(viewer, key, hash),
+      else: insert_keyed(params, viewer, key, hash)
+  end
+
+  defp insert_keyed(params, viewer, key, hash) do
+    with {:ok, priced} <- price_items(params) do
+      case insert_order(priced, viewer, {key, hash}) do
+        # a retry of the same key won the race while we were inserting
+        {:error, %Ecto.Changeset{errors: [idempotency_key: _]}} -> replay(viewer, key, hash)
+        result -> result
+      end
+    end
+  end
+
+  defp replay(viewer, key, hash) do
+    case OrderRepo.get_by_key(viewer.id, key) do
+      %Order{request_hash: ^hash} = order ->
+        {:replayed, order}
+
+      %Order{} ->
+        {:error, {:conflict, "this Idempotency-Key was already used for a different request"}}
+    end
+  end
+
+  # What the client asked for, not what we priced: a price change between a
+  # request and its retry doesn't make the retry a different request.
+  defp fingerprint(params) do
+    items =
+      for %{"sku" => sku, "quantity" => quantity} <- List.wrap(params["items"]),
+          do: [sku, quantity]
+
+    :sha256
+    |> :crypto.hash(:erlang.term_to_binary([params["customer_email"], items]))
+    |> Base.encode16(case: :lower)
+  end
+
+  defp insert_order(params, viewer, key) do
     result =
       Repo.transact(fn ->
         changeset =
           params
           |> Order.create_changeset()
           |> Ecto.Changeset.put_change(:user_id, viewer && viewer.id)
+          |> put_key(key)
 
         with {:ok, order} <- OrderRepo.insert(changeset) do
           PubSub.publish("order.created", %{
@@ -70,6 +126,17 @@ defmodule App.Shop.Services.OrderService do
       Phoenix.PubSub.broadcast(Platform.Broadcast, "orders", {:order_created, order})
       {:ok, order}
     end
+  end
+
+  defp put_key(changeset, nil), do: changeset
+
+  defp put_key(changeset, {key, hash}) do
+    changeset
+    |> Ecto.Changeset.put_change(:idempotency_key, key)
+    |> Ecto.Changeset.put_change(:request_hash, hash)
+    |> Ecto.Changeset.unique_constraint(:idempotency_key,
+      name: :orders_user_id_idempotency_key_index
+    )
   end
 
   @doc """

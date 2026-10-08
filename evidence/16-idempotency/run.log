@@ -1,0 +1,16 @@
+# commit: cdd383a (+ uncommitted changes)
+# recorded: 2026-10-08T07:51Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/idempotency-proof.sh (3 containers behind nginx; 20 identical requests at once; nodes killed mid-request)
+
+07:52:05 the same request twenty times at once:
+07:52:05   ok  20 requests, 1 order: 1 answered 201, 19 answered 200 with the same order
+07:52:05   ok  its two events ran once each (no event for the retries)
+07:52:05 asking again later:
+07:52:05   ok  a retry on a later request returns order 1 again
+07:52:05 the same key, a different request:
+07:52:05   ok  refused with 409, and nothing was made
+07:52:05 a request cut off, then asked again:
+07:52:14   ok  the nodes were killed mid-request (an order before the retry: 0); the retry left exactly one order
+07:52:14   ok  and asking once more returns it, still one order

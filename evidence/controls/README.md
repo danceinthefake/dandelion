@@ -18,6 +18,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`drain.log`](drain.log) | `Dandelion.Drain.start/1` is no longer called when a node is told to stop | `node2 never said it was draining on /health` (claim 14) | the node went from serving to gone, with no warning |
 
+| [`idempotency.log`](idempotency.log) | the `Idempotency-Key` header is ignored | `20 different orders came back` (claim 16) | every repeat made another order |
+
+| [`rollingcut.log`](rollingcut.log) | a stopping node neither waits nor lets requests in flight finish (`DRAIN_DELAY_MS=0`, `SHUTDOWN_TIMEOUT_MS=0`) | `requests were cut off by a stopping node` (claim 15) | the slow clients' requests got a 502 |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the
