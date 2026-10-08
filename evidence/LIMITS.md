@@ -63,6 +63,11 @@ Said plainly, so nobody has to find out the hard way.
   for themselves that a receiver is down, so three times the failed calls before
   all are quiet. Not tested: a receiver that answers slowly rather than not at all,
   one that answers 410, a very large backlog after a long outage.
+- **Flags** ([18](18-flags/)). One value for everyone (no targeting or rollouts), no
+  history of changes. The "cut off" node is split at the Erlang layer with cookies
+  (as in 09), not by dropping packets. The bound on staleness is the cache's TTL, one
+  minute (measured 51 to 57 s); a flag read that can't reach Postgres returns the
+  default, which is only right if you chose the default for that.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

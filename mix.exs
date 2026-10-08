@@ -47,6 +47,7 @@ defmodule Dandelion.MixProject do
   defp deps do
     [
       {:cachex, "~> 4.1"},
+      {:jason, "~> 1.2"},
       {:libcluster, "~> 3.5"},
       {:oban, "~> 2.24"},
       {:phoenix_pubsub, "~> 2.1"},

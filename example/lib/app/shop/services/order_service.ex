@@ -17,6 +17,7 @@ defmodule App.Shop.Services.OrderService do
 
   @type error ::
           :not_found
+          | {:unavailable, String.t()}
           | {:invalid, String.t()}
           | {:conflict, String.t()}
           | Ecto.Changeset.t()
@@ -47,12 +48,22 @@ defmodule App.Shop.Services.OrderService do
   `{:error, {:conflict, …}}`. Keys are per customer. A request that failed
   validation made nothing, so its key is free to use again.
 
+  While the flag `orders.enabled` is `false` (an admin pauses orders: `Dandelion.Flags`)
+  nothing is created and the answer is `{:error, {:unavailable, …}}`, retries with an
+  idempotency key included.
+
   After the commit the event also goes out live on `Platform.Broadcast`, for
   whoever is watching right now (every node).
   """
   @spec create(map(), viewer(), keyword()) ::
           {:ok, Order.t()} | {:replayed, Order.t()} | {:error, error()}
   def create(params, viewer \\ nil, opts \\ []) do
+    if Dandelion.Flags.enabled?("orders.enabled", true),
+      do: do_create(params, viewer, opts),
+      else: {:error, {:unavailable, "orders are paused, try again in a while"}}
+  end
+
+  defp do_create(params, viewer, opts) do
     case {Keyword.get(opts, :idempotency_key), viewer} do
       {key, %{}} when is_binary(key) -> create_once(params, viewer, key)
       _ -> with {:ok, params} <- price_items(params), do: insert_order(params, viewer, nil)

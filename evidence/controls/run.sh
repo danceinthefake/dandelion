@@ -169,6 +169,16 @@ assert a in s; open(p, "w").write(s.replace(a, "      [key] when byte_size(key) 
 PY
 }
 
+# Changing a flag does not clear the other nodes' cached copy.
+patch_noinvalidate() {
+  python3 - "$vendor/lib/dandelion/flags.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "      Cache.delete({:flag, key})\n      {:ok, value}"
+assert a in s; open(p, "w").write(s.replace(a, "      {:ok, value}"))
+PY
+}
+
 # Deliveries are signed with the wrong secret.
 patch_webhooksig() {
   break_file "$example/lib/app/webhooks/services/delivery.ex" <<'PY'
@@ -219,6 +229,9 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected noinvalidate && control noinvalidate "a flag change does not clear the cached copy (Dandelion.Flags.put/2 no longer calls Cache.delete)" \
+  "pausing orders on a running cluster:" "the flag was set through one node" "" flags-proof.sh
 
 selected webhooksig && control webhooksig "webhooks are signed with the wrong secret (Delivery.deliver/3)" \
   "orders while the receiver is up:" "each signature recomputes from the secret and the raw body" "" webhook-proof.sh

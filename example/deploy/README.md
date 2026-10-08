@@ -38,6 +38,9 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/flags-proof.sh`: an admin pauses new orders with a flag, through one node: the
+  next orders, answered by all three, are refused with a 503; a node split off from the
+  cluster serves the old value for at most the cache's minute, then reads Postgres;
 - `./deploy/webhook-proof.sh`: an admin registers a URL; each new order is delivered to it
   once, signed (the signature is recomputed outside the app); with the receiver stopped
   the circuit opens and the deliveries wait; when it returns every event arrives;

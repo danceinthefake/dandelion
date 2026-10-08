@@ -26,6 +26,8 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`nobreaker.log`](nobreaker.log) | the circuit never opens | `no node opened the circuit for the dead receiver` (claim 17) | a dead receiver was called again and again |
 
+| [`noinvalidate.log`](noinvalidate.log) | changing a flag does not clear the cached copy | `after the pause, orders answered: 201 …` (claim 18) | every node kept serving the old value |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

@@ -29,6 +29,7 @@ defmodule Mix.Tasks.Dandelion.New do
     lib/app/shop/ test/app/shop/ test/support/app/shop/
     lib/app/accounts/ test/app/accounts/ test/support/app/accounts/
     lib/app/webhooks/ test/app/webhooks/ test/support/app/webhooks/
+    lib/app/settings/ test/app/settings/
   )
   @example_files ~w(
     priv/repo/migrations/20260927000001_create_orders.exs
@@ -45,6 +46,7 @@ defmodule Mix.Tasks.Dandelion.New do
     deploy/rolling-proof.sh
     deploy/idempotency-proof.sh
     deploy/webhook-proof.sh
+    deploy/flags-proof.sh
     deploy/webhook-receiver.conf
     test/platform/pubsub_test.exs
   )
@@ -184,7 +186,7 @@ defmodule Mix.Tasks.Dandelion.New do
   defp without_example("lib/app/router.ex", contents) do
     contents
     |> replace!(
-      ~r/  require App\.Accounts\.Routes\n  require App\.Shop\.Routes\n  require App\.Webhooks\.Routes\n/,
+      ~r/  require App\.Accounts\.Routes\n  require App\.Shop\.Routes\n  require App\.Settings\.Routes\n  require App\.Webhooks\.Routes\n/,
       ""
     )
     |> replace!(

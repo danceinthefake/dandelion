@@ -794,6 +794,31 @@ server it doesn't control — so the first place a slow or dead one can hurt it.
   delivery time and refused if it now points inside. The remaining gap (a name that
   changes between our check and the connection) is real and is in LIMITS.md.
 
+### 10.16 Flags: settings that change while the app runs
+
+Decided 2026-10-08. A kill switch is the first thing wanted in an incident, and
+"redeploy with the new value" is the wrong speed for it.
+
+- **Library:** `Dandelion.Flags`. A table (`dandelion_flags`: key, jsonb value), read
+  through `Dandelion.Cache`, so a read costs nothing; `put/2` saves, then clears the
+  cached copy on every node (`Cache.delete/1`, after the commit — the rule §10.2
+  already has). Nothing new moves between nodes: it is the cache's own message.
+- **Postgres decides.** A node cut off from the others misses the message and serves
+  its old value until the cache entry expires (a minute), then reads the table. The
+  proof splits one node off and measures it: stale at once, fresh at 51–57 s. A flag
+  that is not set is cached too (as "not set"), so asking for one nobody set doesn't
+  query each time.
+- **Fails to the default you chose.** If Postgres can't be read and the value isn't
+  cached, `get/2` returns the default and logs. For a kill switch choose the safe
+  side (`enabled?("orders.enabled", true)`: orders stay on if the table can't be
+  read — a database that is down fails the order anyway).
+- **Not here:** per-user targeting or percentage rollouts (a flag is one value for
+  everyone; a map value and your own code can do more), a history of who changed what,
+  a UI. `Flags.put/2` takes no actor: audit what matters in the admin handler.
+- **The example:** `orders.enabled` pauses new orders (503 + `retry-after`, also for a
+  retry with an idempotency key); admins change flags at `/api/flags`. Every project,
+  with or without the example, starts `Dandelion.Flags` and gets its table.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

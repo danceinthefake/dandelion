@@ -63,6 +63,7 @@ defmodule DandelionNew.GenerateTest do
     refute files["lib/app/router.ex"] =~ "/orders"
     refute files["lib/app/router.ex"] =~ "Accounts"
     refute files["lib/app/router.ex"] =~ "Webhooks"
+    refute files["lib/app/router.ex"] =~ "Settings"
     refute files["mix.exs"] =~ ":req"
     refute files["config/config.exs"] =~ "webhook"
     refute files["config/runtime.exs"] =~ "WEBHOOK"
@@ -149,6 +150,19 @@ defmodule DandelionNew.GenerateTest do
     assert files["deploy/webhook-proof.sh"] =~ "webhook proof passed"
     assert files["config/runtime.exs"] =~ "WEBHOOK_ALLOW_PRIVATE"
     refute files["mix.exs"] =~ "@example"
+  end
+
+  test "every project can change settings while running; the example has the admin API for it" do
+    for example? <- [true, false] do
+      files = files("my_app", "MyApp", example?, example?)
+
+      assert files["lib/platform/application.ex"] =~ "{Dandelion.Flags, repo:"
+
+      assert files["priv/repo/migrations/20261008000003_add_flags.exs"] =~
+               "Dandelion.Flags.Migration"
+
+      assert Map.has_key?(files, "lib/app/settings/handlers/flag_handler.ex") == example?
+    end
   end
 
   test "the example has logins: an accounts domain, guarded routes, a token socket" do

@@ -7,6 +7,7 @@ defmodule Platform.Web.FallbackHandler do
       {:error, :not_found}           → 404
       {:error, {:conflict, message}} → 409
       {:error, {:invalid, message}}  → 400
+      {:error, {:unavailable, message}} → 503 (try again in a while)
   """
   use Platform.Web, :handler
 
@@ -17,6 +18,10 @@ defmodule Platform.Web.FallbackHandler do
   def call(conn, {:error, :not_found}), do: error(conn, :not_found, "not found")
   def call(conn, {:error, {:conflict, message}}), do: error(conn, :conflict, message)
   def call(conn, {:error, {:invalid, message}}), do: error(conn, :bad_request, message)
+
+  def call(conn, {:error, {:unavailable, message}}) do
+    conn |> put_resp_header("retry-after", "30") |> error(:service_unavailable, message)
+  end
 
   defp error(conn, status, message), do: conn |> put_status(status) |> json(%{error: message})
 

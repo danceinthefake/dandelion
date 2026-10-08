@@ -1,0 +1,9 @@
+# control: noinvalidate
+# broken on purpose: a flag change does not clear the cached copy (Dandelion.Flags.put/2 no longer calls Cache.delete)
+# expected: the proof FAILS after 'pausing orders on a running cluster:' and never reaches 'the flag was set through one node'
+# commit: 2df7fab, recorded 2026-10-08T09:35Z
+# verdict: ok
+
+09:35:27 pausing orders on a running cluster:
+09:35:27   ok  9 orders, spread over all 3 nodes, are accepted — every node has read the flag
+09:35:27 FAIL  after the pause, orders answered:  201 201 201 201 201 201 201 201 201 201 201 201

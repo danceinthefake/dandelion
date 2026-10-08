@@ -1,0 +1,16 @@
+# commit: 2df7fab (+ uncommitted changes)
+# recorded: 2026-10-08T09:36Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/flags-proof.sh (3 containers behind nginx; node3 split from the cluster by Erlang cookies, still reaching Postgres)
+
+09:36:25 pausing orders on a running cluster:
+09:36:25   ok  9 orders, spread over all 3 nodes, are accepted — every node has read the flag
+09:36:25   ok  the flag was set through one node: the next 12 orders, answered by all 3 nodes, were refused (503, retry-after: 30)
+09:36:25   ok  reading orders and /health are not paused
+09:36:25   ok  turned on again: 9 orders accepted, on every node
+09:36:25 a node that cannot hear the others:
+09:36:32   ok  node3 sees no other node but still reaches Postgres
+09:36:33   ok  node1 and node2 see it at once
+09:36:33   ok  node3 still serves the old value (it never heard the change)
+09:37:27   ok  node3 read the new value from Postgres 55 s after the change (the cache lasts 60 s)

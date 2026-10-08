@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+- `Dandelion.Flags`: settings and feature flags in a Postgres table
+  (`Dandelion.Flags.Migration`), read through `Dandelion.Cache` and cleared on every
+  node when one changes: `get/2`, `enabled?/2`, `put/2`, `delete/1`, `all/0`. A node
+  that missed the message serves the old value for at most the cache's TTL. If
+  Postgres can't be read, the default you gave is returned. New dependency: `jason`.
+- The example has an admin API for flags (`/api/flags`) and a flag that pauses new
+  orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
+  migration `add_flags` (every project gets it: `Platform.Application` starts
+  `Dandelion.Flags`).
 - `Dandelion.Resilience`: `call/3` runs a function with a timeout, retries with
   backoff and jitter, and a per-name circuit breaker (opens after N failures in a
   row, lets one call through after a while). Per node. Telemetry for calls and

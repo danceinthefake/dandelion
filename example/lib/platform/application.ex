@@ -33,6 +33,8 @@ defmodule Platform.Application do
         Platform.Realtime.Presence,
         # ≈ Redis as a cache: in memory on each node, cleared across nodes
         {Dandelion.Cache, pubsub: Platform.Broadcast},
+        # ≈ LaunchDarkly: settings an admin changes while the app runs, on every node
+        {Dandelion.Flags, repo: Platform.Database.Repo},
         # ≈ Redis INCR with an expiry: request limits, in memory on each node
         Dandelion.RateLimit,
         # ≈ a circuit breaker + timeout + retry for calls to other services
