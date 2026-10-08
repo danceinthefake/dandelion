@@ -54,6 +54,7 @@ end
 | `Dandelion.Queue.Ordered` | order per key, across nodes | SQS FIFO, Kafka partition keys |
 | `Dandelion.PubSub` | a topic → one Oban job per subscriber, in your transaction | Google Pub/Sub, Kafka topics |
 | `Dandelion.Storage.Local` | uploaded files in a directory, written atomically, found by random key | an S3 / Cloud Storage bucket (a shared directory here) |
+| `Dandelion.Search` | full-text search in Postgres: prefix words, ranking, snippets, typo fallback, safe against any input | Elasticsearch / Algolia for a catalogue-sized corpus |
 | `Dandelion.Audit` | who did what, appended in the transaction of the change; append-only table | CloudTrail / a hand-written audit table |
 | `Dandelion.Flags` | settings and feature flags changed while running, the same on every node | LaunchDarkly, Unleash, Consul KV |
 | `Dandelion.Resilience` | a call to another service with a timeout, retries and a circuit breaker | `gobreaker` + a retry loop + `context.WithTimeout` |

@@ -40,6 +40,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`mailnoretry.log`](mailnoretry.log) | a send that failed for a passing reason is forgotten | `all 6 arrived, each exactly once` is never reached (claim 21) | the mail sent while the server was down was lost |
 
+| [`unsafequery.log`](unsafequery.log) | what the user types reaches the query language | `14 nasty queries` is never reached (claim 22) | an operator typed into the box made the search fail |
+
+| [`noindex.log`](noindex.log) | the full-text index is never created | `the plan uses the GIN index` is never reached (claim 22) | every search read the whole table |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

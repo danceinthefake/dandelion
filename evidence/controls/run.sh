@@ -189,6 +189,28 @@ assert a in s; open(p, "w").write(s.replace(a, "{:error, {:temporary, _why}} -> 
 PY
 }
 
+# What the user types reaches the query language: words are only split on spaces.
+patch_unsafequery() {
+  python3 - "$vendor/lib/dandelion/search.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = 'if terms == [], do: nil, else: terms |> Enum.map(&"#{&1}:*") |> Enum.join(" & ")'
+assert a in s
+s = s.replace(a, 'if String.trim(input) == "", do: nil, else: input |> String.split() |> Enum.map(&"#{&1}:*") |> Enum.join(" & ")')
+open(p, "w").write(s)
+PY
+}
+
+# The full-text index is never made.
+patch_noindex() {
+  python3 - "$vendor/lib/dandelion/search/migration.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = 'execute("CREATE INDEX #{table}_#{column}_index ON #{table} USING gin (#{column})")'
+assert a in s; open(p, "w").write(s.replace(a, ":ok"))
+PY
+}
+
 # Changing a flag is not recorded.
 patch_noaudit() {
   break_file "$example/lib/app/settings/services/flag_service.ex" <<'PY'
@@ -289,6 +311,12 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected unsafequery && control unsafequery "what the user types reaches the query language (Dandelion.Search.tsquery/1 splits on spaces only)" \
+  "finding things:" "14 nasty queries" "" search-proof.sh
+
+selected noindex && control noindex "the full-text index is never created (Dandelion.Search.Migration.add_index/3)" \
+  "the index:" "the plan uses the GIN index" "" search-proof.sh
 
 selected mailnodedupe && control mailnodedupe "a message already sent is sent again when its job runs again (EmailService)" \
   "the job runs again:" "sent nothing: still one each" "" email-proof.sh

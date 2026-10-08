@@ -907,6 +907,40 @@ sends mail is mostly about what happens when it can't.
   server's webhook back to us), unsubscribe handling, a per-recipient send rate, DKIM/SPF
   (the mail server's job).
 
+### 10.20 Search
+
+Decided 2026-10-10. "Postgres replaces Elasticsearch" is only believable for the part that
+is true — a catalogue, a help centre, a few hundred thousand rows — and only if it is shown
+where it is weaker.
+
+- **No second system.** A generated `tsvector` column and a GIN index on the table itself: a
+  row is searchable when its transaction commits, a deleted row is gone from the next search,
+  on every node. Nothing is indexed on the side, so nothing can be late, lost, or need a
+  reindex after a deploy. The proof renames a product ten times through the load balancer and
+  searches for it by the new and the old name from all three nodes straight after: no stale
+  answer. That is the one property an external search index cannot give you cheaply.
+- **The user's text is data.** `Dandelion.Search.tsquery/1` keeps only letters and digits and
+  builds the query itself (`gre:* & tea:*`); the operators of Postgres's query language never
+  see user input, so no input can make it fail (the proof sends a SQL injection, quotes,
+  operators, 600 characters) and the text is a bound parameter anyway. `websearch_to_tsquery`
+  is safe from errors too, but has no prefix matching, and a search box wants one.
+- **`simple`, not a language.** The default configuration lower-cases and splits; it does not
+  stem and has no stop words, which suits product names and any language. Stemming
+  (`english`, `indonesian` …) is an option of the migration and the search. Accents are
+  removed on both sides with an immutable `unaccent` wrapper (an index can only use immutable
+  functions).
+- **Ranking** is weights by column (`:a` for the name, `:b` for the description) and
+  `ts_rank_cd`; ties by name. Good enough to put the product called "Green tea" before the cup
+  that mentions it, not relevance tuning.
+- **Typos are a fallback, said so.** If the words match nothing, similar *words* (trigram
+  `word_similarity`, a lowered threshold) are tried and the answer says `"match": "fuzzy"`.
+  A query that finds something is never mixed with guesses.
+- **Where it is weaker than a search engine:** no synonyms, no "did you mean", no faceting, no
+  per-language analysis beyond what Postgres ships, no relevance learning, and a very large
+  corpus (tens of millions of rows) or heavy write load on the same table are where a
+  dedicated engine earns its keep. Snippets are cut by Postgres from the stored text: plain
+  text with `[[` `]]` around matches, to be escaped by the client — never HTML of ours.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

@@ -201,6 +201,21 @@ defmodule DandelionNew.GenerateTest do
     refute files["config/runtime.exs"] =~ "@example-"
   end
 
+  test "the example searches its products with Postgres full-text search" do
+    files = files("my_app", "MyApp")
+
+    assert files["priv/repo/migrations/20261010000001_add_product_search.exs"] =~
+             "Dandelion.Search.Migration.add_index"
+
+    assert files["lib/app/shop/handlers/product_search_handler.ex"] =~ "ProductService.search"
+    assert files["lib/app/shop/services/product_service.ex"] =~ "Dandelion.Search.search"
+    assert files["deploy/search-proof.sh"] =~ "search proof passed"
+
+    bare = files("my_app", "MyApp", false)
+    refute Map.has_key?(bare, "lib/app/shop/handlers/product_search_handler.ex")
+    refute Map.has_key?(bare, "priv/repo/migrations/20261010000001_add_product_search.exs")
+  end
+
   test "every project keeps an audit log; the example records its admin actions and serves the log" do
     for example? <- [true, false] do
       files = files("my_app", "MyApp", example?, example?)

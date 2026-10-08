@@ -45,6 +45,7 @@ defmodule Mix.Tasks.Dandelion.New do
     priv/repo/migrations/20261008000002_create_webhook_endpoints.exs
     priv/repo/migrations/20261008000004_create_stored_files.exs
     priv/repo/migrations/20261009000002_create_outgoing_emails.exs
+    priv/repo/migrations/20261010000001_add_product_search.exs
     deploy/seed.sh
     deploy/partition-proof.sh
     deploy/failure-proof.sh
@@ -56,6 +57,7 @@ defmodule Mix.Tasks.Dandelion.New do
     deploy/uploads-proof.sh
     deploy/audit-proof.sh
     deploy/email-proof.sh
+    deploy/search-proof.sh
     deploy/webhook-receiver.conf
     test/platform/pubsub_test.exs
   )

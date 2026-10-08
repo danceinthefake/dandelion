@@ -38,6 +38,9 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/search-proof.sh`: with 20 000 products, prefix and multi-word search, accents, a
+  typo, nasty input; ten renames are searchable at once from all three nodes; the GIN index is
+  used, and 200 searches are timed;
 - `./deploy/email-proof.sh`: each order's confirmation reaches the mail server exactly once;
   with the mail server stopped, orders are still accepted at once, the circuit opens and the
   messages wait; when it returns all arrive, once each; running the job again sends nothing;

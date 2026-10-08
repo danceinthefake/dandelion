@@ -1,0 +1,25 @@
+# control: unsafequery
+# broken on purpose: what the user types reaches the query language (Dandelion.Search.tsquery/1 splits on spaces only)
+# expected: the proof FAILS after 'finding things:' and never reaches '14 nasty queries'
+# commit: ab224b1, recorded 2026-10-08T22:49Z
+# verdict: ok
+
+22:49:29 20 000 products:
+22:49:31   ok  20 000 products in the table
+22:49:31 finding things:
+22:49:31   ok  'gre tea' finds the green tea and the cup that mentions it, the product named for it first
+22:49:31   ok  the snippet marks the matching words ([[…]]), as plain text
+22:49:31   ok  accents and capitals are ignored: 'CAFE creme' finds 'Café crème'
+22:49:31   ok  a typo ('grean tea') finds it too, and the answer says "match":"fuzzy"
+22:49:31   query '&' answered 500
+22:49:31   query '|' answered 500
+22:49:31   query '!' answered 500
+22:49:31   query ''' answered 500
+22:49:32   query '(' answered 500
+22:49:32   query ')' answered 500
+22:49:32   query ':*' answered 500
+22:49:32   query 'tea & !' answered 500
+22:49:32   query '<->' answered 500
+22:49:32   query '' OR 1=1 --' answered 500
+22:49:32   query 'a:b' answered 500
+22:49:32 FAIL  11 queries made the search fail

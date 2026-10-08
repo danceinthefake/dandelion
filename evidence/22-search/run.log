@@ -1,0 +1,20 @@
+# commit: ab224b1 (+ uncommitted changes)
+# recorded: 2026-10-08T22:46Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/search-proof.sh (3 containers behind nginx; 20 000 products; renames searched from all three nodes)
+
+22:47:10 20 000 products:
+22:47:13   ok  20 000 products in the table
+22:47:13 finding things:
+22:47:13   ok  'gre tea' finds the green tea and the cup that mentions it, the product named for it first
+22:47:13   ok  the snippet marks the matching words ([[…]]), as plain text
+22:47:13   ok  accents and capitals are ignored: 'CAFE creme' finds 'Café crème'
+22:47:13   ok  a typo ('grean tea') finds it too, and the answer says "match":"fuzzy"
+22:47:13   ok  14 nasty queries (operators, quotes, a SQL injection, 600 characters): all answered 200
+22:47:13 a change is searchable at once, on every node:
+22:47:14   ok  10 renames through the load balancer, each searched 3 times (all three nodes) by the new and the old name: no stale answer
+22:47:14   ok  a deleted product is gone from the very next search, from every node
+22:47:14 the index:
+22:47:15   ok  the plan uses the GIN index (products_search_index), not a scan of 20 000 rows
+22:47:31   ok  200 searches through the load balancer over 20 000 products: median 0.073907s, p95 0.179894s, slowest 0.186602s

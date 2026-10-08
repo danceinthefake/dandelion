@@ -9,6 +9,17 @@
   (`Dandelion.Resilience`) and the messages wait; a refused address ends the job. Admins
   see what was sent at `/api/emails`. New dependencies in the example: `swoosh`,
   `gen_smtp`. New migration `create_outgoing_emails`, a `mail` queue.
+- `Dandelion.Search`: full-text search over a table, in Postgres. `Dandelion.Search.Migration`
+  adds a `search` column that Postgres keeps up to date itself (a generated `tsvector`, weighted
+  by column), a GIN index and a trigram index, and turns on `unaccent` and `pg_trgm`.
+  `search/4` takes the words a user typed — every word a prefix, all required, accents and case
+  ignored, nothing the user types can reach the query language — and returns ranked rows with a
+  total, optional `[[highlighted]]` snippets, and, with `fuzzy:`, a fallback to similar words when
+  nothing matched. `tsquery/1` is the input sanitiser on its own.
+- The example searches its products (`GET /api/search/products?q=`, public), and admins can
+  add, rename and remove products (`POST /api/products`, `PUT /api/products/:sku/details`,
+  `DELETE /api/products/:sku`; all audited). New migration `add_product_search` (a
+  `description` column and the index).
 - `Dandelion.Audit`: `record/4` adds an entry (actor, action, subject, details, and the
   request id) inside the transaction of the change it describes; `list/1` reads back, newest
   first, filtered and paged; `prune/1` is retention. The table (`Dandelion.Audit.Migration`)

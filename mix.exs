@@ -34,6 +34,7 @@ defmodule Dandelion.MixProject do
           Files: [Dandelion.Storage, Dandelion.Storage.Local],
           Settings: [Dandelion.Flags, Dandelion.Flags.Migration],
           Audit: [Dandelion.Audit, Dandelion.Audit.Migration],
+          Search: [Dandelion.Search, Dandelion.Search.Migration],
           Database: [Dandelion.Migration]
         ]
       ]

@@ -1,0 +1,20 @@
+# control: noindex
+# broken on purpose: the full-text index is never created (Dandelion.Search.Migration.add_index/3)
+# expected: the proof FAILS after 'the index:' and never reaches 'the plan uses the GIN index'
+# commit: ab224b1, recorded 2026-10-08T22:51Z
+# verdict: ok
+
+22:51:48 20 000 products:
+22:51:50   ok  20 000 products in the table
+22:51:50 finding things:
+22:51:50   ok  'gre tea' finds the green tea and the cup that mentions it, the product named for it first
+22:51:50   ok  the snippet marks the matching words ([[…]]), as plain text
+22:51:50   ok  accents and capitals are ignored: 'CAFE creme' finds 'Café crème'
+22:51:50   ok  a typo ('grean tea') finds it too, and the answer says "match":"fuzzy"
+22:51:50   ok  14 nasty queries (operators, quotes, a SQL injection, 600 characters): all answered 200
+22:51:50 a change is searchable at once, on every node:
+22:51:51   ok  10 renames through the load balancer, each searched 3 times (all three nodes) by the new and the old name: no stale answer
+22:51:51   ok  a deleted product is gone from the very next search, from every node
+22:51:51 the index:
+22:51:52 FAIL  the plan does not use the index: Seq Scan on products  (cost=0.00..921.05 rows=9 width=9)
+22:51:52   Filter: (search @@ '''tea'':* & ''ginger'':*'::tsquery)

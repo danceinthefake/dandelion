@@ -84,6 +84,12 @@ Said plainly, so nobody has to find out the hard way.
   not exercised, and a 5xx refusal is unit-tested (a fake adapter) rather than seen from a
   server. A message the server accepted just before a crash can be sent twice (one write wide).
   Nothing is done with bounces or complaints. Without `SMTP_HOST` mail is logged, not sent.
+- **Search** ([22](22-search/)). 20 000 products of synthetic names, not a real catalogue;
+  the timings (median and p95 through the load balancer) are measured on one machine and not a
+  claim about any other. Only the `simple` configuration was exercised (no stemming), and only
+  Latin text. There are no synonyms, facets or relevance tuning, and the typo fallback is
+  trigram similarity, which is weak for very short words. Search is public and not cached; its
+  cost is bounded only by the rate limit, 50 rows a page and 1 000 deep.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

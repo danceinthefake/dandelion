@@ -12,6 +12,7 @@ defmodule App.Shop.Routes do
         pipe_through :api
 
         get "/products/:sku", App.Shop.Handlers.ProductHandler, :show
+        get "/search/products", App.Shop.Handlers.ProductSearchHandler, :index
         post "/payments/webhook", App.Shop.Handlers.PaymentHandler, :webhook
       end
 
@@ -30,6 +31,9 @@ defmodule App.Shop.Routes do
         pipe_through [:api, :authenticated, :admin]
 
         put "/products/:sku", App.Shop.Handlers.ProductHandler, :update
+        post "/products", App.Shop.Handlers.ProductHandler, :create
+        put "/products/:sku/details", App.Shop.Handlers.ProductHandler, :update_details
+        delete "/products/:sku", App.Shop.Handlers.ProductHandler, :delete
       end
     end
   end
