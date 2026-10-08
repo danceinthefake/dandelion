@@ -1,0 +1,13 @@
+# control: drain
+# broken on purpose: a node told to stop does not say so: Dandelion.Drain.start/1 is no longer called (Platform.Application.prep_stop/1)
+# expected: the proof FAILS after 'the limit is per node, 3 nodes x 3' and never reaches 'answered /health with 503 while it was still serving'
+# commit: bc9374c, recorded 2026-10-08T02:12Z
+# verdict: ok
+
+02:11:49 rate limiting (3 logins a minute per node, 20 wrong guesses):
+02:11:51   ok  of 20 guesses, 9 were checked (401) and 11 refused (429): the limit is per node, 3 nodes x 3
+02:11:51   ok  the refusal says when to come back: retry-after: 9
+02:11:51   ok  /health and the rest of the API still answer: logins have their own count
+02:11:51   ok  a limit lifted, the right password logs in again
+02:11:51 a node told to stop, under load:
+02:12:03 FAIL  node2 never said it was draining on /health

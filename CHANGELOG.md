@@ -1,5 +1,18 @@
 # Changelog
 
+## Unreleased
+
+- `Dandelion.RateLimit`: per-node request limits in memory (`hit/3`, fixed windows).
+- `Dandelion.Drain`: `start/1` marks a node as leaving and waits, `draining?/0` for
+  the health check; call it from `prep_stop/1`.
+- Generated projects gain request and read timeouts, a connection limit, graceful
+  shutdown (a draining `/health`, then the endpoint drains before jobs and the
+  database stop), and rate limiting on `/api` (`Platform.Web.RateLimit`). Settings:
+  `RATE_LIMIT_API`, `RATE_LIMIT_AUTH`, `TRUST_FORWARDED_FOR`, `MAX_CONNECTIONS`,
+  `READ_TIMEOUT_MS`, `SHUTDOWN_TIMEOUT_MS`, `DRAIN_DELAY_MS`, `DB_QUERY_TIMEOUT_MS`.
+  These need the new library modules, so the next release raises the requirement
+  (`dandelion ~> 0.2.1`).
+
 ## 0.2.0
 
 - Jobs queued by `Dandelion.PubSub.publish/3` and `Dandelion.Queue.Ordered.insert/2`

@@ -27,10 +27,19 @@ x-node: &node
     RELEASE_COOKIE: local-only-cookie-local-only-cookie
     PHX_HOST: localhost
     PAYMENT_WEBHOOK_TOKEN: local-only-webhook-token
+    # the proofs make hundreds of requests from one address: no limit in their way
+    # (deploy/reliability-proof.sh sets real ones while it checks them). nginx
+    # overwrites x-forwarded-for with the address it saw, so it is safe to trust.
+    RATE_LIMIT_API: "100000"
+    RATE_LIMIT_AUTH: "100000"
+    TRUST_FORWARDED_FOR: "1"
     OBAN_RESCUE_AFTER_SECONDS: "${OBAN_RESCUE_AFTER_SECONDS:-10}"
     # traces go to Jaeger below; its UI is http://localhost:16686
     OTEL_EXPORTER_OTLP_ENDPOINT: http://jaeger:4318
   restart: unless-stopped
+  # on `docker stop` a node says "draining" for DRAIN_DELAY_MS (5 s), then finishes
+  # its requests (up to SHUTDOWN_TIMEOUT_MS, 20 s) and its running jobs: allow for it
+  stop_grace_period: 40s
 
 services:
   postgres:

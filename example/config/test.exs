@@ -3,6 +3,12 @@ import Config
 # Jobs are only run by tests themselves (Oban.Testing), no queues or cron.
 config :acme, Oban, testing: :manual
 
+# tests log in over and over from one address
+config :acme, Platform.Web.RateLimit,
+  api: {100_000, :timer.minutes(1)},
+  auth: {100_000, :timer.minutes(1)},
+  trust_forwarded_for: false
+
 config :acme, :payment_webhook_token, "test-token"
 
 # fast password hashing in tests (a real hash takes about a quarter of a second)

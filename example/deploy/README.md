@@ -33,6 +33,11 @@ http://localhost:8080. The proof script checks that:
   Postgres killed, stopped cleanly and frozen while orders are being made: every
   acknowledged order survives and every order has its events, once; a hung database
   gets a quick 503, not a hung request;
+- `./deploy/reliability-proof.sh`: a client guessing passwords is answered 429 with a
+  `retry-after` while `/health` and the rest of the API still work; a node stopped
+  under load says "draining" on `/health`, finishes its requests and exits 0, with
+  no order refused or lost; a request body that never arrives and a silent client
+  are cut off (about 3 minutes);
 - `./deploy/partition-proof.sh`: a network split (`node1 | node2 + node3`, both
   halves still reach Postgres): a live broadcast doesn't cross it, a cut-off
   cache goes stale and is emptied on the heal, jobs and ordered payments still

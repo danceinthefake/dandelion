@@ -27,9 +27,15 @@ defmodule Platform.Web.Endpoint do
   plug Plug.RequestId
   plug Plug.Telemetry, event_prefix: [:phoenix, :endpoint]
 
+  # before the body is read: a client over its limit costs almost nothing
+  plug Platform.Web.RateLimit
+
   plug Plug.Parsers,
     parsers: [:urlencoded, :multipart, :json],
     pass: ["*/*"],
+    # a client that stops sending its body is cut off, not waited for
+    length: 1_000_000,
+    read_timeout: 10_000,
     json_decoder: Phoenix.json_library()
 
   plug Plug.Head

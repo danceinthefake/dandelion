@@ -684,8 +684,45 @@ not the library: auth is the app's.
 - **Router pipelines say what each route needs** (`:authenticated`, `:admin`);
   public: the catalogue, `/health`, `/metrics` (its own token), the payment
   webhook (its own token).
-- **Not covered, said so:** password reset, email confirmation, lockout and rate
-  limiting (the load balancer's job, §10.8), 2FA, token revocation.
+- **Not covered, said so:** password reset, email confirmation, account lockout,
+  2FA, token revocation. (Per-address rate limiting is §10.13.)
+
+### 10.13 Reliability of the web layer
+
+Decided 2026-10-08. The database failures (§11.7) were about what Postgres does to
+the app; this is what clients, load and a stop signal do to it. Four things, each
+with a number in config and a check in `deploy/reliability-proof.sh` (claim 14).
+
+- **Request timeouts.** A body that stops arriving is cut off after 10 s (408,
+  `Plug.Parsers` `read_timeout`); a connection that sends nothing is closed after
+  `READ_TIMEOUT_MS` (60 s; Bandit answers 408 and closes after about two of them);
+  a query that has not answered in 5 s fails (`DB_QUERY_TIMEOUT_MS`), which the API
+  turns into a 503. There is **no deadline around a handler as a whole**: killing a
+  process in the middle of a transaction is a worse failure than a slow request, and
+  every handler here waits on the database, whose timeout bounds it.
+  `READ_TIMEOUT_MS` must stay above the WebSocket heartbeat (30 s), or idle browsers
+  are disconnected.
+- **Connection limit.** At most `MAX_CONNECTIONS` (4096) open connections per node;
+  the rest wait in the operating system's queue (Thousand Island), so a flood costs
+  time, not memory. Set and read back by the proof; not filled (LIMITS.md).
+- **Graceful shutdown.** `Dandelion.Drain` (library): on SIGTERM
+  `Platform.Application.prep_stop/1` flips the node to draining — `/health` answers
+  503 — and keeps serving for `DRAIN_DELAY_MS` (5 s) so the load balancer notices;
+  then the supervision tree stops in reverse order: the endpoint first, finishing
+  its requests for up to `SHUTDOWN_TIMEOUT_MS` (20 s), then the jobs, then the
+  database. The container's `stop_grace_period` (40 s) must be longer than all of it.
+  A load balancer that does not read `/health` still loses nothing: the node keeps
+  accepting until the end of the delay, and refused connections are retried.
+- **Rate limiting.** `Dandelion.RateLimit` (library): fixed windows in ETS, **per
+  node**. `Platform.Web.RateLimit` applies two buckets per client address on `/api`:
+  logging in and registering (10 a minute) and everything else (300 a minute);
+  `/health`, `/metrics` and the payment webhook are never limited. A 429 carries
+  `retry-after`. Per node on purpose: a limit that asks Postgres or the other nodes
+  on every request becomes the thing that fails when the cluster is struggling, and a
+  cluster of three allowing about three times the limit is fine for stopping a loop or
+  a password guesser. The client address is the connection's; behind a load balancer
+  that *overwrites* `x-forwarded-for`, `TRUST_FORWARDED_FOR=1` uses the header
+  (nginx in the compose file does, with `$remote_addr`).
 
 ## 11. The library
 

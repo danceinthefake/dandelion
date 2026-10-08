@@ -67,6 +67,9 @@ if config_env() == :prod do
     # ssl: true,
     url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "10"),
+    # a query that has not answered in 5 s fails (the API answers 503), instead
+    # of a request waiting on a database that hangs
+    timeout: String.to_integer(System.get_env("DB_QUERY_TIMEOUT_MS") || "5000"),
     # For machines with several cores, consider starting multiple pools of `pool_size`
     # pool_count: 4,
     socket_options: maybe_ipv6
@@ -100,9 +103,30 @@ if config_env() == :prod do
       # Set it to  {0, 0, 0, 0, 0, 0, 0, 1} for local network only access.
       # See the documentation on https://bandit.hexdocs.pm/Bandit.html#t:options/0
       # for details about using IPv6 vs IPv4 and loopback vs public addresses.
-      ip: {0, 0, 0, 0, 0, 0, 0, 0}
+      ip: {0, 0, 0, 0, 0, 0, 0, 0},
+      thousand_island_options: [
+        # at most this many connections open at once on this node; the rest
+        # wait in the operating system's queue instead of exhausting memory
+        num_connections: String.to_integer(System.get_env("MAX_CONNECTIONS") || "4096"),
+        # a client that sends nothing for this long is disconnected (a
+        # WebSocket sends pings, so it is not cut off)
+        read_timeout: String.to_integer(System.get_env("READ_TIMEOUT_MS") || "60000"),
+        # when the node stops: requests in flight get this long to finish
+        shutdown_timeout: String.to_integer(System.get_env("SHUTDOWN_TIMEOUT_MS") || "20000")
+      ]
     ],
     secret_key_base: secret_key_base
+
+  # Slow down clients that ask too much (requests per minute, per node); see
+  # Platform.Web.RateLimit. Behind a load balancer that overwrites x-forwarded-for
+  # with the address it saw, TRUST_FORWARDED_FOR=1 makes that the client's address.
+  config :acme, Platform.Web.RateLimit,
+    api: {String.to_integer(System.get_env("RATE_LIMIT_API") || "300"), :timer.minutes(1)},
+    auth: {String.to_integer(System.get_env("RATE_LIMIT_AUTH") || "10"), :timer.minutes(1)},
+    trust_forwarded_for: System.get_env("TRUST_FORWARDED_FOR") in ["1", "true"]
+
+  # On SIGTERM: say "draining" on /health for this long, then stop
+  config :acme, :drain_delay, String.to_integer(System.get_env("DRAIN_DELAY_MS") || "5000")
 
   # ## SSL Support
   #

@@ -38,6 +38,7 @@ defmodule Mix.Tasks.Dandelion.New do
     deploy/seed.sh
     deploy/partition-proof.sh
     deploy/failure-proof.sh
+    deploy/reliability-proof.sh
     test/platform/pubsub_test.exs
   )
 

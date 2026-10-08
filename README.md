@@ -53,6 +53,8 @@ end
 | `Dandelion.Queue` | the Oban setup: queues, lifeline, pruner, crontab | Cloud Tasks, Cloud Scheduler |
 | `Dandelion.Queue.Ordered` | order per key, across nodes | SQS FIFO, Kafka partition keys |
 | `Dandelion.PubSub` | a topic → one Oban job per subscriber, in your transaction | Google Pub/Sub, Kafka topics |
+| `Dandelion.RateLimit` | per-node request limits in memory (fixed windows) | a Redis `INCR` with an expiry |
+| `Dandelion.Drain` | tell the load balancer a node is leaving, then stop | a Kubernetes `preStop` hook + readiness probe |
 | `Dandelion.Migration` | the database index the ordered queue needs | — |
 
 ```elixir

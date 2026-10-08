@@ -1,0 +1,8 @@
+# control: ratelimit
+# broken on purpose: nothing counts requests: the rate limit plug is out of the endpoint
+# expected: the proof FAILS after 'rate limiting (3 logins' and never reaches 'the limit is per node, 3 nodes x 3'
+# commit: bc9374c, recorded 2026-10-08T02:11Z
+# verdict: ok
+
+02:10:50 rate limiting (3 logins a minute per node, 20 wrong guesses):
+02:10:53 FAIL  20 guesses were let through (3 nodes x 3 expected, at most 9):  401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401 401

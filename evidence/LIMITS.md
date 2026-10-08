@@ -29,11 +29,21 @@ Said plainly, so nobody has to find out the hard way.
   standard OTLP, so other backends should work, but none was tried. Sampling
   isn't exercised, and propagation through the ordered queue is unit-tested, not
   run in the cluster proof.
-- **The login is a starting point, not a hardened one.** No lockout or rate
-  limiting, no password reset or email confirmation, no two-factor, and a token
+- **The login is a starting point, not a hardened one.** Guessing is slowed by a
+  per-address rate limit (14), but there is no account lockout, no password reset or email confirmation, no two-factor, and a token
   can't be revoked before it expires (a day). Passwords use PBKDF2-SHA256 at
   OWASP's 2023 count; nothing here measures whether that is enough for your
   threat model.
+- **Reliability of the web layer** ([14](14-reliability/)). The rate limit is
+  per node and per address: a cluster of three allows about three times the limit,
+  and clients behind one address (a company NAT) share a count. The address is only
+  trusted from `x-forwarded-for` when you say so; that was not tested against a
+  spoofing client. The connection limit is read back, not filled (nothing opens
+  4096 connections here). There is no deadline around a whole handler, only on
+  reading the body, an idle connection and each query. The drain was exercised with
+  nginx, which does not read `/health`: it shows that nothing is lost, not that a
+  health-checking balancer moves away within the delay. A stop longer than
+  `stop_grace_period` is still a kill, and so is `SIGKILL` (that case is claim 03/13).
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

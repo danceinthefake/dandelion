@@ -14,6 +14,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`dualwrite.log`](dualwrite.log) | an order's events are saved after its transaction commits, with a 1.5 s gap, not inside it | `an order never lacks its events` (the failure proof, claim 13) | a crash fell into the gap: orders exist without their events |
 
+| [`ratelimit.log`](ratelimit.log) | the rate limit plug is out of the endpoint | `20 guesses were let through` (the reliability proof, claim 14) | nothing counted the guesses |
+
+| [`drain.log`](drain.log) | `Dandelion.Drain.start/1` is no longer called when a node is told to stop | `node2 never said it was draining on /health` (claim 14) | the node went from serving to gone, with no warning |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

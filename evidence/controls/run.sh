@@ -56,7 +56,21 @@ control() {
 # and put back after the control (and on exit, however the script ends).
 orig="$out/.order_service.ex.orig"
 order_service="$example/lib/app/shop/services/order_service.ex"
-restore_example() { [ -f "$orig" ] && mv "$orig" "$order_service" || true; }
+# Other files of the example broken for a control: the original is kept in
+# $out/.orig/N, with its path in N.path, and put back afterwards.
+mkdir -p "$out/.orig"
+break_file() { # FILE: remembers the original, then python (stdin) edits the file
+  local n; n=$(ls "$out/.orig" | wc -l)
+  cp "$1" "$out/.orig/$n"; echo "$1" > "$out/.orig/$n.path"
+  python3 - "$1"
+}
+restore_example() {
+  [ -f "$orig" ] && mv "$orig" "$order_service" || true
+  for p in "$out"/.orig/*.path; do
+    [ -f "$p" ] || continue
+    mv "${p%.path}" "$(cat "$p")" && rm "$p"
+  done
+}
 trap restore_example EXIT
 
 # An order's events are saved AFTER the order's transaction, with a long gap (so a
@@ -125,6 +139,26 @@ assert a in s; open(p, "w").write(s.replace(a, "    {:noreply, state}"))
 PY
 }
 
+# Nothing counts requests: the rate limit plug is no longer in the endpoint.
+patch_ratelimit() {
+  break_file "$example/lib/platform/web/endpoint.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "  plug Platform.Web.RateLimit\n"
+assert a in s; open(p, "w").write(s.replace(a, ""))
+PY
+}
+
+# A node told to stop does not say so: no waiting, /health stays 200 until it is gone.
+patch_drain() {
+  break_file "$example/lib/platform/application.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "    Dandelion.Drain.start(Application.fetch_env!(:acme, :drain_delay))\n"
+assert a in s; open(p, "w").write(s.replace(a, ""))
+PY
+}
+
 # A job left by a dead node is given back after a day, not 10 seconds.
 patch_lifeline() { :; }
 
@@ -140,6 +174,12 @@ selected rejoin && control rejoin "a node that rejoins after a split keeps its c
 
 selected dualwrite && control dualwrite "an order's events are saved after its transaction, with a 1.5 s gap, not inside it (OrderService.create/2)" \
   "acknowledged orders is in the database afterwards" "an order never lacks its events" "" failure-proof.sh "ONLY=load"
+
+selected ratelimit && control ratelimit "nothing counts requests: the rate limit plug is out of the endpoint" \
+  "rate limiting (3 logins" "the limit is per node, 3 nodes x 3" "" reliability-proof.sh
+
+selected drain && control drain "a node told to stop does not say so: Dandelion.Drain.start/1 is no longer called (Platform.Application.prep_stop/1)" \
+  "the limit is per node, 3 nodes x 3" "answered /health with 503 while it was still serving" "" reliability-proof.sh
 
 "$example/deploy/vendor-dandelion.sh" >/dev/null   # leave the copy unbroken
 echo "the controls run fail where they should"

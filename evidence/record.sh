@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
 #   partition a network split, a flapping one, and the heal → 09
 #   failures  the leader cut off from Postgres; Postgres killed under load → 13
+#   reliability  rate limit, a node stopped under load, request timeouts → 14
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -129,6 +130,29 @@ failures() {
   gif "$here/13-database-failures" failures.gif "13 — the leader loses its database; Postgres killed, stopped, frozen under load"
 }
 
+reliability() {
+  stamp
+  cluster_up
+  for _ in $(seq 1 40); do
+    n=$(docker compose -f "$example/deploy/compose.cluster.yaml" exec -T node1 bin/acme rpc 'IO.write(length(Node.list()))' 2>/dev/null || true)
+    [ "$n" = 2 ] && break
+    sleep 2
+  done
+  set +e
+  "$example/deploy/reliability-proof.sh" 2>&1 | stamped > "$work/reliability.log"
+  status=${PIPESTATUS[0]}
+  set -e
+  cluster_down
+  [ "$status" = 0 ] || { echo "the reliability proof failed, see $work/reliability.log" >&2; exit 1; }
+  grep -q "reliability proof passed" "$work/reliability.log"
+  {
+    sed 's/^/# /' "$work/STAMP.txt"
+    echo "# source: example/deploy/reliability-proof.sh (3 containers behind nginx; node2 stopped with docker stop under load)"
+    echo
+    grep -v "reliability proof passed" "$work/reliability.log" | grep -v -E '^[0-9:]+ +Container '
+  } > "$here/14-reliability/run.log"
+}
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -157,6 +181,7 @@ case "${1:-all}" in
   tests) tests ;;
   partition) partition ;;
   failures) failures ;;
-  all) proof; live; partition; failures; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|controls|tests]" >&2; exit 2 ;;
+  reliability) reliability ;;
+  all) proof; live; partition; failures; reliability; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|controls|tests]" >&2; exit 2 ;;
 esac

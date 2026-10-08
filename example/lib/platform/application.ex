@@ -33,9 +33,12 @@ defmodule Platform.Application do
         Platform.Realtime.Presence,
         # ≈ Redis as a cache: in memory on each node, cleared across nodes
         {Dandelion.Cache, pubsub: Platform.Broadcast},
+        # ≈ Redis INCR with an expiry: request limits, in memory on each node
+        Dandelion.RateLimit,
         # ≈ Cloud Tasks + Cloud Scheduler: background jobs and cron
         {Oban, Platform.Queue.config()},
-        # ≈ the web servers
+        # ≈ the web servers. Last, so it stops first: a node stops accepting requests
+        # and finishes the ones in flight before the jobs and the database go.
         Endpoint
       ]
 
@@ -43,6 +46,15 @@ defmodule Platform.Application do
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: Platform.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  # Runs when the node is told to stop (SIGTERM), before anything is shut down:
+  # say so on /health, keep serving while the load balancer notices, and only
+  # then let the supervision tree stop the endpoint, which drains what is in flight.
+  @impl true
+  def prep_stop(state) do
+    Dandelion.Drain.start(Application.fetch_env!(:acme, :drain_delay))
+    state
   end
 
   # Tell Phoenix to update the endpoint configuration

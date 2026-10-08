@@ -21,6 +21,18 @@ config :acme, Platform.Web.Endpoint,
   ],
   pubsub_server: Platform.Broadcast
 
+# Requests per client address and per minute (Platform.Web.RateLimit). Per node:
+# behind a load balancer a cluster of N nodes allows about N times this. Logging
+# in and registering get a far lower number: that is where passwords get guessed.
+config :acme, Platform.Web.RateLimit,
+  api: {300, :timer.minutes(1)},
+  auth: {10, :timer.minutes(1)},
+  trust_forwarded_for: false
+
+# How long a node that was told to stop keeps serving while /health says
+# "draining" (Dandelion.Drain), so the load balancer can move its traffic away.
+config :acme, :drain_delay, 0
+
 # Tracing is off until an OTLP endpoint is given (config/runtime.exs): no
 # exporter means spans are made but go nowhere, and nothing tries to connect.
 config :opentelemetry, traces_exporter: :none
