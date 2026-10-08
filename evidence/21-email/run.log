@@ -1,0 +1,18 @@
+# commit: 0e1c290 (+ uncommitted changes)
+# recorded: 2026-10-08T21:06Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/email-proof.sh (3 containers behind nginx and mailpit; the mail server stopped and started)
+
+21:06:56 orders while the mail server is up:
+21:07:06   ok  6 orders: 6 confirmations arrived, each once, naming the order (1 …) and the total
+21:07:06 the mail server goes away:
+21:07:13   ok  6 orders accepted in 0 s with the mail server down: an order never waits for mail
+21:07:16   ok  the circuit for it opened on: node1:open — workers stop waiting on it
+21:07:17   ok  6 messages are waiting, written down in outgoing_emails (queued)
+21:07:17 the mail server comes back:
+21:07:53   ok  all 6 arrived, each exactly once
+21:07:53   ok  and the first 6 are still just one each
+21:07:53   ok  every message is marked sent
+21:07:53 the job runs again:
+21:08:05   ok  the job run again for two orders already mailed sent nothing: still one each

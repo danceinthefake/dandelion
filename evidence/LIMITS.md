@@ -79,6 +79,11 @@ Said plainly, so nobody has to find out the hard way.
   disable the trigger, and entries are not hash-chained or signed, so this is not tamper-proof
   evidence against a malicious DBA. Reads are not recorded. Each login attempt is a row (prune
   it). The request id ties an entry to a request only as long as the logs and traces are kept.
+- **Email** ([21](21-email/)). The mail server is mailpit on the same Docker network, plain
+  SMTP with no login and no TLS; a real provider's rate limits, greylisting, TLS and login are
+  not exercised, and a 5xx refusal is unit-tested (a fake adapter) rather than seen from a
+  server. A message the server accepted just before a crash can be sent twice (one write wide).
+  Nothing is done with bounces or complaints. Without `SMTP_HOST` mail is logged, not sent.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

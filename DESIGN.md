@@ -876,6 +876,37 @@ should not be answered from application logs that rotate.
 - **Not recorded:** reads, order creation (the order is its own record), uploads. Add a
   `record/4` in the transaction of whatever else you want to answer for.
 
+### 10.19 Email
+
+Decided 2026-10-09. The order confirmation was a log line saying "sent"; a service that
+sends mail is mostly about what happens when it can't.
+
+- **App, not library.** [Swoosh](https://hexdocs.pm/swoosh) is the library and it does the
+  SMTP; what is ours is the policy around it (`App.Notifications.Services.EmailService`),
+  and that is specific enough to each app to stay in the example.
+- **Never in the request.** An order is saved and answered long before any mail: the
+  confirmation is a subscriber of `order.created` (§10.2), a job in its own `mail` queue
+  (like webhooks, a slow server can't use up the slots of other jobs).
+- **Written down, then sent.** `send_once/5` first makes (or finds) a row in
+  `outgoing_emails` under a `dedupe_key` (`order_confirmation:<id>`), then sends, then marks
+  it `sent`. A rerun of the job — jobs are at least once — finds the row, sees `sent`, and
+  does nothing. The window left is the usual one: the server accepted the message and we died
+  before the one-row update, so the retry mails again. Everything else is deduplicated.
+- **What a failure means.** Through `Dandelion.Resilience` with a circuit per mail server:
+  a server that keeps failing is left alone and the jobs *snooze* (30 s, no attempt used)
+  instead of each waiting out a connection timeout. A temporary failure (a timeout, a refused
+  connection, a 4xx) is retried by Oban with a doubling wait (10 attempts). A permanent one
+  (the server says 5xx: no such user) marks the row `failed` and ends the job — retrying
+  a mistake only delays finding it; the row and `/api/emails?status=failed` show it.
+- **No server configured is not an error.** Without `SMTP_HOST` the message goes to the log
+  (Swoosh's logger adapter) and counts as sent, so a new project works.
+- **Found by running it:** Swoosh refuses an SMTP config whose `username` is `nil` even with
+  `auth: :never`; the first cluster run raised on every send, and the system did what it
+  should (kept the mail queued, retried, counted the attempts) until the config was fixed.
+- **Not here:** HTML mail and templates, attachments, bounces and complaints (a mail
+  server's webhook back to us), unsubscribe handling, a per-recipient send rate, DKIM/SPF
+  (the mail server's job).
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

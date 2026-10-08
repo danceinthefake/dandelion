@@ -66,6 +66,11 @@ defmodule DandelionNew.GenerateTest do
     refute files["lib/app/router.ex"] =~ "Settings"
     refute files["lib/app/router.ex"] =~ "Files"
     refute files["lib/app/router.ex"] =~ "Audit"
+    refute files["lib/app/router.ex"] =~ "Notifications"
+    refute files["mix.exs"] =~ "swoosh"
+    refute files["config/runtime.exs"] =~ "SMTP"
+    refute files["deploy/compose.cluster.yaml"] =~ "mailpit"
+    refute Map.has_key?(files, "lib/platform/mailer.ex")
     refute files["config/config.exs"] =~ "uploads_dir"
     refute files["Dockerfile"] =~ "uploads"
     refute files["deploy/compose.cluster.yaml"] =~ "uploads"
@@ -180,6 +185,20 @@ defmodule DandelionNew.GenerateTest do
     assert files["config/runtime.exs"] =~ "UPLOADS_DIR"
     assert files["deploy/uploads-proof.sh"] =~ "uploads proof passed"
     refute files["Dockerfile"] =~ "@example"
+  end
+
+  test "the example sends mail: a mailer, a record of what was sent, a mail server to try it on" do
+    files = files("my_app", "MyApp")
+
+    assert files["lib/platform/mailer.ex"] =~ "Swoosh.Mailer"
+    assert files["lib/app/notifications/services/email_service.ex"] =~ "Dandelion.Resilience"
+    assert files["lib/app/shop/workers/send_order_confirmation.ex"] =~ "EmailService.send_once"
+    assert files["mix.exs"] =~ ~S({:swoosh, "~> 1.17"})
+    assert files["config/runtime.exs"] =~ "SMTP_HOST"
+    assert files["lib/platform/queue.ex"] =~ "mail: 5"
+    assert files["deploy/compose.cluster.yaml"] =~ "axllent/mailpit"
+    assert files["deploy/email-proof.sh"] =~ "email proof passed"
+    refute files["config/runtime.exs"] =~ "@example-"
   end
 
   test "every project keeps an audit log; the example records its admin actions and serves the log" do

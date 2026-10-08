@@ -1,0 +1,11 @@
+# control: mailnoretry
+# broken on purpose: a send that fails for a reason that passes is forgotten, not retried (SendOrderConfirmation)
+# expected: the proof FAILS after 'the mail server goes away:' and never reaches 'all 6 arrived, each exactly once'
+# commit: 0e1c290, recorded 2026-10-08T21:12Z
+# verdict: ok
+
+21:10:05 orders while the mail server is up:
+21:10:10   ok  6 orders: 6 confirmations arrived, each once, naming the order (1 …) and the total
+21:10:10 the mail server goes away:
+21:10:10   ok  6 orders accepted in 0 s with the mail server down: an order never waits for mail
+21:12:03 FAIL  no node opened the circuit for the dead mail server

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- The example sends real email: the order confirmation goes out by SMTP (Swoosh,
+  `SMTP_HOST` and friends in `config/runtime.exs`; without a server the message is
+  logged, as before). A message is written to `outgoing_emails` under a key before it is
+  sent, so a rerun of the job sends nothing twice; a dead mail server opens a circuit
+  (`Dandelion.Resilience`) and the messages wait; a refused address ends the job. Admins
+  see what was sent at `/api/emails`. New dependencies in the example: `swoosh`,
+  `gen_smtp`. New migration `create_outgoing_emails`, a `mail` queue.
 - `Dandelion.Audit`: `record/4` adds an entry (actor, action, subject, details, and the
   request id) inside the transaction of the change it describes; `list/1` reads back, newest
   first, filtered and paged; `prune/1` is retention. The table (`Dandelion.Audit.Migration`)

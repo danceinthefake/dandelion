@@ -1,0 +1,20 @@
+# control: mailnodedupe
+# broken on purpose: a message already sent is sent again when its job runs again (EmailService)
+# expected: the proof FAILS after 'the job runs again:' and never reaches 'sent nothing: still one each'
+# commit: 0e1c290, recorded 2026-10-08T21:09Z
+# verdict: ok
+
+21:09:10 orders while the mail server is up:
+21:09:16   ok  6 orders: 6 confirmations arrived, each once, naming the order (1 …) and the total
+21:09:16 the mail server goes away:
+21:09:17   ok  6 orders accepted in 1 s with the mail server down: an order never waits for mail
+21:09:20   ok  the circuit for it opened on: node2:open — workers stop waiting on it
+21:09:20   ok  6 messages are waiting, written down in outgoing_emails (queued)
+21:09:20 the mail server comes back:
+21:09:21  Container deploy-mailpit-1 Starting 
+21:09:21  Container deploy-mailpit-1 Started 
+21:09:27   ok  all 6 arrived, each exactly once
+21:09:27   ok  and the first 6 are still just one each
+21:09:27   ok  every message is marked sent
+21:09:27 the job runs again:
+21:09:31 FAIL  running the job again mailed a second time

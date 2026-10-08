@@ -37,6 +37,21 @@ config :acme, :drain_delay, 0
 # the first retry doubles each time (up to an hour); the circuit for a receiver that
 # keeps failing stays open this long before one request is tried again.
 # @example-start
+# Mail (Platform.Mailer, App.Notifications): written to the log until config/runtime.exs is
+# given an SMTP server. Swoosh needs no HTTP client for SMTP. A failed send is retried with a
+# wait that doubles from this many seconds; the circuit for a mail server that keeps failing
+# stays open this long (ms) before one message is tried again.
+config :swoosh, :api_client, false
+config :acme, Platform.Mailer, adapter: Swoosh.Adapters.Logger, level: :info
+
+config :acme,
+  mail_from: {"Acme", "no-reply@example.com"},
+  mail_backoff_seconds: 30,
+  mail_circuit_reset: 30_000
+
+# @example-end
+
+# @example-start
 # Uploaded files (App.Files): one directory, which with several nodes must be a shared
 # mount (Dandelion.Storage), and the largest file accepted in bytes. The endpoint reads
 # a multipart body of up to 6 000 000 bytes (lib/platform/web/endpoint.ex).

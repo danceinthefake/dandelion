@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
@@ -14,6 +14,7 @@
 #   flags     a setting changed while running, seen by every node → 18
 #   uploads   files kept on a directory the nodes share → 19
 #   audit     who did what, in an append-only table → 20
+#   email     order confirmations by SMTP, a mail server that goes away → 21
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -194,6 +195,8 @@ uploads() { mkdir -p "$here/19-uploads"; proof_run uploads uploads-proof.sh "$he
 
 audit() { mkdir -p "$here/20-audit"; proof_run audit audit-proof.sh "$here/20-audit" "3 containers behind nginx; changes made through the load balancer, then the table attacked from every node"; }
 
+email() { mkdir -p "$here/21-email"; proof_run email email-proof.sh "$here/21-email" "3 containers behind nginx and mailpit; the mail server stopped and started"; }
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -229,6 +232,7 @@ case "${1:-all}" in
   flags) flags ;;
   uploads) uploads ;;
   audit) audit ;;
-  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|controls|tests]" >&2; exit 2 ;;
+  email) email ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|controls|tests]" >&2; exit 2 ;;
 esac

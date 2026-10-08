@@ -169,6 +169,26 @@ assert a in s; open(p, "w").write(s.replace(a, "      [key] when byte_size(key) 
 PY
 }
 
+# A message already sent is sent again when its job runs again.
+patch_mailnodedupe() {
+  break_file "$example/lib/app/notifications/services/email_service.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = '"sent" -> :ok\n'
+assert a in s; open(p, "w").write(s.replace(a, '"sent" -> deliver(email)\n'))
+PY
+}
+
+# A send that failed for a reason that passes is forgotten, not retried.
+patch_mailnoretry() {
+  break_file "$example/lib/app/shop/workers/send_order_confirmation.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "{:error, {:temporary, why}} -> {:error, why}"
+assert a in s; open(p, "w").write(s.replace(a, "{:error, {:temporary, _why}} -> :ok"))
+PY
+}
+
 # Changing a flag is not recorded.
 patch_noaudit() {
   break_file "$example/lib/app/settings/services/flag_service.ex" <<'PY'
@@ -269,6 +289,12 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected mailnodedupe && control mailnodedupe "a message already sent is sent again when its job runs again (EmailService)" \
+  "the job runs again:" "sent nothing: still one each" "" email-proof.sh
+
+selected mailnoretry && control mailnoretry "a send that fails for a reason that passes is forgotten, not retried (SendOrderConfirmation)" \
+  "the mail server goes away:" "all 6 arrived, each exactly once" "" email-proof.sh
 
 selected noaudit && control noaudit "a flag change is not recorded in the audit log (FlagService)" \
   "making changes through the load balancer:" "the admin's flag, webhook and price changes are there" "" audit-proof.sh

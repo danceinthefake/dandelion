@@ -126,6 +126,48 @@ if config_env() == :prod do
     trust_forwarded_for: System.get_env("TRUST_FORWARDED_FOR") in ["1", "true"]
 
   # @example-start
+  # Mail: SMTP_HOST sends through that server (SMTP_PORT default 587; SMTP_USERNAME and
+  # SMTP_PASSWORD if it wants a login; SMTP_TLS is always, if_available (default) or never).
+  # Without SMTP_HOST nothing is sent: each message is written to the log. MAIL_FROM_ADDRESS
+  # and MAIL_FROM_NAME are the sender.
+  config :acme,
+    mail_from:
+      {System.get_env("MAIL_FROM_NAME") || "Acme",
+       System.get_env("MAIL_FROM_ADDRESS") || "no-reply@example.com"}
+
+  if smtp_host = System.get_env("SMTP_HOST") do
+    tls = String.to_existing_atom(System.get_env("SMTP_TLS") || "if_available")
+
+    # (Swoosh refuses a username that is nil, so a login is only given when there is one)
+    login =
+      case System.get_env("SMTP_USERNAME") do
+        nil -> [auth: :never]
+        user -> [auth: :always, username: user, password: System.get_env("SMTP_PASSWORD")]
+      end
+
+    config :acme,
+           Platform.Mailer,
+           [
+             adapter: Swoosh.Adapters.SMTP,
+             relay: smtp_host,
+             port: String.to_integer(System.get_env("SMTP_PORT") || "587"),
+             tls: tls,
+             ssl: false,
+             # our retries (Oban, the circuit) are the ones that count, not gen_smtp's sleeping ones
+             retries: 0,
+             no_mx_lookups: true
+           ] ++ login
+
+    config :acme, mail_host: smtp_host
+  end
+
+  config :acme,
+    mail_backoff_seconds: String.to_integer(System.get_env("MAIL_BACKOFF_SECONDS") || "30"),
+    mail_circuit_reset: String.to_integer(System.get_env("MAIL_CIRCUIT_RESET_MS") || "30000")
+
+  # @example-end
+
+  # @example-start
   # Uploaded files: a directory every node can see (a shared mount when there are
   # several nodes); UPLOAD_MAX_BYTES is the largest file accepted (up to 5 000 000).
   config :acme,

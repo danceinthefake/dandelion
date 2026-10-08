@@ -19,6 +19,7 @@ networks:
 # @example-start
 volumes:
   uploads: {}
+  mailpit: {}
 # @example-end
 
 x-node: &node
@@ -50,6 +51,14 @@ x-node: &node
     WEBHOOK_ALLOW_PRIVATE: "1"
     WEBHOOK_BACKOFF_SECONDS: "1"
     WEBHOOK_CIRCUIT_RESET_MS: "5000"
+    # @example-end
+    # @example-start
+    # mail goes to mailpit below (plain, no login); retries come quickly
+    SMTP_HOST: mailpit
+    SMTP_PORT: "1025"
+    SMTP_TLS: never
+    MAIL_BACKOFF_SECONDS: "1"
+    MAIL_CIRCUIT_RESET_MS: "5000"
     # @example-end
     OBAN_RESCUE_AFTER_SECONDS: "${OBAN_RESCUE_AFTER_SECONDS:-10}"
     # traces go to Jaeger below; its UI is http://localhost:16686
@@ -100,6 +109,17 @@ services:
       default: { aliases: [node3.cluster] }
       db: {}
     environment: { <<: *env, NODE_HOST: node3.cluster }
+
+  # @example-start
+  # ≈ a mail server (SES, Postmark …) that keeps what it receives, readable at
+  # http://localhost:18025; deploy/email-proof.sh stops and starts it
+  mailpit:
+    image: axllent/mailpit:v1.27
+    ports: ["127.0.0.1:18025:8025"]
+    environment:
+      MP_DATABASE: /data/mailpit.db
+    volumes: ["mailpit:/data"]
+  # @example-end
 
   # @example-start
   # ≈ somebody else's server, receiving our webhooks (deploy/webhook-proof.sh)

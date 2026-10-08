@@ -38,6 +38,9 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/email-proof.sh`: each order's confirmation reaches the mail server exactly once;
+  with the mail server stopped, orders are still accepted at once, the circuit opens and the
+  messages wait; when it returns all arrive, once each; running the job again sends nothing;
 - `./deploy/audit-proof.sh`: changes made through the load balancer are all in one log
   with actor, from/to and the request id of the response; refused changes leave nothing; no
   secret in it; UPDATE, DELETE and TRUNCATE are refused from every node;

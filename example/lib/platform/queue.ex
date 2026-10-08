@@ -25,9 +25,9 @@ defmodule Platform.Queue do
     ]
     |> Dandelion.Queue.config()
     # @example-start
-    # webhook deliveries wait on other people's servers: their own queue, so a slow
-    # receiver can't use up the slots other jobs run in
-    |> Keyword.update!(:queues, &(&1 ++ [webhooks: 5]))
+    # webhook deliveries and mail wait on other people's servers: queues of their own, so
+    # a slow receiver or mail server can't use up the slots other jobs run in
+    |> Keyword.update!(:queues, &(&1 ++ [webhooks: 5, mail: 5]))
 
     # @example-end
   end

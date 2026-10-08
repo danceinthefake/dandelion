@@ -10,6 +10,13 @@ config :acme, Platform.Web.RateLimit,
   trust_forwarded_for: false
 
 # @example-start
+# mail is caught by Swoosh's test adapter (the tests look at what was sent)
+config :acme, Platform.Mailer, adapter: Swoosh.Adapters.Test
+config :acme, mail_circuit_reset: 100, mail_backoff_seconds: 1
+
+# @example-end
+
+# @example-start
 # uploads go to a directory of their own, emptied by the tests that use it
 config :acme, uploads_dir: Path.join(System.tmp_dir!(), "acme_test_uploads")
 

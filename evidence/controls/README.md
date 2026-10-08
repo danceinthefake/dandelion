@@ -36,6 +36,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`mutable.log`](mutable.log) | the trigger lets UPDATE, DELETE and TRUNCATE through | `from every node, an UPDATE, a DELETE and a TRUNCATE are refused` is never reached (claim 20) | the log could be rewritten |
 
+| [`mailnodedupe.log`](mailnodedupe.log) | a message already sent is sent again when its job runs again | `sent nothing: still one each` is never reached (claim 21) | the rerun mailed the customer twice |
+
+| [`mailnoretry.log`](mailnoretry.log) | a send that failed for a passing reason is forgotten | `all 6 arrived, each exactly once` is never reached (claim 21) | the mail sent while the server was down was lost |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

@@ -58,6 +58,9 @@ defmodule Acme.MixProject do
       # @example-start
       # outgoing HTTP: webhook delivery
       {:req, "~> 0.5"},
+      # outgoing mail: Swoosh over SMTP (gen_smtp)
+      {:swoosh, "~> 1.17"},
+      {:gen_smtp, "~> 1.2"},
       # @example-end
       dandelion(),
       # tracing: the SDK and exporter, and a span for each request, query and job
