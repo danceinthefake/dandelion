@@ -1,0 +1,13 @@
+# control: norevoke
+# broken on purpose: a password change does not end the old sessions (Token.verify/1 ignores the fingerprint)
+# expected: the proof FAILS after 'a forgotten password:' and never reaches 'the new password works, the old does not, and the session'
+# commit: 273a255, recorded 2026-10-09T03:17Z
+# verdict: ok
+
+03:17:09 confirming an address:
+03:17:10   ok  registering sent one email with a link; using it confirmed the address; using it again is a 400
+03:17:10 a forgotten password:
+03:17:15   ok  asking answers the same for an address with an account and one without; only the first got an email
+03:17:23   ok  asking again within the minute did not send another
+03:17:23   ok  a short password was refused (the link not used up); a made-up link refused; the link worked once
+03:17:23 FAIL  the old session still works (request 1, through nginx: every node)

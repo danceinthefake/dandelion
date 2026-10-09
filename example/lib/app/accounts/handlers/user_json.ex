@@ -4,5 +4,6 @@ defmodule App.Accounts.Handlers.UserJSON do
   """
   alias App.Accounts.Models.User
 
-  def user(%User{} = u), do: %{id: u.id, email: u.email, role: u.role}
+  def user(%User{} = u),
+    do: %{id: u.id, email: u.email, role: u.role, email_confirmed: User.confirmed?(u)}
 end

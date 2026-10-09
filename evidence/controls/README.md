@@ -50,6 +50,12 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`breaking.log`](breaking.log) | the migration renames a column the running version still uses | `in the mixed state only 0 of 30 orders were answered` (claim 24) | the first version could not read its own table |
 
+| [`tokenreuse.log`](tokenreuse.log) | a one-time link is not marked used | `using it again is a 400` is never reached (claim 25) | a link worked twice |
+
+| [`nolockout.log`](nolockout.log) | an address is never locked | `five wrong passwords … locked the address` is never reached (claim 25) | the right password got through after the guesses, and so could a guesser |
+
+| [`norevoke.log`](norevoke.log) | a password change does not end old sessions | `… the session made under the old one is a 401` is never reached (claim 25) | a stolen session survived a reset |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

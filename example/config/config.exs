@@ -37,6 +37,21 @@ config :acme, :drain_delay, 0
 # the first retry doubles each time (up to an hour); the circuit for a receiver that
 # keeps failing stays open this long before one request is tried again.
 # @example-start
+# Accounts (App.Accounts): after this many wrong passwords in a row for one address, it is locked
+# for a while (the same for an address nobody has, so a lock does not say an account exists); a
+# link in an email works once, for this long; the same email is not sent again within the gap;
+# `require_confirmed_email` makes an order need a confirmed address.
+config :acme, App.Accounts,
+  login_max_failures: 5,
+  lockout_seconds: 900,
+  reset_ttl_seconds: 3_600,
+  confirm_ttl_seconds: 259_200,
+  resend_gap_seconds: 60,
+  require_confirmed_email: false
+
+# @example-end
+
+# @example-start
 # Mail (Platform.Mailer, App.Notifications): written to the log until config/runtime.exs is
 # given an SMTP server. Swoosh needs no HTTP client for SMTP. A failed send is retried with a
 # wait that doubles from this many seconds; the circuit for a mail server that keeps failing

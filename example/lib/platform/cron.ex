@@ -12,7 +12,9 @@ defmodule Platform.Cron do
   def schedule do
     [
       # every minute: cancel orders unpaid for too long
-      {"* * * * *", App.Shop.Workers.ExpireUnpaidOrders}
+      {"* * * * *", App.Shop.Workers.ExpireUnpaidOrders},
+      # daily: forget one-time links and failed-login rows that are no use any more
+      {"17 3 * * *", App.Accounts.Workers.PruneAccountTables}
     ]
   end
 end

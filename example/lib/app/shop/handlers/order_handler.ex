@@ -7,6 +7,7 @@ defmodule App.Shop.Handlers.OrderHandler do
   """
   use Platform.Web, :handler
 
+  alias App.Accounts.Services.AccountService
   alias App.Shop.Handlers.OrderJSON
   alias App.Shop.Services.OrderService
 
@@ -20,7 +21,8 @@ defmodule App.Shop.Handlers.OrderHandler do
   # and body answers 200 with the order that was made (and `idempotent-replayed:
   # true`) instead of making a second one.
   def create(conn, params) do
-    with {:ok, key} <- idempotency_key(conn) do
+    with {:ok, key} <- idempotency_key(conn),
+         :ok <- confirmed(conn) do
       case OrderService.create(params, viewer(conn), idempotency_key: key) do
         {:ok, order} ->
           conn |> put_status(:created) |> json(OrderJSON.order(order))
@@ -60,6 +62,17 @@ defmodule App.Shop.Handlers.OrderHandler do
   # The logged-in user (App.Accounts.Handlers.Auth put them there): the service
   # decides what they may see.
   defp viewer(conn), do: conn.assigns.current_user
+
+  # (a setting: `require_confirmed_email`; off, nobody is turned away)
+  defp confirmed(conn) do
+    if AccountService.may_order?(viewer(conn)) do
+      :ok
+    else
+      {:error,
+       {:forbidden,
+        "confirm your email address first: the link was sent when you registered (POST /api/email/resend sends it again)"}}
+    end
+  end
 
   defp idempotency_key(conn) do
     case get_req_header(conn, "idempotency-key") do

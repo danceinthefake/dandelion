@@ -12,6 +12,9 @@ defmodule App.Accounts.Routes do
 
         post "/users", App.Accounts.Handlers.UserHandler, :create
         post "/session", App.Accounts.Handlers.SessionHandler, :create
+        post "/password/forgot", App.Accounts.Handlers.PasswordHandler, :forgot
+        post "/password/reset", App.Accounts.Handlers.PasswordHandler, :reset
+        post "/email/confirm", App.Accounts.Handlers.EmailConfirmationHandler, :confirm
       end
 
       # a login is needed
@@ -19,6 +22,7 @@ defmodule App.Accounts.Routes do
         pipe_through [:api, :authenticated]
 
         get "/me", App.Accounts.Handlers.SessionHandler, :show
+        post "/email/resend", App.Accounts.Handlers.EmailConfirmationHandler, :resend
       end
     end
   end

@@ -214,6 +214,24 @@ defmodule DandelionNew.GenerateTest do
     end
   end
 
+  test "the example's accounts can reset a password, confirm an address and lock a guessed one" do
+    files = files("my_app", "MyApp")
+
+    assert files["lib/app/accounts/services/token_service.ex"] =~ "SHA-256"
+    assert files["lib/app/accounts/services/login_throttle.ex"] =~ "FOR UPDATE"
+    assert files["lib/app/accounts/workers/send_account_email.ex"] =~ "send_once_lazy"
+
+    assert files["priv/repo/migrations/20261012000001_add_account_security.exs"] =~
+             "login_throttle"
+
+    assert files["deploy/accounts-proof.sh"] =~ "accounts proof passed"
+    assert files["lib/platform/cron.ex"] =~ "PruneAccountTables"
+
+    bare = files("my_app", "MyApp", false)
+    refute bare["lib/platform/cron.ex"] =~ "PruneAccountTables"
+    refute Map.has_key?(bare, "lib/app/accounts/services/token_service.ex")
+  end
+
   test "the example can build a second version of itself, to prove a deploy that changes the database" do
     files = files("my_app", "MyApp")
     assert files["deploy/versions/order-channel.patch"] =~ "add_order_channel"

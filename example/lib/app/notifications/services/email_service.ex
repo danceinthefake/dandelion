@@ -31,16 +31,30 @@ defmodule App.Notifications.Services.EmailService do
 
   @type result :: :ok | {:error, :circuit_open | {:temporary, term()} | {:permanent, term()}}
 
+  # kinds whose body holds a one-time link: blanked once the mail server has it
+  @sensitive ~w(password_reset email_confirmation)
+
   @spec send_once(String.t(), String.t(), String.t(), String.t(), String.t()) :: result()
-  def send_once(dedupe_key, kind, to, subject, body) do
+  def send_once(dedupe_key, kind, to, subject, body),
+    do: send_once_lazy(dedupe_key, kind, to, subject, fn -> body end)
+
+  @doc """
+  Like `send_once/5`, but the body is made by a function, called only if the message is not
+  written down yet. For a body that costs something or must not be made twice — a one-time
+  link: a retry of the job sends the same message, with the same link, not a new link.
+  """
+  @spec send_once_lazy(String.t(), String.t(), String.t(), String.t(), (-> String.t())) ::
+          result()
+  def send_once_lazy(dedupe_key, kind, to, subject, body_fun) when is_function(body_fun, 0) do
     email =
-      EmailRepo.get_or_create(%{
-        dedupe_key: dedupe_key,
-        kind: kind,
-        to_address: to,
-        subject: subject,
-        body: body
-      })
+      EmailRepo.get_by_key(dedupe_key) ||
+        EmailRepo.get_or_create(%{
+          dedupe_key: dedupe_key,
+          kind: kind,
+          to_address: to,
+          subject: subject,
+          body: body_fun.()
+        })
 
     case email.status do
       "sent" -> :ok
@@ -48,6 +62,20 @@ defmodule App.Notifications.Services.EmailService do
       "queued" -> deliver(email)
     end
   end
+
+  @doc """
+  What an Oban job should answer for a result of `send_once/5`: done, wait without counting an
+  attempt (the mail server's circuit is open), give up (it refused the address), or retry.
+  """
+  @spec oban_result(result()) ::
+          :ok | {:snooze, pos_integer()} | {:cancel, String.t()} | {:error, term()}
+  def oban_result(:ok), do: :ok
+  def oban_result({:error, :circuit_open}), do: {:snooze, 30}
+
+  def oban_result({:error, {:permanent, why}}),
+    do: {:cancel, "the mail server refused it: #{why}"}
+
+  def oban_result({:error, {:temporary, why}}), do: {:error, why}
 
   defp deliver(%OutgoingEmail{} = email) do
     EmailRepo.attempt(email)
@@ -67,7 +95,7 @@ defmodule App.Notifications.Services.EmailService do
            reset_after: reset_after()
          ) do
       {:ok, _} ->
-        EmailRepo.mark_sent(email)
+        EmailRepo.mark_sent(email, redact: email.kind in @sensitive)
 
       {:error, :circuit_open} ->
         {:error, :circuit_open}

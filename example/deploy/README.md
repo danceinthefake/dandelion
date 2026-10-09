@@ -38,6 +38,10 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/accounts-proof.sh`: registering sends a confirmation link; a forgotten password: the same
+  answer for any address, one use of the link, a short password refused without using it up, an expired
+  link refused, the old sessions ended; five wrong passwords lock an address (also one nobody has) on every
+  node and a reset unlocks it; a dead mail server delays the email and nothing else; no link is kept readable;
 - `./deploy/upgrade-proof.sh`: a second version of the app (a new column, and code using it) is built,
   its migration runs while the first version serves, and the nodes are replaced one at a time under
   load: no request fails, version 1 and 2 serve together, every order is read back from any node;

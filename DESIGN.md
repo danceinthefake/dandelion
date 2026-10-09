@@ -995,6 +995,36 @@ outage, and "run the migration, then restart" does exactly that.
   has a default), a change to what jobs carry between versions, and a change of the Erlang
   or Elixir version between nodes.
 
+### 10.23 Keeping an account yours
+
+Decided 2026-10-12. The login (§10.12) said, in its not-covered list: no reset, no confirmation, no
+lockout. Email (§10.19) made the first two possible, and the rest followed from using it carefully.
+
+- **A link is a secret with a hash.** 256 random bits, only the SHA-256 kept (`user_tokens`), used up by
+  one `UPDATE … RETURNING` — two requests with the same link: one wins. A new link of a kind replaces
+  the ones before. It lives in one place, the email: not in the job's arguments (those stay a week), and the
+  body of the email row is blanked once the mail server has it. The proof looks for the link in every table.
+- **Asking for a reset says nothing.** The same 202 for an address with an account and one without; the
+  email is sent by a job (`SendAccountEmail`, retried, circuit-protected like all mail), so a mail server
+  that is down delays it, and a registration or a request never waits for mail. A second asking within a
+  minute sends nothing more. Admins can see in the audit log whether the address was known.
+- **A reset ends the old sessions.** Login tokens are signed and stateless (§10.12), so they could not be
+  revoked. Each now carries a fingerprint of the user's password hash and is checked against the current
+  one: a new password invalidates every token made before it, on every node, with nothing stored. (Revoking
+  one session without changing the password still means a session table.) A reset also confirms the address
+  (only its owner could have read the email) and unlocks the account.
+- **Lockout is per address and in Postgres.** `login_throttle`, one row per address typed, counted under
+  `SELECT … FOR UPDATE`, so simultaneous guesses on different nodes are counted exactly; 5 in a row lock
+  it for 15 minutes, even for the right password (or the guessing would just continue). **An address nobody
+  has is locked the same way**, so a lock does not tell an attacker which addresses have accounts. This sits
+  next to the per-address-of-the-client rate limit (§10.13, in memory, per node): one slows a client, the
+  other protects an account from everybody. The price is the classic one — someone who knows an address can
+  lock its owner out for 15 minutes — which is why a reset (a message to the owner) unlocks.
+- **Confirmation is recorded, and a setting decides what it gates.** `email_confirmed_at`; `require_confirmed_email`
+  (off) makes an order need it. Which actions to gate is the app's policy, not the library's.
+- **Not here:** two-factor, a "remember this device", password strength beyond length, breach checks, and a
+  UI beyond the API (the Vue console has the pages; DESIGN §10.24).
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

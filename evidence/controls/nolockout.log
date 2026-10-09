@@ -1,0 +1,16 @@
+# control: nolockout
+# broken on purpose: an address is never locked (login_max_failures: 1_000_000)
+# expected: the proof FAILS after 'guessing:' and never reaches 'five wrong passwords through the load balancer locked the address'
+# commit: 273a255, recorded 2026-10-09T03:16Z
+# verdict: ok
+
+03:16:11 confirming an address:
+03:16:11   ok  registering sent one email with a link; using it confirmed the address; using it again is a 400
+03:16:11 a forgotten password:
+03:16:18   ok  asking answers the same for an address with an account and one without; only the first got an email
+03:16:26   ok  asking again within the minute did not send another
+03:16:27   ok  a short password was refused (the link not used up); a made-up link refused; the link worked once
+03:16:27   ok  the new password works, the old does not, and the session made under the old one is a 401 on all three nodes
+03:16:29   ok  an expired link is refused
+03:16:29 guessing:
+03:16:30 FAIL  the right password got through a locked address (request 1)

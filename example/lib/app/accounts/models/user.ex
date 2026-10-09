@@ -18,12 +18,23 @@ defmodule App.Accounts.Models.User do
     field :password, :string, virtual: true, redact: true
     field :password_hash, :string, redact: true
     field :role, :string, default: "customer"
+    field :email_confirmed_at, :utc_datetime_usec
     timestamps()
   end
 
   @type t :: %__MODULE__{}
 
   def roles, do: @roles
+
+  @doc "A new password (for a reset). The same limits as at registration."
+  def password_changeset(user, attrs) do
+    user
+    |> cast(attrs, [:password])
+    |> validate_required([:password])
+    |> validate_length(:password, min: 10, max: 200)
+  end
+
+  def confirmed?(%__MODULE__{email_confirmed_at: at}), do: at != nil
 
   @doc """
   Validates a registration (`email`, `password`). The email is kept lower-case.

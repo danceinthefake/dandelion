@@ -19,6 +19,10 @@ defmodule Platform.Database.Repos.EmailRepo do
     Repo.get_by!(OutgoingEmail, dedupe_key: key)
   end
 
+  @doc "The email with this `dedupe_key`, or nil."
+  @spec get_by_key(String.t()) :: OutgoingEmail.t() | nil
+  def get_by_key(key), do: Repo.get_by(OutgoingEmail, dedupe_key: key)
+
   @doc "Counts an attempt to send, before it is made."
   def attempt(%OutgoingEmail{id: id}) do
     from(e in OutgoingEmail, where: e.id == ^id, update: [inc: [attempts: 1]])
@@ -27,17 +31,18 @@ defmodule Platform.Database.Repos.EmailRepo do
     :ok
   end
 
-  def mark_sent(%OutgoingEmail{id: id}) do
-    from(e in OutgoingEmail, where: e.id == ^id)
-    |> Repo.update_all(
-      set: [
-        status: "sent",
-        sent_at: DateTime.utc_now(),
-        last_error: nil,
-        updated_at: DateTime.utc_now()
-      ]
-    )
+  # `redact: true` also blanks the body: it held a one-time link, and the link is no use to anyone
+  # once the mail server has it (the row stays as the record that it was sent)
+  def mark_sent(%OutgoingEmail{id: id}, opts \\ []) do
+    now = DateTime.utc_now()
+    changes = [status: "sent", sent_at: now, last_error: nil, updated_at: now]
 
+    changes =
+      if opts[:redact],
+        do: Keyword.put(changes, :body, "(removed: it held a one-time link)"),
+        else: changes
+
+    from(e in OutgoingEmail, where: e.id == ^id) |> Repo.update_all(set: changes)
     :ok
   end
 

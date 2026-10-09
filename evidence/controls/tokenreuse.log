@@ -1,0 +1,8 @@
+# control: tokenreuse
+# broken on purpose: a one-time link can be used again (TokenService.consume/2 does not mark it used)
+# expected: the proof FAILS after 'confirming an address:' and never reaches 'registering sent one email with a link'
+# commit: 273a255, recorded 2026-10-09T03:14Z
+# verdict: ok
+
+03:14:25 confirming an address:
+03:14:26 FAIL  a confirmation link worked twice

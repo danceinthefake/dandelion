@@ -28,6 +28,11 @@ seed() {
            nil <- Platform.Database.Repos.UserRepo.get_by_email(email),
            do: raise("can not seed #{email}")
     end
+
+    # (nobody has to read mail to try the local cluster)
+    with user when not is_nil(user) <- Platform.Database.Repos.UserRepo.get_by_email(email) do
+      Platform.Database.Repos.UserRepo.confirm_email(user)
+    end
   end
 
   IO.write("ok")

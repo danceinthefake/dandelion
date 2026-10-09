@@ -189,6 +189,36 @@ assert a in s; open(p, "w").write(s.replace(a, "{:error, {:temporary, _why}} -> 
 PY
 }
 
+# A link can be used again: it is not marked used.
+patch_tokenreuse() {
+  break_file "$example/lib/app/accounts/services/token_service.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "t.kind == ^kind and is_nil(t.used_at) and\n            t.expires_at > ^now,"
+assert a in s; open(p, "w").write(s.replace(a, "t.kind == ^kind and\n            t.expires_at > ^now,"))
+PY
+}
+
+# An address is never locked: it takes a million wrong passwords.
+patch_nolockout() {
+  break_file "$example/config/config.exs" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "login_max_failures: 5,"
+assert a in s; open(p, "w").write(s.replace(a, "login_max_failures: 1_000_000,"))
+PY
+}
+
+# A password change does not end the sessions made under the old password.
+patch_norevoke() {
+  break_file "$example/lib/app/accounts/handlers/token.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "true <- fingerprint == fingerprint(user.password_hash) do"
+assert a in s; open(p, "w").write(s.replace(a, "true <- is_binary(fingerprint) do"))
+PY
+}
+
 # A panel's metric name has a typo: it runs, and shows nothing.
 patch_badpanel() {
   break_file "$example/deploy/grafana/dashboards/dandelion.json" <<'PY'
@@ -334,6 +364,15 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected tokenreuse && control tokenreuse "a one-time link can be used again (TokenService.consume/2 does not mark it used)" \
+  "confirming an address:" "registering sent one email with a link" "" accounts-proof.sh
+
+selected nolockout && control nolockout "an address is never locked (login_max_failures: 1_000_000)" \
+  "guessing:" "five wrong passwords through the load balancer locked the address" "" accounts-proof.sh
+
+selected norevoke && control norevoke "a password change does not end the old sessions (Token.verify/1 ignores the fingerprint)" \
+  "a forgotten password:" "the new password works, the old does not, and the session" "" accounts-proof.sh
 
 selected badpanel && control badpanel "a panel's metric name has a typo (the dashboard JSON): the query runs and shows nothing" \
   "the queries:" "and the 16 panels that show what we made happen all have data" "" dashboard-proof.sh

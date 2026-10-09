@@ -8,7 +8,7 @@ defmodule Platform.Web.RateLimit do
   Two buckets, per client address, on `/api` only (`/health`, `/metrics` and the
   payment webhook, which has its own token, are never limited):
 
-    * `:auth` — logging in and registering. Few, because this is where a
+    * `:auth` — logging in, registering, asking for and using password and address links. Few, because this is where a
       password guesser knocks.
     * `:api` — everything else.
 
@@ -44,6 +44,10 @@ defmodule Platform.Web.RateLimit do
 
   defp bucket(%{method: "POST", path_info: ["api", name]}) when name in ["session", "users"],
     do: :auth
+
+  # asking for a link, using one, confirming an address: all things to guess at, or to make mail with
+  defp bucket(%{method: "POST", path_info: ["api", "password", _]}), do: :auth
+  defp bucket(%{method: "POST", path_info: ["api", "email", _]}), do: :auth
 
   defp bucket(_conn), do: :api
 

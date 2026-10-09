@@ -7,6 +7,8 @@ defmodule App.Audit.Services.AuditService do
   The actions recorded here:
 
       user.registered         session.created        session.rejected
+      session.locked          password.reset_requested  password.reset
+      email.confirmed
       product.price_changed   order.cancelled         order.paid
       order.refunded          orders.expired          flag.set  flag.deleted
       webhook.created         webhook.deleted         file.deleted

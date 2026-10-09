@@ -24,18 +24,14 @@ defmodule App.Shop.Workers.SendOrderConfirmation do
       {:ok, order} ->
         key = "order_confirmation:#{order.id}"
 
-        case EmailService.send_once(
-               key,
-               "order_confirmation",
-               order.customer_email,
-               "Your order ##{order.id}",
-               body(order)
-             ) do
-          :ok -> :ok
-          {:error, :circuit_open} -> {:snooze, 30}
-          {:error, {:permanent, why}} -> {:cancel, "the mail server refused it: #{why}"}
-          {:error, {:temporary, why}} -> {:error, why}
-        end
+        key
+        |> EmailService.send_once(
+          "order_confirmation",
+          order.customer_email,
+          "Your order ##{order.id}",
+          body(order)
+        )
+        |> EmailService.oban_result()
 
       # the order is gone; nothing to confirm
       {:error, :not_found} ->

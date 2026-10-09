@@ -23,10 +23,13 @@ end
 # production.
 for {email, role} <- [{"admin@example.com", "admin"}, {"customer@example.com", "customer"}] do
   unless Platform.Database.Repos.UserRepo.get_by_email(email) do
-    {:ok, _} =
+    {:ok, user} =
       App.Accounts.Services.UserService.register(
         %{"email" => email, "password" => "local-password-1"},
         role
       )
+
+    # (nobody has to read mail to try the local project)
+    {:ok, _} = Platform.Database.Repos.UserRepo.confirm_email(user)
   end
 end

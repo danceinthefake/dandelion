@@ -49,6 +49,15 @@
   orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
   migration `add_flags` (every project gets it: `Platform.Application` starts
   `Dandelion.Flags`).
+- The example's accounts keep themselves safe: **password reset** and **address confirmation** by one-time
+  links in email (`/api/password/forgot`, `/api/password/reset`, `/api/email/confirm`,
+  `/api/email/resend`; only a hash of a link is stored, it works once, and asking never says whether an
+  address has an account); a reset **ends every session made under the old password** (a fingerprint of
+  the password hash is inside the login token); **per-address lockout** after 5 wrong passwords for 15
+  minutes, kept in Postgres so it counts the same on every node, and applied to addresses nobody has too;
+  `require_confirmed_email` makes an order need a confirmed address. New migration
+  `add_account_security`; `EmailService.send_once_lazy/5` for a body that must be made only once; the
+  body of an email that held a link is blanked once it is sent.
 - `deploy/upgrade-proof.sh`: a deploy that changes the database. `deploy/versions/order-channel.patch`
   makes a second version of the app (a new column with a default, and code that uses it); the proof
   builds it, runs its migration while the first version serves, and replaces the nodes one at a time

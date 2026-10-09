@@ -29,11 +29,13 @@ Said plainly, so nobody has to find out the hard way.
   standard OTLP, so other backends should work, but none was tried. Sampling
   isn't exercised, and propagation through the ordered queue is unit-tested, not
   run in the cluster proof.
-- **The login is a starting point, not a hardened one.** Guessing is slowed by a
-  per-address rate limit (14), but there is no account lockout, no password reset or email confirmation, no two-factor, and a token
-  can't be revoked before it expires (a day). Passwords use PBKDF2-SHA256 at
-  OWASP's 2023 count; nothing here measures whether that is enough for your
-  threat model.
+- **The login is better than a starting point, and still not hardened.** A password reset, address
+  confirmation and per-address lockout exist ([25](25-accounts/)), and a password change ends every session
+  made before it; but there is no two-factor, no breach-password check, a stolen token is good for up to a day
+  unless the password changes (no session table), the lockout can be used to lock a known address out for
+  15 minutes (a reset unlocks), and the links were only seen going through mailpit, not through a real
+  provider (spam filters, link scanners that "click" links, greylisting). Passwords use PBKDF2-SHA256 at
+  OWASP's 2023 count; nothing here measures whether that is enough for your threat model.
 - **Reliability of the web layer** ([14](14-reliability/)). The rate limit is
   per node and per address: a cluster of three allows about three times the limit,
   and clients behind one address (a company NAT) share a count. The address is only

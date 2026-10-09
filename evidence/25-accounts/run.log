@@ -1,0 +1,26 @@
+# commit: 273a255 (+ uncommitted changes)
+# recorded: 2026-10-09T03:12Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/accounts-proof.sh (3 containers behind nginx and mailpit; confirm, reset, lock, a mail server that goes away)
+
+03:13:09 confirming an address:
+03:13:09   ok  registering sent one email with a link; using it confirmed the address; using it again is a 400
+03:13:09 a forgotten password:
+03:13:16   ok  asking answers the same for an address with an account and one without; only the first got an email
+03:13:24   ok  asking again within the minute did not send another
+03:13:25   ok  a short password was refused (the link not used up); a made-up link refused; the link worked once
+03:13:25   ok  the new password works, the old does not, and the session made under the old one is a 401 on all three nodes
+03:13:27   ok  an expired link is refused
+03:13:27 guessing:
+03:13:28   ok  five wrong passwords through the load balancer locked the address; the right one is 429 from all three nodes (retry-after: 900s)
+03:13:28   ok  an address nobody has is locked the same way: a lock does not say an account exists
+03:13:30   ok  a password reset unlocks it
+03:13:30 the mail server goes away:
+03:13:33   ok  asking answered 202 in 0 s with the mail server down
+03:13:41   ok  it arrived once the mail server was back, and the link works
+03:13:41 where the links are not:
+03:13:42   ok  no link in the table of links (a hash only), in a job's arguments, in a sent email's body, or in the audit log
+03:13:42   ok  and what happened is in the audit log: reset asked and made, address confirmed, address locked
+03:13:42 an order and an unconfirmed address:
+03:13:43   ok  with the setting on, an unconfirmed address's order is a 403; confirmed, a 201
