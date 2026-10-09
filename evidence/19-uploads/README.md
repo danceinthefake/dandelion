@@ -9,8 +9,9 @@ can see, and the app treats it as the user's own, safely:
    A download is an `attachment` with `nosniff`.
 2. **Whose it is.** Another customer gets **404**, no login gets **401**.
 3. **What it is comes from its bytes.** A script named `picture.png`, typed `image/png`, is
-   kept as **`text/plain`**; an executable with the same name is **refused (400)**. 5.5 MB
-   and 7.5 MB are **413** (the first by the service, the second by the endpoint's limit),
+   kept as **`text/plain`**; an executable with the same name is **refused (400)**. 5.5 MB,
+   6.1 MB and 7.5 MB are **413** (by the service, the endpoint's limit and the load balancer's, each at its
+   own size),
    and refused uploads leave nothing in the directory.
 4. **Ten at once** arrive as ten files with ten ids and ten keys, contents intact.
 5. **Deleting** answers 404 from every node and removes the bytes.

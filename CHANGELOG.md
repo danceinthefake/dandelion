@@ -49,6 +49,17 @@
   orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
   migration `add_flags` (every project gets it: `Platform.Application` starts
   `Dandelion.Flags`).
+- The Vue console covers what the service does (it was the live order list and one order's page):
+  **Products** (search as you type — only the newest answer is shown, the typo notice, highlighted
+  matches rendered as text, never as HTML; staff add, rename and remove products), **Files** (upload
+  with progress, download, remove), **Audit log** (filters, older pages), **Settings** (the switch that
+  pauses orders, any flag), **Webhooks** (the signing secret shown once), and, with no login, **create an
+  account**, **forgot password**, and the pages the emailed links open (**reset password**, **confirm
+  email**; the secret is after the `#`, so no server or access log sees it). A customer sees Products
+  and Files only. A small hash router (`src/router.ts`); `npm test` runs the highlighter's tests
+  with Node's own test runner. The emailed links now point at the console (`PUBLIC_URL`).
+  nginx in the cluster compose file accepts bodies up to 6 MB (it refused anything over 1 MB before,
+  so the app's own 5 MB limit could not be reached).
 - The example's accounts keep themselves safe: **password reset** and **address confirmation** by one-time
   links in email (`/api/password/forgot`, `/api/password/reset`, `/api/email/confirm`,
   `/api/email/resend`; only a hash of a link is stored, it works once, and asking never says whether an

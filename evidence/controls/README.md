@@ -56,6 +56,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`norevoke.log`](norevoke.log) | a password change does not end old sessions | `… the session made under the old one is a 401` is never reached (claim 25) | a stolen session survived a reset |
 
+| [`xss.log`](xss.log) | a product's name is put on the page as HTML (`v-html`) | `a name with HTML in it shows as the characters typed` is never reached (claim 26) | what an admin typed became markup |
+
+| [`leakyorders.log`](leakyorders.log) | the orders page is not hidden when another page is open | `the orders page is hidden while another page is open` is never reached (claim 26) | the orders list showed on top of every page |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

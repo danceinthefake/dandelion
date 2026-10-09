@@ -30,7 +30,9 @@ control() {
   $compose down -v >/dev/null 2>&1 || true
   env $env $compose up -d --build >/dev/null 2>&1
   set +e
-  env $script_env "$example/deploy/$script" 2>&1 | stamped > "$out/$name.log"
+  # (a path is a script of its own, e.g. the browser proof; a name is one of example/deploy)
+  case "$script" in /*) cmd=$script ;; *) cmd=$example/deploy/$script ;; esac
+  env $script_env "$cmd" 2>&1 | stamped > "$out/$name.log"
   local status=${PIPESTATUS[0]}
   set -e
   $compose down -v >/dev/null 2>&1 || true
@@ -219,6 +221,27 @@ assert a in s; open(p, "w").write(s.replace(a, "true <- is_binary(fingerprint) d
 PY
 }
 
+# A product's name is put on the page as HTML (v-html), so what an admin typed becomes markup.
+patch_xss() {
+  break_file "$example/assets/src/pages/ProductsPage.vue" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = '      <template #cell-snippet="{ row }"><Snippet :text="row.snippet" /></template>\n'
+assert a in s
+open(p, "w").write(s.replace(a, a + '      <template #cell-name="{ row }"><span v-html="row.name"></span></template>\n'))
+PY
+}
+
+# The orders page is not hidden when another page is open.
+patch_leakyorders() {
+  break_file "$example/assets/src/App.vue" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = '<OrdersPage v-if="admin" v-show="ordersRoute"'
+assert a in s; open(p, "w").write(s.replace(a, '<OrdersPage v-if="admin"'))
+PY
+}
+
 # A panel's metric name has a typo: it runs, and shows nothing.
 patch_badpanel() {
   break_file "$example/deploy/grafana/dashboards/dandelion.json" <<'PY'
@@ -373,6 +396,12 @@ selected nolockout && control nolockout "an address is never locked (login_max_f
 
 selected norevoke && control norevoke "a password change does not end the old sessions (Token.verify/1 ignores the fingerprint)" \
   "a forgotten password:" "the new password works, the old does not, and the session" "" accounts-proof.sh
+
+selected xss && control xss "a product's name is put on the page as HTML (v-html)" \
+  "staff:" "ok  a name with HTML in it shows as the characters typed" "" "$here/browser/console.sh"
+
+selected leakyorders && control leakyorders "the orders page is not hidden while another page is open" \
+  "staff:" "ok  the orders page is hidden while another page is open" "" "$here/browser/console.sh"
 
 selected badpanel && control badpanel "a panel's metric name has a typo (the dashboard JSON): the query runs and shows nothing" \
   "the queries:" "and the 16 panels that show what we made happen all have data" "" dashboard-proof.sh

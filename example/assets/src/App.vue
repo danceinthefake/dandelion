@@ -1,45 +1,27 @@
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, watch } from "vue";
-import {
-  BlessAlert,
-  BlessBadge,
-  BlessButton,
-  BlessField,
-  BlessInput,
-  BlessSection,
-  BlessStage,
-  BlessTable,
-  BlessText,
-  BlessToaster,
-  useToast,
-} from "blessing-ui";
-import { api, money, type Order } from "./api";
+// The console: a sidebar, and a page for each thing the service does. Pages are chosen by the
+// hash (`router.ts`). Staff see everything; a customer sees products and their own files.
+// The pages that emailed links open (reset a password, confirm an address) work without a login.
+import { computed, onMounted, ref } from "vue";
+import { BlessAlert, BlessBadge, BlessButton, BlessSection, BlessStage, BlessText, BlessToaster, useToast } from "blessing-ui";
+import { api } from "./api";
 import { clearSession, getToken, user } from "./auth";
-import OrderFeed from "./OrderFeed.vue";
+import AuditPage from "./pages/AuditPage.vue";
+import ConfirmEmailPage from "./pages/ConfirmEmailPage.vue";
+import FilesPage from "./pages/FilesPage.vue";
+import ForgotPasswordPage from "./pages/ForgotPasswordPage.vue";
+import OrdersPage from "./pages/OrdersPage.vue";
+import ProductsPage from "./pages/ProductsPage.vue";
+import RegisterPage from "./pages/RegisterPage.vue";
+import ResetPasswordPage from "./pages/ResetPasswordPage.vue";
+import SettingsPage from "./pages/SettingsPage.vue";
+import SignInPage from "./pages/SignInPage.vue";
+import WebhooksPage from "./pages/WebhooksPage.vue";
+import { go, route } from "./router";
 
 const toast = useToast();
-
-// -- who: a login, then the console (for staff) -----------------------------------
-
-const loginEmail = ref("");
-const loginPassword = ref("");
-const loggingIn = ref(false);
-const loginError = ref("");
 const checking = ref(!!getToken());
-
-async function login() {
-  loggingIn.value = true;
-  loginError.value = "";
-  const res = await api.login(loginEmail.value, loginPassword.value);
-  loggingIn.value = false;
-  if (res.ok) loginPassword.value = "";
-  else loginError.value = res.error.message;
-}
-
-function logout() {
-  clearSession();
-  location.hash = "#/";
-}
+const online = ref(0);
 
 // a token kept from before this page was opened: is it still good?
 onMounted(async () => {
@@ -51,154 +33,94 @@ onMounted(async () => {
   checking.value = false;
 });
 
-// -- where: #/ (feed + new order) or #/orders/42 (detail) ---------------------
-
-const orderId = ref<number | null>(null);
-function followHash() {
-  const m = location.hash.match(/^#\/orders\/(\d+)$/);
-  orderId.value = m ? Number(m[1]) : null;
-}
-onMounted(() => {
-  followHash();
-  addEventListener("hashchange", followHash);
-});
-onUnmounted(() => removeEventListener("hashchange", followHash));
-
-const online = ref(0);
-const feed = ref<InstanceType<typeof OrderFeed>>();
-
-// -- new order ------------------------------------------------------------------
-
-const email = ref("");
-const sku = ref("TEA-01");
-const quantity = ref(1);
-const creating = ref(false);
-const createError = ref("");
-
-async function create() {
-  creating.value = true;
-  createError.value = "";
-  const res = await api.createOrder({
-    customer_email: email.value,
-    // the server prices the order from its products
-    items: [{ sku: sku.value, quantity: Number(quantity.value) }],
-  });
-  creating.value = false;
-  if (res.ok) toast.success({ title: `Order #${res.data.id} created` });
-  else createError.value = res.error.fields ? JSON.stringify(res.error.fields) : res.error.message;
+function logout() {
+  clearSession();
+  go("/");
 }
 
-// -- detail -------------------------------------------------------------------
+const path = computed(() => route.value.path);
+const admin = computed(() => user.value?.role === "admin");
 
-const order = ref<Order | null>(null);
-const detailError = ref("");
-const cancelling = ref(false);
+// pages that need no login (the emailed links open them), and the sign-up
+const open: Record<string, unknown> = {
+  "/forgot-password": ForgotPasswordPage,
+  "/reset-password": ResetPasswordPage,
+  "/confirm-email": ConfirmEmailPage,
+  "/register": RegisterPage,
+};
+const openPage = computed(() => open[path.value]);
 
-async function load(id: number) {
-  order.value = null;
-  detailError.value = "";
-  const res = await api.order(id);
-  if (res.ok) order.value = res.data;
-  else detailError.value = res.error.message;
+// pages for staff
+const staff: Record<string, unknown> = {
+  "/audit": AuditPage,
+  "/settings": SettingsPage,
+  "/webhooks": WebhooksPage,
+};
+// pages for everybody who is signed in
+const everyone: Record<string, unknown> = {
+  "/products": ProductsPage,
+  "/files": FilesPage,
+};
+const page = computed(() => (admin.value ? staff[path.value] : undefined) ?? everyone[path.value]);
+const ordersRoute = computed(() => path.value === "/" || path.value.startsWith("/orders"));
+const staffOnly = computed(() => !admin.value && (path.value in staff || path.value.startsWith("/orders")));
+
+async function resend() {
+  const res = await api.resendConfirmation();
+  if (res.ok) toast.success({ title: "Sent: check your email" });
+  else toast.error({ title: res.error.message });
 }
-
-async function cancel() {
-  if (!order.value) return;
-  cancelling.value = true;
-  const res = await api.cancelOrder(order.value.id);
-  cancelling.value = false;
-  if (res.ok) {
-    order.value = res.data;
-    feed.value?.replace(res.data);
-  } else toast.error({ title: res.error.message });
-}
-
-watch(orderId, (id) => id && load(id), { immediate: true });
-
-const itemColumns = [
-  { key: "sku", label: "SKU" },
-  { key: "quantity", label: "Qty", align: "right" as const },
-  { key: "price", label: "Price", align: "right" as const },
-];
 </script>
 
 <template>
   <BlessStage>
     <template #sidebar>
       <BlessText as="p" size="lg" weight="bold" class="brand">acme</BlessText>
-      <nav class="nav">
-        <a href="#/">Orders</a>
+      <nav v-if="user" class="nav" aria-label="Console">
+        <a v-if="admin" href="#/" data-testid="nav-orders">Orders</a>
+        <a href="#/products" data-testid="nav-products">Products</a>
+        <a href="#/files" data-testid="nav-files">Files</a>
+        <a v-if="admin" href="#/audit" data-testid="nav-audit">Audit log</a>
+        <a v-if="admin" href="#/settings" data-testid="nav-settings">Settings</a>
+        <a v-if="admin" href="#/webhooks" data-testid="nav-webhooks">Webhooks</a>
       </nav>
-      <BlessText v-if="user" as="p" size="xs" muted class="who">
+      <BlessText v-if="admin" as="p" size="xs" muted class="who">
         <BlessBadge color="info">{{ online }}</BlessBadge> online now
       </BlessText>
       <BlessText v-if="user" as="p" size="xs" muted class="me" data-testid="me">
         {{ user.email }} ({{ user.role }})
-        <a href="#/" @click.prevent="logout">Sign out</a>
+        <a href="#/" data-testid="sign-out" @click.prevent="logout">Sign out</a>
       </BlessText>
     </template>
 
-    <BlessSection v-if="!user && !checking" title="Sign in" watermark="acme">
-      <form class="new" @submit.prevent="login">
-        <BlessField label="Email" required>
-          <BlessInput v-model="loginEmail" type="email" required autocomplete="username" />
-        </BlessField>
-        <BlessField label="Password" required>
-          <BlessInput v-model="loginPassword" type="password" required autocomplete="current-password" />
-        </BlessField>
-        <BlessButton type="submit" color="accent" :loading="loggingIn">Sign in</BlessButton>
-      </form>
-      <BlessAlert v-if="loginError" color="danger" title="Not signed in">{{ loginError }}</BlessAlert>
-    </BlessSection>
+    <BlessAlert v-if="user && !user.email_confirmed" color="warning" title="Your email address is not confirmed" data-testid="unconfirmed">
+      We sent you a link when you registered.
+      <BlessButton size="sm" variant="outline" data-testid="resend" @click="resend">Send it again</BlessButton>
+    </BlessAlert>
 
-    <BlessSection v-else-if="user && user.role !== 'admin'" title="Staff only" watermark="staff">
-      <BlessText as="p">
-        This console shows every customer's orders, so it is for staff. Customers use the API:
-        <code>POST /api/orders</code> with their token.
-      </BlessText>
-    </BlessSection>
+    <component :is="openPage" v-if="openPage" />
 
-    <!-- v-show, not v-if: the feed stays joined (and you stay "online") on the detail page -->
-    <BlessSection v-if="user?.role === 'admin'" v-show="orderId === null" title="Orders" subtitle="live" watermark="orders">
-      <form class="new" @submit.prevent="create">
-        <BlessField label="Customer email" required>
-          <BlessInput v-model="email" type="email" required placeholder="sari@example.com" />
-        </BlessField>
-        <BlessField label="SKU" required><BlessInput v-model="sku" required /></BlessField>
-        <BlessField label="Quantity"><BlessInput v-model="quantity" type="number" min="1" /></BlessField>
-        <BlessButton type="submit" color="accent" :loading="creating">New order</BlessButton>
-      </form>
-      <BlessAlert v-if="createError" color="danger" title="Not created">{{ createError }}</BlessAlert>
+    <template v-else-if="!user">
+      <SignInPage v-if="!checking" />
+    </template>
 
-      <OrderFeed ref="feed" @online="(n) => (online = n)" />
-    </BlessSection>
+    <template v-else>
+      <!-- v-show, not v-if: the feed stays joined (and you stay "online") on other pages -->
+      <OrdersPage v-if="admin" v-show="ordersRoute" @online="(n: number) => (online = n)" />
 
-    <BlessSection v-if="user?.role === 'admin' && orderId !== null" :title="`Order #${orderId}`" :watermark="`#${orderId}`">
-      <p><a href="#/">← all orders</a></p>
-      <BlessAlert v-if="detailError" color="danger" title="Can't show this order">{{ detailError }}</BlessAlert>
-      <template v-else-if="order">
+      <BlessSection v-if="!admin && path === '/'" title="Welcome" watermark="acme">
         <BlessText as="p">
-          {{ order.customer_email }} —
-          <BlessBadge :color="order.status === 'cancelled' ? 'danger' : order.status === 'paid' ? 'success' : 'text'">{{ order.status }}</BlessBadge>
-          — total {{ money(order.total_cents) }}
+          Search the <a href="#/products">products</a>, keep your <a href="#/files">files</a>. Orders are made with the API:
+          <code>POST /api/orders</code> with your token.
         </BlessText>
-        <BlessTable
-          :columns="itemColumns"
-          :rows="order.items.map((i) => ({ ...i, price: money(i.price_cents) }))"
-          row-key="sku"
-          caption="Items"
-        />
-        <BlessButton
-          v-if="['pending', 'paid'].includes(order.status)"
-          variant="outline"
-          color="danger"
-          :loading="cancelling"
-          @click="cancel"
-        >
-          Cancel order
-        </BlessButton>
-      </template>
-    </BlessSection>
+      </BlessSection>
+
+      <BlessSection v-if="staffOnly" title="Staff only" watermark="staff" data-testid="staff-only">
+        <BlessText as="p">This page is for staff.</BlessText>
+      </BlessSection>
+
+      <component :is="page" v-else-if="page" />
+    </template>
     <BlessToaster />
   </BlessStage>
 </template>

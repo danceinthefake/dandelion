@@ -1,0 +1,45 @@
+# control: leakyorders
+# broken on purpose: the orders page is not hidden while another page is open
+# expected: the proof FAILS after 'staff:' and never reaches 'ok  the orders page is hidden while another page is open'
+# commit: 3f2d686, recorded 2026-10-09T03:56Z
+# verdict: ok
+
+03:56:19 a new customer:
+03:56:20   ok  creating an account signs in, and says the address is not confirmed yet
+03:56:20   ok  the link in the email opens the console and confirms the address
+03:56:20   ok  the warning is gone
+03:56:20   ok  a customer sees Products and Files, and not the staff pages
+03:56:20   ok  the audit page, opened by hand, says it is for staff
+03:56:20 a forgotten password:
+03:56:20   ok  asking shows the same words for any address
+03:56:21   ok  a password that is too short is refused, and the page says why
+03:56:21   ok  two different passwords are refused before anything is sent
+03:56:21   ok  a good password is accepted
+03:56:21   ok  the same link a second time is refused
+03:56:22   ok  the old password no longer signs in
+03:56:22   ok  the new one does
+03:56:22 guessing:
+03:56:24   ok  five wrong passwords lock the address: even the right one is refused, and the page says for how long
+03:56:24 staff:
+03:56:24   ok  the admin sees every page
+03:56:24   ok  an order made in the form appears in the live list
+03:56:25   ok  typing “gre” finds “Green tea”, without pressing anything
+03:56:25   ok  a typo is forgiven, and the page says the names are only close
+03:56:25   ok  nothing found says so
+03:56:25   ok  typing fast shows the answer for what was typed last
+03:56:26   ok  a product just added is found at once
+03:56:26   ok  a word in the description is found, and marked
+03:56:26   ok  the description's HTML was shown as text and did not run
+03:56:26   ok  a name with HTML in it shows as the characters typed…
+03:56:26   ok  …not as italics: nothing the admin typed becomes markup
+03:56:33 FAIL  the orders page is hidden while another page is open (and its live list stays joined)
+03:56:33 acme | Orders | Products | Files | Audit log | Settings | Webhooks | 1 online now | admin@example.com (admin) Sign out | orders | ORDERS | CUSTOMER EMAIL | * | SKU | * | QUANTITY | NEW ORDER | live every order made on any node shows up here at once — connected to acme@172.31.0.5 | LATEST ORDERS | #	CUSTOMER	STATUS	TOTAL	CREATED | #1	ui-179686@example.com	pending	15.00	10:56:24 AM | search | PRODUCTS | SEARCH | 1 found for “hills” | RESULTS | SKU	NAME	DESCRIPTION	PRICE | UI-179686 · edit · remove
+03:56:33 file:///home/hafidz/danceinthefake/dandelion/evidence/browser/console.mjs:50
+03:56:33     throw new Error(msg);
+03:56:33           ^
+03:56:33 
+03:56:33 Error: the orders page is hidden while another page is open (and its live list stays joined)
+03:56:33     at check (file:///home/hafidz/danceinthefake/dandelion/evidence/browser/console.mjs:50:11)
+03:56:33     at async file:///home/hafidz/danceinthefake/dandelion/evidence/browser/console.mjs:221:1
+03:56:33 
+03:56:33 Node.js v24.21.0

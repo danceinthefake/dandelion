@@ -205,7 +205,28 @@ curl -s -o out.png localhost:8080/api/files/1 -H "authorization: Bearer $TOKEN";
 
 What a file is comes from its bytes, not from its name; downloads are attachments. (Claim 19.)
 
-## 11. Watch it
+## 11. Do it all from the browser
+
+Everything above has a page in the console at http://localhost:8080 (sign in as the admin, or as the
+customer to see what a customer sees):
+
+- **Products** — type `gre` and watch the list narrow as you type; try `grean tea` (a typo: the page says
+  the names are only close). Add a product as the admin, with a description, and search for a word in it:
+  the match is highlighted. Put `<b>bold</b>` in a name: it shows as the characters, never as bold.
+- **Settings** — the *Accept new orders* switch pauses orders on every node. Turn it off, go to *Orders*,
+  make one: "orders are paused". Turn it on again.
+- **Audit log** — the switch you just flipped, and who flipped it. Filter to *settings*.
+- **Webhooks** — add `http://hook-receiver/hook`; the signing secret is shown once.
+- **Files** — drop a PNG or a PDF: a progress bar, then a list; download it back. A program renamed
+  `.png` is refused.
+- **Create an account** (from the sign-in page): the console signs you in and says the address is not
+  confirmed. Open http://localhost:18025 (the mail server that keeps what it receives), click the link in
+  the email: the address is confirmed. *Forgot your password?* works the same way, and five wrong passwords
+  lock the address.
+
+(Claim 26: a real browser does all of this, and checks it.)
+
+## 12. Watch it
 
 Open http://localhost:13000 (Grafana, no login to look): requests, latency and errors, what is
 refused, the circuits of the services it calls, jobs waiting, the database, the cache. Make
@@ -213,7 +234,7 @@ some of the above happen and watch the panels move. (Claim 23.)
 
 ![the dashboard](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/23-dashboard/dashboard.png)
 
-## 12. Check the claims yourself
+## 13. Check the claims yourself
 
 ```sh
 deploy/cluster-proof.sh        # ~10 min: broadcast, jobs, ordering, cache, logins, traces, outage
@@ -232,7 +253,7 @@ Each line it prints is a claim; [`evidence/`](evidence/) has the same runs
 recorded, the negative controls (the same proof must *fail* when a feature is
 broken on purpose), and [what is not proven](evidence/LIMITS.md).
 
-## 13. Add your own resource
+## 14. Add your own resource
 
 ```sh
 docker compose up -d           # Postgres on localhost:55432
@@ -249,7 +270,7 @@ project's own layout, behind the login. The routes go in the domain's own file,
 (`mix phx.routes App.Router` lists them all). Add the rules (who may see what, a
 cancel, an event) by hand the way `lib/app/shop/` does.
 
-## 14. Clean up
+## 15. Clean up
 
 ```sh
 docker compose -f deploy/compose.cluster.yaml down -v

@@ -98,6 +98,11 @@ Said plainly, so nobody has to find out the hard way.
   rules ship, and a number being plausible in a one-minute test says nothing about a day's
   traffic. Prometheus and Grafana are single local containers (no retention volume, no login to
   look), scraping every 2 s. The screenshot is a fresh cluster after a minute of made-up events.
+- **The console** ([26](26-console/)). Driven in Chromium only, at one desktop and one phone width;
+  not in Firefox or Safari, not with a screen reader or the keyboard alone (the component library is built
+  for both, nothing here proves the pages are), and not with a slow network. No type checking of the
+  Vue code (`vue-tsc` is not wired in). The emailed-link pages were opened by following the link
+  from mailpit, not from a mail client that might open or rewrite it.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

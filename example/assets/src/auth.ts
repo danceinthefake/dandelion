@@ -4,7 +4,7 @@
 // rather use an HttpOnly cookie; this console talks to a JSON API.
 import { ref } from "vue";
 
-export type User = { id: number; email: string; role: "customer" | "admin" };
+export type User = { id: number; email: string; role: "customer" | "admin"; email_confirmed: boolean };
 
 const KEY = "acme.token";
 export const user = ref<User | null>(null);

@@ -1,0 +1,51 @@
+# commit: 3f2d686 (+ uncommitted changes)
+# recorded: 2026-10-09T04:02Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: evidence/browser/console.mjs (a real browser, 3 containers behind nginx, mailpit)
+
+04:02:56 a new customer:
+04:02:57   ok  creating an account signs in, and says the address is not confirmed yet
+04:02:57   ok  the link in the email opens the console and confirms the address
+04:02:57   ok  the warning is gone
+04:02:57   ok  a customer sees Products and Files, and not the staff pages
+04:02:57   ok  the audit page, opened by hand, says it is for staff
+04:02:57 a forgotten password:
+04:02:57   ok  asking shows the same words for any address
+04:02:57   ok  a password that is too short is refused, and the page says why
+04:02:57   ok  two different passwords are refused before anything is sent
+04:02:58   ok  a good password is accepted
+04:02:58   ok  the same link a second time is refused
+04:02:58   ok  the old password no longer signs in
+04:02:59   ok  the new one does
+04:02:59 guessing:
+04:03:01   ok  five wrong passwords lock the address: even the right one is refused, and the page says for how long
+04:03:01 staff:
+04:03:01   ok  the admin sees every page
+04:03:01   ok  an order made in the form appears in the live list
+04:03:01   ok  typing “gre” finds “Green tea”, without pressing anything
+04:03:01   ok  a typo is forgiven, and the page says the names are only close
+04:03:02   ok  nothing found says so
+04:03:02   ok  typing fast shows the answer for what was typed last
+04:03:02   ok  a product just added is found at once
+04:03:02   ok  a word in the description is found, and marked
+04:03:02   ok  the description's HTML was shown as text and did not run
+04:03:02   ok  a name with HTML in it shows as the characters typed…
+04:03:02   ok  …not as italics: nothing the admin typed becomes markup
+04:03:02   ok  the orders page is hidden while another page is open (and its live list stays joined)
+04:03:03   ok  a renamed product is found by its new name
+04:03:03   ok  a removed product is gone from the next search
+04:03:04   ok  the switch pauses new orders, and the page says what that means
+04:03:04   ok  while paused, the order form says the orders are paused
+04:03:04   ok  and the switch opens them again
+04:03:04   ok  the audit log shows the switch and the product, and who did them
+04:03:05   ok  filtered to settings: 3 entries, all flag.*
+04:03:05   ok  an endpoint is added, and its signing secret shown
+04:03:05   ok  after a reload the secret is not shown again
+04:03:07   ok  the upload finishes and the list has one more
+04:03:07   ok  a 2 MB file is uploaded and listed with its type
+04:03:07   ok  downloading gives back the very same bytes
+04:03:07   ok  a program named .png is refused: the bytes decide, not the name
+04:03:07   ok  a file is removed
+04:03:07 a phone:
+04:03:13   ok  no page is wider than a phone's screen (6 pages checked)

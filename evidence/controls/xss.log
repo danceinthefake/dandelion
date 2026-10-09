@@ -1,0 +1,43 @@
+# control: xss
+# broken on purpose: a product's name is put on the page as HTML (v-html)
+# expected: the proof FAILS after 'staff:' and never reaches 'ok  a name with HTML in it shows as the characters typed'
+# commit: 3f2d686, recorded 2026-10-09T03:59Z
+# verdict: ok
+
+03:58:50 a new customer:
+03:58:50   ok  creating an account signs in, and says the address is not confirmed yet
+03:58:50   ok  the link in the email opens the console and confirms the address
+03:58:50   ok  the warning is gone
+03:58:50   ok  a customer sees Products and Files, and not the staff pages
+03:58:50   ok  the audit page, opened by hand, says it is for staff
+03:58:50 a forgotten password:
+03:58:51   ok  asking shows the same words for any address
+03:58:52   ok  a password that is too short is refused, and the page says why
+03:58:52   ok  two different passwords are refused before anything is sent
+03:58:52   ok  a good password is accepted
+03:58:52   ok  the same link a second time is refused
+03:58:53   ok  the old password no longer signs in
+03:58:53   ok  the new one does
+03:58:53 guessing:
+03:58:55   ok  five wrong passwords lock the address: even the right one is refused, and the page says for how long
+03:58:55 staff:
+03:58:56   ok  the admin sees every page
+03:58:56   ok  an order made in the form appears in the live list
+03:58:56   ok  typing “gre” finds “Green tea”, without pressing anything
+03:58:56   ok  a typo is forgiven, and the page says the names are only close
+03:58:56   ok  nothing found says so
+03:58:57   ok  typing fast shows the answer for what was typed last
+03:58:57   ok  a product just added is found at once
+03:58:57   ok  a word in the description is found, and marked
+03:58:57   ok  the description's HTML was shown as text and did not run
+03:59:04 FAIL  a name with HTML in it shows as the characters typed…
+03:59:04 acme | Orders | Products | Files | Audit log | Settings | Webhooks | 1 online now | admin@example.com (admin) Sign out | search | PRODUCTS | SEARCH | 1 found for “329830 oolong” | RESULTS | SKU	NAME	DESCRIPTION	PRICE | UI-329830 · edit · remove	Hillside 329830 oolong	Picked by hand on the	18.50 | new | ADD A PRODUCT | SKU | * | NAME | * | PRICE | * | DESCRIPTION | ADD | A product is searchable the moment it is saved, from every node: there is no index to wait for. full-text search in Postgres
+03:59:04 file:///home/hafidz/danceinthefake/dandelion/evidence/browser/console.mjs:50
+03:59:04     throw new Error(msg);
+03:59:04           ^
+03:59:04 
+03:59:04 Error: a name with HTML in it shows as the characters typed…
+03:59:04     at check (file:///home/hafidz/danceinthefake/dandelion/evidence/browser/console.mjs:50:11)
+03:59:04     at async file:///home/hafidz/danceinthefake/dandelion/evidence/browser/console.mjs:218:1
+03:59:04 
+03:59:04 Node.js v24.21.0

@@ -57,6 +57,8 @@ x-node: &node
     WEBHOOK_CIRCUIT_RESET_MS: "5000"
     # @example-end
     # @example-start
+    # the links in emails open the console here (through nginx)
+    PUBLIC_URL: http://localhost:8080
     # mail goes to mailpit below (plain, no login); retries come quickly
     SMTP_HOST: mailpit
     SMTP_PORT: "1025"

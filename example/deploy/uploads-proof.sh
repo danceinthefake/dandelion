@@ -8,7 +8,8 @@
 #      computed here;
 #   2. it is the customer's own: another customer gets 404, no login gets 401;
 #   3. what the file is comes from its bytes: a script uploaded as "picture.png" and
-#      called image/png is refused; a file over the limit is refused (413);
+#      called image/png is kept as text and a program refused; a file over the limit is refused
+#      (413) by the service, the endpoint and the load balancer, each at its own size;
 #   4. ten uploads at once all arrive, each under its own key;
 #   5. deleting removes the row and the bytes, on every node;
 #   6. a node killed while a file is still arriving leaves no half file and no row.
@@ -93,10 +94,13 @@ keys_now=$(stored_keys)
 png "$work/big.png" 5500000
 out=$(upload "$alice" "$work/big.png" "big.png")
 [ "${out##* }" = 413 ] || fail "5.5 MB answered: ${out##* }"
+png "$work/over.png" 6100000
+out=$(upload "$alice" "$work/over.png" "over.png")
+[ "${out##* }" = 413 ] || fail "6.1 MB answered: ${out##* }"
 png "$work/huge.png" 7500000
 out=$(upload "$alice" "$work/huge.png" "huge.png")
 [ "${out##* }" = 413 ] || fail "7.5 MB answered: ${out##* }"
-ok "5.5 MB and 7.5 MB are refused (413)"
+ok "5.5 MB (the service's limit), 6.1 MB (what the endpoint reads of a body) and 7.5 MB (the load balancer's) are all refused (413)"
 [ "$(stored_keys)" = "$keys_now" ] || fail "refused uploads left files behind ($(stored_keys) stored, want $keys_now)"
 ok "and the refused uploads left nothing in the directory"
 

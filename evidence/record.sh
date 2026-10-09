@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search, dashboard, upgrade, accounts)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search, dashboard, upgrade, accounts, console)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
@@ -19,6 +19,7 @@
 #   dashboard the Grafana dashboard: every query run against live metrics, a screenshot → 23
 #   upgrade   a deploy that changes the database: v1 and v2 side by side under load → 24
 #   accounts  confirm an address, reset a password, lock a guessed account → 25
+#   console   the Vue console driven in a browser: every page, the emailed links → 26
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -216,6 +217,24 @@ upgrade() { mkdir -p "$here/24-upgrade"; proof_run upgrade upgrade-proof.sh "$he
 
 accounts() { mkdir -p "$here/25-accounts"; proof_run accounts accounts-proof.sh "$here/25-accounts" "3 containers behind nginx and mailpit; confirm, reset, lock, a mail server that goes away"; }
 
+console() {
+  mkdir -p "$here/26-console"
+  stamp
+  cluster_up
+  set +e
+  "$here/browser/console.sh" "$here/26-console" 2>&1 | stamped > "$work/console.log"
+  status=${PIPESTATUS[0]}
+  set -e
+  cluster_down
+  [ "$status" = 0 ] || { echo "the console proof failed, see $work/console.log" >&2; exit 1; }
+  {
+    sed 's/^/# /' "$work/STAMP.txt"
+    echo "# source: evidence/browser/console.mjs (a real browser, 3 containers behind nginx, mailpit)"
+    echo
+    grep -v "console proof passed" "$work/console.log"
+  } > "$here/26-console/run.log"
+}
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -256,6 +275,7 @@ case "${1:-all}" in
   dashboard) dashboard ;;
   upgrade) upgrade ;;
   accounts) accounts ;;
-  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; dashboard; upgrade; accounts; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|dashboard|upgrade|accounts|controls|tests]" >&2; exit 2 ;;
+  console) console ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; dashboard; upgrade; accounts; console; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|dashboard|upgrade|accounts|console|controls|tests]" >&2; exit 2 ;;
 esac

@@ -8,6 +8,10 @@ defmodule App.Accounts.Workers.SendAccountEmail do
   job's id before it is sent, so a retry sends the same message with the same link, not a new one;
   and once the mail server has it, the body is blanked (`EmailService`).
 
+  The links open pages of the console (`assets/src/pages/ResetPasswordPage.vue`,
+  `ConfirmEmailPage.vue`); a project without the console still has the code in the email, to use with
+  the API.
+
   Asked for twice within a minute for the same user, the second asking is the same job.
   """
   use Oban.Worker,
@@ -37,7 +41,7 @@ defmodule App.Accounts.Workers.SendAccountEmail do
         "account_email:#{id}"
         |> EmailService.send_once_lazy(email_kind, user.email, subject, fn ->
           secret = TokenService.issue(user.id, kind)
-          body(text, Endpoint.url() <> path <> secret, secret)
+          body(text, base_url() <> path <> secret, secret)
         end)
         |> EmailService.oban_result()
     end
@@ -49,14 +53,19 @@ defmodule App.Accounts.Workers.SendAccountEmail do
     round(min(base * Integer.pow(2, attempt - 1), 3_600) * (0.8 + :rand.uniform() * 0.4))
   end
 
+  # Where the links point: the console, with the secret after the `#` — a browser never sends that
+  # part to a server, so it is in no access log. `PUBLIC_URL` is the address people reach the service
+  # at (the local cluster is http://localhost:8080); without it, the endpoint's own URL.
+  defp base_url, do: Application.get_env(:acme, :public_url) || Endpoint.url()
+
   defp template("reset"),
     do:
-      {"password_reset", "Reset your password", "/reset-password?token=",
+      {"password_reset", "Reset your password", "/#/reset-password?token=",
        "Somebody asked to reset the password of this account. If it was you, use this link (it works once, for an hour):"}
 
   defp template("confirm"),
     do:
-      {"email_confirmation", "Confirm your email address", "/confirm-email?token=",
+      {"email_confirmation", "Confirm your email address", "/#/confirm-email?token=",
        "Please confirm that this is your email address, with this link (it works once, for three days):"}
 
   defp body(text, link, secret) do

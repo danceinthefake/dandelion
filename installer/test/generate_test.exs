@@ -214,6 +214,28 @@ defmodule DandelionNew.GenerateTest do
     end
   end
 
+  test "the console has a page for each thing, and none of them puts text on the page as HTML" do
+    files = files("my_app", "MyApp")
+
+    for page <-
+          ~w(Products Audit Settings Webhooks Files SignIn Register ForgotPassword ResetPassword ConfirmEmail Orders) do
+      assert Map.has_key?(files, "assets/src/pages/#{page}Page.vue"), page
+    end
+
+    assert files["assets/src/router.ts"] =~ "hashchange"
+    assert files["assets/src/highlight.test.ts"] =~ "html in the text stays text"
+    assert files["assets/package.json"] =~ "node --test"
+
+    # text is text: no v-html in any of the console's source
+    for {name, source} <- files,
+        String.starts_with?(name, "assets/src/") and String.ends_with?(name, ".vue") do
+      refute source =~ "v-html=", name
+    end
+
+    bare = files("my_app", "MyApp", true, false)
+    refute Enum.any?(Map.keys(bare), &String.starts_with?(&1, "assets/"))
+  end
+
   test "the example's accounts can reset a password, confirm an address and lock a guessed one" do
     files = files("my_app", "MyApp")
 

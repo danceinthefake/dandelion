@@ -126,6 +126,12 @@ if config_env() == :prod do
     trust_forwarded_for: System.get_env("TRUST_FORWARDED_FOR") in ["1", "true"]
 
   # @example-start
+  # The address people reach the service at, for the links in emails (a reset, a confirmation).
+  config :acme, :public_url, System.get_env("PUBLIC_URL")
+
+  # @example-end
+
+  # @example-start
   # Mail: SMTP_HOST sends through that server (SMTP_PORT default 587; SMTP_USERNAME and
   # SMTP_PASSWORD if it wants a login; SMTP_TLS is always, if_available (default) or never).
   # Without SMTP_HOST nothing is sent: each message is written to the log. MAIL_FROM_ADDRESS

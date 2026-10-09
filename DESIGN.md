@@ -844,7 +844,9 @@ Decided 2026-10-08, for local disk (no cloud budget, and S3 is a second adapter 
   negative control gives each node its own and fails. Without a shared mount, put the
   files in object storage — an adapter with the same three functions.
 - **Limits:** 5 MB a file (`UPLOAD_MAX_BYTES`, at most 5 000 000), the endpoint reads a
-  multipart body up to 6 000 000 bytes (413 beyond), 10 s between reads of the body.
+  multipart body up to 6 000 000 bytes (413 beyond), 10 s between reads of the body, and the load
+  balancer (nginx, `client_max_body_size 6m`) answers 413 above that itself. nginx's default is 1 MB:
+  left alone, the service's 5 MB would be unreachable through it — found by the console's browser proof.
   Nothing resumable, no virus scan, no image processing, no quotas per user (the rate
   limit is the only brake).
 
@@ -1024,6 +1026,39 @@ lockout. Email (§10.19) made the first two possible, and the rest followed from
   (off) makes an order need it. Which actions to gate is the app's policy, not the library's.
 - **Not here:** two-factor, a "remember this device", password strength beyond length, breach checks, and a
   UI beyond the API (the Vue console has the pages; DESIGN §10.24).
+
+### 10.24 The console
+
+Decided 2026-10-12. The console was one page of orders. A service that has search, uploads, an audit
+log and a kill switch needs a face for them, and the Vue half of the project's aim needs more than a
+list: a place to see how an Elixir API and a Vue app are meant to fit.
+
+- **One page per thing the service does**, a sidebar, a hash router (`src/router.ts`, 20 lines)
+  and no router library: the pages are `src/pages/*.vue`, each a few small functions over
+  `src/api.ts` (one typed client; every call returns `{ok, data}` or `{ok: false, error}`). Staff see
+  everything, a customer Products and Files; a staff page opened by hand says it is for staff
+  (the server enforces it; the console only does not offer it).
+- **Text is text.** Search snippets arrive as plain text with `[[` `]]` around the matches
+  (DESIGN §10.20); `src/highlight.ts` cuts them into pieces and the template shows each with `{{ }}`.
+  **No `v-html` anywhere.** An admin's product name or description, however it is written, appears as
+  the characters typed (the browser proof adds a product whose name is `<i>…</i>` and checks that nothing
+  is italic).
+- **Typing is not a request per key.** The search waits 150 ms after the last key, drops the answer
+  of a search that a newer one has replaced (a counter), and aborts the request it no longer needs
+  (`AbortController`): typing "green" fast shows the answer for "green", not for "gre" arriving late.
+- **The links in emails open console pages** and carry their secret **after the `#`**: a browser never
+  sends that part, so no request line, proxy or access log has it (the server cannot redirect it either:
+  the secret never reaches it until the page posts it). `PUBLIC_URL` says where the console is.
+- **The shared failure messages say what to do**: a 503 with no message of its own is "the service is busy:
+  try again in a moment" (a person presses the button again), a locked address says for how many minutes,
+  a paused service says it is paused.
+- **Tested in a real browser**, because what can go wrong is in the page, not in a function: a component
+  that is a fragment cannot be hidden with `v-show` (the orders list stayed on every page until the proof's
+  screenshot showed it), a confirm dialog that is not told to close stays open over the page, a switch
+  is enabled before its data has loaded. `npm test` covers the one pure piece (the highlighter) with
+  Node's built-in runner, nothing to install.
+- **Not here:** type checking (`vue-tsc` is not wired in), end-to-end tests of other browsers (Chromium
+  only), translations, a dark theme beyond what the component library does, offline use.
 
 ## 11. The library
 
