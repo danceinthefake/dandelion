@@ -37,13 +37,15 @@ x-node: &node
     RELEASE_COOKIE: local-only-cookie-local-only-cookie
     PHX_HOST: localhost
     PAYMENT_WEBHOOK_TOKEN: local-only-webhook-token
-    # the proofs make hundreds of requests from one address: no limit in their way
-    # (deploy/reliability-proof.sh sets real ones while it checks them). nginx
-    # overwrites x-forwarded-for with the address it saw, so it is safe to trust.
+    # The proofs make hundreds of requests from one address, so no limit is in their way
+    # (reliability-proof.sh sets real ones while it checks them). To try a low one:
+    # `RATE_LIMIT_AUTH=3 docker compose -f deploy/compose.cluster.yaml up -d node1 node2 node3`.
+    # TRUST_FORWARDED_FOR: nginx overwrites x-forwarded-for with the address it saw, so
+    # the node may count requests by it.
     SHUTDOWN_TIMEOUT_MS: "${SHUTDOWN_TIMEOUT_MS:-20000}"
     DRAIN_DELAY_MS: "${DRAIN_DELAY_MS:-5000}"
-    RATE_LIMIT_API: "100000"
-    RATE_LIMIT_AUTH: "100000"
+    RATE_LIMIT_API: "${RATE_LIMIT_API:-100000}"
+    RATE_LIMIT_AUTH: "${RATE_LIMIT_AUTH:-100000}"
     TRUST_FORWARDED_FOR: "1"
     # @example-start
     # webhooks go to hook-receiver below, a private http address; retries come quickly
@@ -127,6 +129,31 @@ services:
     image: nginx:1-alpine
     volumes: ["./webhook-receiver.conf:/etc/nginx/nginx.conf:ro"]
   # @example-end
+
+  # ≈ the monitoring system: collects /metrics from every node (prometheus.yml).
+  # http://localhost:19090
+  prometheus:
+    image: prom/prometheus:v3.5.0
+    ports: ["127.0.0.1:19090:9090"]
+    volumes: ["./prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    depends_on: [node1, node2, node3]
+
+  # ≈ the dashboard: http://localhost:13000 (no login to look; admin / local-only to edit).
+  # grafana/dashboards/dandelion.json is loaded at start, read-only.
+  grafana:
+    image: grafana/grafana:12.1.0
+    ports: ["127.0.0.1:13000:3000"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_SECURITY_ADMIN_PASSWORD: local-only
+      GF_USERS_DEFAULT_THEME: light
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_ANALYTICS_CHECK_FOR_UPDATES: "false"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on: [prometheus]
 
   # ≈ a tracing backend (Jaeger, Tempo, Honeycomb …): where the nodes send spans.
   # In memory, for trying things out; the UI is http://localhost:16686.

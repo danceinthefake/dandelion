@@ -1,0 +1,12 @@
+# ≈ the monitoring system that collects /metrics from every node. Every 2 s here (15 s is the
+# usual); each node reports itself, so the dashboard adds them up. In a real deployment point
+# `targets` (or a service-discovery block) at your nodes, and set `authorization` if you set
+# METRICS_TOKEN.
+global:
+  scrape_interval: 2s
+
+scrape_configs:
+  - job_name: acme
+    metrics_path: /metrics
+    static_configs:
+      - targets: [node1:4000, node2:4000, node3:4000]

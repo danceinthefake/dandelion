@@ -941,6 +941,33 @@ where it is weaker.
   dedicated engine earns its keep. Snippets are cut by Postgres from the stored text: plain
   text with `[[` `]]` around matches, to be escaped by the client — never HTML of ours.
 
+### 10.21 The dashboard
+
+Decided 2026-10-10. `/metrics` (§10.7) is the data; nobody reads it as text. One dashboard,
+provisioned from a file, so it is reviewed and versioned like code and the same one comes up
+on every machine.
+
+- **Laid out as questions**, not as metrics: *Is it up?* (nodes in the cluster and scraped,
+  draining, 5xx, request rate, p95, cache hit ratio, jobs waiting), *Traffic* (by status, by
+  node, latency, the slowest routes), *Protecting itself* (429 and 503, calls to other services
+  by circuit and result, circuit changes, draining), *Background work* (queue depth, jobs by
+  worker and outcome, job time, jobs that raised), *Database, cache and the VM*.
+- **Every query is checked against live metrics** by `deploy/dashboard-proof.sh`: it makes the
+  things the panels are for happen (traffic, a client over its limit, orders paused by a flag, a
+  mail server that goes away, a node told to stop), then runs *every* query of the dashboard
+  and requires the 16 panels that show those things to have data. A panel with a misspelled
+  metric, or a metric nothing emits, fails there instead of staying quietly empty on a screen
+  nobody looks at until the incident.
+- **New metrics for it:** calls and circuit changes by circuit (`smtp:mailpit`,
+  `webhook:example.com`), queue depth by queue and state (read from the table, reported by
+  every node: the dashboard takes the `max`; **every queue and state is reported, zero when
+  empty**, so a flat line means empty and a missing one means nothing), and `draining` — set
+  when draining *starts*, not at the next 10 s poll, or a 5 s drain would never be seen.
+- **Not shipped:** alert rules (Prometheus Alertmanager, Grafana alerting) — what to page on
+  depends on what the service is for; the panels' descriptions say what each number should be.
+  Prometheus keeps its data in the container (not a volume): a restart starts a new history.
+  The compose file scrapes every 2 s so a short test shows something; use 15 s in real life.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

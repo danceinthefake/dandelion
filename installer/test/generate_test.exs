@@ -201,6 +201,19 @@ defmodule DandelionNew.GenerateTest do
     refute files["config/runtime.exs"] =~ "@example-"
   end
 
+  test "every project gets Prometheus, Grafana and the dashboard; the example gets the proof of it" do
+    for example? <- [true, false] do
+      files = files("my_app", "MyApp", example?, example?)
+
+      assert files["deploy/compose.cluster.yaml"] =~ "grafana/grafana"
+      assert files["deploy/compose.cluster.yaml"] =~ "prom/prometheus"
+      assert files["deploy/prometheus.yml"] =~ "node1:4000"
+      assert files["deploy/grafana/dashboards/dandelion.json"] =~ "\"uid\": \"dandelion\""
+      assert files["config/prod.exs"] =~ ~s("/metrics")
+      assert Map.has_key?(files, "deploy/dashboard-proof.sh") == example?
+    end
+  end
+
   test "the example searches its products with Postgres full-text search" do
     files = files("my_app", "MyApp")
 

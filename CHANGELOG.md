@@ -49,6 +49,13 @@
   orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
   migration `add_flags` (every project gets it: `Platform.Application` starts
   `Dandelion.Flags`).
+- A Grafana dashboard for the service (`deploy/grafana/dashboards/dandelion.json`) with
+  Prometheus and Grafana in the cluster compose file (http://localhost:13000, no login to
+  look): requests, latency and errors, what is refused (429, 503), calls to other services and
+  their circuits, jobs waiting and failing, database and cache, the VM. New metrics for it:
+  `dandelion_resilience_calls_total`, `dandelion_resilience_circuit_changes_total`,
+  `platform_oban_queue_jobs` (by queue and state), `platform_node_draining`. `/metrics` is not
+  redirected to https in production (Prometheus scrapes the nodes directly).
 - `Dandelion.Resilience`: `call/3` runs a function with a timeout, retries with
   backoff and jitter, and a per-name circuit breaker (opens after N failures in a
   row, lets one call through after a while). Per node. Telemetry for calls and

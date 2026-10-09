@@ -10,7 +10,8 @@
 set -eu
 cd "$(dirname "$0")"
 
-docker compose -f compose.cluster.yaml exec -T node1 bin/acme rpc '
+seed() {
+  docker compose -f compose.cluster.yaml exec -T node1 bin/acme rpc '
   now = DateTime.utc_now()
 
   products =
@@ -31,4 +32,12 @@ docker compose -f compose.cluster.yaml exec -T node1 bin/acme rpc '
 
   IO.write("ok")
 ' >/dev/null
+}
+
+# (just after the cluster starts the database pool may still be settling: try again)
+for attempt in 1 2 3 4 5 6 7 8 9 10; do
+  seed 2>/dev/null && break
+  [ "$attempt" = 10 ] && seed
+  sleep 3
+done
 echo "products and users seeded"

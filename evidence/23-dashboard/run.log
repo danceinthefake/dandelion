@@ -1,0 +1,18 @@
+# commit: 759577f (+ uncommitted changes)
+# recorded: 2026-10-09T01:59Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/dashboard-proof.sh (3 containers, Prometheus and Grafana; traffic, a rate limit, a pause, a dead mail server and a draining node, then every query of the dashboard run)
+
+02:00:09 the pieces:
+02:00:12   ok  Prometheus reads /metrics from all 3 nodes
+02:00:12   ok  Grafana has the dashboard (25 panels, provisioned from the file) and reaches Prometheus
+02:00:12 making things happen:
+02:00:13   ok  30 orders, 30 searches and 30 unknown products through the load balancer
+02:00:15   ok  a client over its limit: 21 requests answered 429
+02:00:16   ok  orders paused by a flag: 6 answered 503
+02:01:15   ok  the mail server stopped: 8 mail jobs waiting, and a circuit opened (counted 1.0408125)
+02:01:24   ok  a node told to stop: seen draining (1) while it finished its requests
+02:01:31 the queries:
+02:01:32   ok  all 30 queries on the dashboard run without error
+02:01:32   ok  and the 16 panels that show what we made happen all have data

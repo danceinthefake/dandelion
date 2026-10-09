@@ -1,0 +1,18 @@
+# control: badpanel
+# broken on purpose: a panel's metric name has a typo (the dashboard JSON): the query runs and shows nothing
+# expected: the proof FAILS after 'the queries:' and never reaches 'and the 16 panels that show what we made happen all have data'
+# commit: 759577f, recorded 2026-10-09T01:59Z
+# verdict: ok
+
+01:58:34 the pieces:
+01:58:34   ok  Prometheus reads /metrics from all 3 nodes
+01:58:38   ok  Grafana has the dashboard (25 panels, provisioned from the file) and reaches Prometheus
+01:58:38 making things happen:
+01:58:39   ok  30 orders, 30 searches and 30 unknown products through the load balancer
+01:58:41   ok  a client over its limit: 21 requests answered 429
+01:58:41   ok  orders paused by a flag: 6 answered 503
+01:58:52   ok  the mail server stopped: 8 mail jobs waiting, and a circuit opened (counted 1.171625)
+01:59:00   ok  a node told to stop: seen draining (1) while it finished its requests
+01:59:08 the queries:
+01:59:08   ok  all 30 queries on the dashboard run without error
+01:59:08 FAIL  panels with no data after the traffic: [Calls to other services, by circuit and result]

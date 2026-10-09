@@ -25,17 +25,18 @@ repository, and the commit it came from is at the top of each log.
 | [20](20-audit/) | Changes made through the load balancer are in one log with who, from/to and the request id; refused changes leave nothing; no secret in it; the table refuses UPDATE, DELETE and TRUNCATE from every node | `Dandelion.Audit` | log + 2 controls |
 | [21](21-email/) | Each order's confirmation reaches the mail server exactly once; with it stopped, orders are accepted at once, the circuit opens and the mail waits; when it returns all arrive, once each | (the app: Swoosh + `Dandelion.Resilience`) | log + 2 controls |
 | [22](22-search/) | Full-text search over 20 000 products: prefix words, ranking, accents, a typo; nothing a user types breaks it; a rename or delete is searchable at once from all three nodes; the index is used | `Dandelion.Search` | log + 2 controls |
+| [23](23-dashboard/) | A Grafana dashboard for the service: every query of it runs against live metrics, and the panels for rate limits, paused orders, a dead mail server (a circuit opens, mail waits) and a draining node have data — with a screenshot | (the app's `/metrics`) | log + screenshot + 2 controls |
 | [12](12-auth/) | One login is accepted by all 3 nodes (signed token, no session); a customer sees only their own orders (404 for others'); prices are admin-only; a tampered token and an anonymous WebSocket are refused | (the app: not in the library) | log + GIF |
 | [11](11-tracing/) | One request is one trace in Jaeger, kept under the caller's trace id, and an order's jobs on another node are spans of the same trace | `Dandelion.PubSub`, `Queue.Ordered` (they carry the context) | log + GIF |
 | [10](10-metrics/) | `/metrics` is Prometheus text on every node, and the cluster size it reports follows the nodes (3 → 2 → 3 around a kill) | (the app; `Dandelion.Cache` emits the cache events) | log + GIF |
 | [09](09-network-partition/) | A network split: jobs and payments still run once, one cron leader; broadcasts lost, a cache goes stale and is emptied on the heal, presence merges | `Dandelion.Cache`, `Queue`, `Queue.Ordered`, `PubSub` | log + GIF + control |
 | [08](08-generated-projects/) | Generated projects compile, test and run as a cluster (with everything, without the frontend, without the example) | the generator | test output |
 
-**Negative controls** ([`controls/`](controls/)): twenty logs where one thing is
+**Negative controls** ([`controls/`](controls/)): twenty-two logs where one thing is
 broken on purpose and the same proof **fails** where it should — ordering off
 (04), cache broadcast off (05), job rescue off (03), cache not emptied on rejoin
 (09), an order's events saved outside its transaction (13), the rate limit out (14), a node that
-does not say it is draining (14), the idempotency key ignored (16), a node that stops at once and cuts the requests it serves (15), webhooks signed with the wrong secret (17), a circuit that never opens (17), a flag change that doesn't clear the cache (18), upload types taken on trust (19), nodes that don't share the directory (19), a change that isn't recorded (20), an audit table that can be rewritten (20), a message sent again when its job reruns (21), a failed send forgotten instead of retried (21), user text reaching the query language (22), a missing index (22). A check that can't
+does not say it is draining (14), the idempotency key ignored (16), a node that stops at once and cuts the requests it serves (15), webhooks signed with the wrong secret (17), a circuit that never opens (17), a flag change that doesn't clear the cache (18), upload types taken on trust (19), nodes that don't share the directory (19), a change that isn't recorded (20), an audit table that can be rewritten (20), a message sent again when its job reruns (21), a failed send forgotten instead of retried (21), user text reaching the query language (22), a missing index (22), a misspelled metric on a panel (23), a circuit change nothing counts (23). A check that can't
 fail proves nothing; these show these can.
 
 **Read [LIMITS.md](LIMITS.md)** — what is *not* proven.

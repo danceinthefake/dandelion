@@ -90,6 +90,11 @@ Said plainly, so nobody has to find out the hard way.
   Latin text. There are no synonyms, facets or relevance tuning, and the typo fallback is
   trigram similarity, which is weak for very short words. Search is public and not cached; its
   cost is bounded only by the rate limit, 50 rows a page and 1 000 deep.
+- **Dashboard** ([23](23-dashboard/)). It is checked to *run and have data*, not to be *right to
+  act on*: thresholds (the red and green of the stat panels) are a starting point, no alert
+  rules ship, and a number being plausible in a one-minute test says nothing about a day's
+  traffic. Prometheus and Grafana are single local containers (no retention volume, no login to
+  look), scraping every 2 s. The screenshot is a fresh cluster after a minute of made-up events.
 - **Nothing about performance.** No throughput, latency or load numbers. The
   claims are about behaviour, not speed.
 - **Live broadcasts and presence are best-effort.** They are fire-and-forget by

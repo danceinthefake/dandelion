@@ -59,6 +59,8 @@ defmodule Platform.Application do
   # then let the supervision tree stop the endpoint, which drains what is in flight.
   @impl true
   def prep_stop(state) do
+    # (the metric would otherwise show it at the next poll, up to 10 s later: after we are gone)
+    :telemetry.execute([:platform, :node, :draining], %{value: 1})
     Dandelion.Drain.start(Application.fetch_env!(:acme, :drain_delay))
     state
   end

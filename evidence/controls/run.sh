@@ -189,6 +189,26 @@ assert a in s; open(p, "w").write(s.replace(a, "{:error, {:temporary, _why}} -> 
 PY
 }
 
+# A panel's metric name has a typo: it runs, and shows nothing.
+patch_badpanel() {
+  break_file "$example/deploy/grafana/dashboards/dandelion.json" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "dandelion_resilience_calls_total"
+assert a in s; open(p, "w").write(s.replace(a, "dandelion_resilience_calls_totl"))
+PY
+}
+
+# A circuit that opens is not counted: the metric is never emitted.
+patch_nocircuitmetric() {
+  break_file "$example/lib/platform/web/telemetry.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "event_name: [:dandelion, :resilience, :circuit],"
+assert a in s; open(p, "w").write(s.replace(a, "event_name: [:dandelion, :resilience, :circuit_not_emitted],"))
+PY
+}
+
 # What the user types reaches the query language: words are only split on spaces.
 patch_unsafequery() {
   python3 - "$vendor/lib/dandelion/search.ex" <<'PY'
@@ -311,6 +331,12 @@ selected idempotency && control idempotency "the Idempotency-Key header is ignor
 
 selected rollingcut && control rollingcut "a node told to stop neither waits before stopping nor lets requests in flight finish (DRAIN_DELAY_MS=0, SHUTDOWN_TIMEOUT_MS=0)" \
   "a rolling deploy under load:" "no request was cut off by a node stopping" "DRAIN_DELAY_MS=0 SHUTDOWN_TIMEOUT_MS=0" rolling-proof.sh
+
+selected badpanel && control badpanel "a panel's metric name has a typo (the dashboard JSON): the query runs and shows nothing" \
+  "the queries:" "and the 16 panels that show what we made happen all have data" "" dashboard-proof.sh
+
+selected nocircuitmetric && control nocircuitmetric "a circuit that opens is not counted (the metric is never emitted)" \
+  "making things happen:" "the mail server stopped:" "" dashboard-proof.sh
 
 selected unsafequery && control unsafequery "what the user types reaches the query language (Dandelion.Search.tsquery/1 splits on spaces only)" \
   "finding things:" "14 nasty queries" "" search-proof.sh

@@ -16,6 +16,8 @@ defmodule Platform.Web.Telemetry do
   use Supervisor
   import Telemetry.Metrics
 
+  alias Platform.Database.Repo
+
   @reporter :platform_metrics
   # seconds
   @buckets [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5]
@@ -112,6 +114,38 @@ defmodule Platform.Web.Telemetry do
         tags: [:result]
       ),
 
+      # Calls to other services (Dandelion.Resilience): how they ended, and when a circuit
+      # opens or closes — one circuit per thing called (`smtp:mailpit`, `webhook:example.com`)
+      counter("dandelion.resilience.calls.total",
+        description:
+          "Calls to other services, by circuit and result (ok, error, timeout, circuit_open)",
+        event_name: [:dandelion, :resilience, :call],
+        measurement: :duration,
+        tags: [:circuit, :result],
+        tag_values: &circuit_tags/1
+      ),
+      counter("dandelion.resilience.circuit.changes.total",
+        description: "Circuit state changes, by circuit and new state (open, half_open, closed)",
+        event_name: [:dandelion, :resilience, :circuit],
+        tags: [:circuit, :state],
+        tag_values: &circuit_tags/1
+      ),
+
+      # Jobs waiting or running, by queue and state (from the table: the same on every node)
+      last_value("platform.oban.queue.jobs",
+        description: "Jobs by queue and state (available, scheduled, retryable, executing)",
+        event_name: [:platform, :oban, :queue],
+        measurement: :count,
+        tags: [:queue, :state]
+      ),
+
+      # 1 while this node has been told to stop and is saying so on /health (Dandelion.Drain)
+      last_value("platform.node.draining",
+        description: "1 while this node is draining (told to stop), else 0",
+        event_name: [:platform, :node, :draining],
+        measurement: :value
+      ),
+
       # The cluster: how many nodes this node is connected to, plus itself
       last_value("platform.cluster.nodes.count",
         description: "Nodes in the cluster as this node sees it (itself included)"
@@ -126,7 +160,52 @@ defmodule Platform.Web.Telemetry do
   end
 
   defp periodic_measurements do
-    [{__MODULE__, :cluster_size, []}]
+    [{__MODULE__, :cluster_size, []}, {__MODULE__, :queue_depth, []}, {__MODULE__, :draining, []}]
+  end
+
+  # {:smtp, "mailpit"} → "smtp:mailpit"; a name that is not a pair is shown as it is
+  defp circuit_tags(%{name: {kind, host}} = metadata),
+    do: Map.put(metadata, :circuit, "#{kind}:#{host}")
+
+  defp circuit_tags(%{name: name} = metadata), do: Map.put(metadata, :circuit, inspect(name))
+
+  @doc false
+  # Jobs that are not finished, by queue and state. A database that does not answer is
+  # no reason to stop reporting everything else: the numbers just aren't updated.
+  def queue_depth do
+    sql = """
+    SELECT queue, state, count(*) FROM oban_jobs
+    WHERE state IN ('available', 'scheduled', 'retryable', 'executing') GROUP BY 1, 2
+    """
+
+    with {:ok, %{rows: rows}} <- Repo.query(sql, [], timeout: 2_000) do
+      found = Map.new(rows, fn [queue, state, count] -> {{queue, state}, count} end)
+
+      # every queue and state, zero when nothing is there: a line on a graph that is flat at
+      # zero says "empty"; a missing line says nothing
+      for queue <- queues(), state <- ~w(available scheduled retryable executing) do
+        count = Map.get(found, {queue, state}, 0)
+
+        :telemetry.execute([:platform, :oban, :queue], %{count: count}, %{
+          queue: queue,
+          state: state
+        })
+      end
+    end
+
+    :ok
+  rescue
+    # (no connection to check out, a stopped pool …)
+    _ -> :ok
+  end
+
+  defp queues, do: Oban.config().queues |> Keyword.keys() |> Enum.map(&to_string/1)
+
+  @doc false
+  def draining do
+    :telemetry.execute([:platform, :node, :draining], %{
+      value: if(Dandelion.Drain.draining?(), do: 1, else: 0)
+    })
   end
 
   @doc false

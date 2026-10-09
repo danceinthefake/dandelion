@@ -1,0 +1,14 @@
+# control: nocircuitmetric
+# broken on purpose: a circuit that opens is not counted (the metric is never emitted)
+# expected: the proof FAILS after 'making things happen:' and never reaches 'the mail server stopped:'
+# commit: 759577f, recorded 2026-10-09T01:56Z
+# verdict: ok
+
+01:54:50 the pieces:
+01:54:54   ok  Prometheus reads /metrics from all 3 nodes
+01:54:54   ok  Grafana has the dashboard (25 panels, provisioned from the file) and reaches Prometheus
+01:54:54 making things happen:
+01:54:55   ok  30 orders, 30 searches and 30 unknown products through the load balancer
+01:54:57   ok  a client over its limit: 21 requests answered 429
+01:54:58   ok  orders paused by a flag: 6 answered 503
+01:56:09 FAIL  no circuit opening was counted (none)

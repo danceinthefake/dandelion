@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search, dashboard)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
@@ -16,6 +16,7 @@
 #   audit     who did what, in an append-only table → 20
 #   email     order confirmations by SMTP, a mail server that goes away → 21
 #   search    full-text search over 20 000 products → 22
+#   dashboard the Grafana dashboard: every query run against live metrics, a screenshot → 23
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -161,9 +162,10 @@ reliability() {
   } > "$here/14-reliability/run.log"
 }
 
-# proof_run NAME SCRIPT DIR SOURCE-NOTE: run one script of example/deploy on a fresh cluster, log -> DIR/run.log
+# proof_run NAME SCRIPT DIR SOURCE-NOTE [AFTER]: run one script of example/deploy on a fresh
+# cluster, log -> DIR/run.log; AFTER (a command) runs while the cluster is still up
 proof_run() {
-  local name=$1 script=$2 dir=$3 note=$4 marker
+  local name=$1 script=$2 dir=$3 note=$4 after=${5:-} marker
   stamp
   cluster_up
   for _ in $(seq 1 40); do
@@ -175,6 +177,7 @@ proof_run() {
   "$example/deploy/$script" 2>&1 | stamped > "$work/$name.log"
   status=${PIPESTATUS[0]}
   set -e
+  [ "$status" != 0 ] || [ -z "$after" ] || eval "$after"
   cluster_down
   [ "$status" = 0 ] || { echo "$script failed, see $work/$name.log" >&2; exit 1; }
   marker=$(grep -o "[a-z ]* proof passed$" "$work/$name.log" | tail -1 | sed 's/^[0-9: ]*//')
@@ -199,6 +202,13 @@ audit() { mkdir -p "$here/20-audit"; proof_run audit audit-proof.sh "$here/20-au
 email() { mkdir -p "$here/21-email"; proof_run email email-proof.sh "$here/21-email" "3 containers behind nginx and mailpit; the mail server stopped and started"; }
 
 search() { mkdir -p "$here/22-search"; proof_run search search-proof.sh "$here/22-search" "3 containers behind nginx; 20 000 products; renames searched from all three nodes"; }
+
+dashboard() {
+  mkdir -p "$here/23-dashboard"
+  shot_url='http://localhost:13000/d/dandelion?orgId=1&from=now-3m&to=now&kiosk'
+  shot() { node "$here/render/shot.mjs" "$shot_url" "$here/23-dashboard/dashboard.png" 1500 2300; }
+  proof_run dashboard dashboard-proof.sh "$here/23-dashboard" "3 containers, Prometheus and Grafana; traffic, a rate limit, a pause, a dead mail server and a draining node, then every query of the dashboard run" shot
+}
 
 controls() { "$here/controls/run.sh"; }
 
@@ -237,6 +247,7 @@ case "${1:-all}" in
   audit) audit ;;
   email) email ;;
   search) search ;;
-  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|controls|tests]" >&2; exit 2 ;;
+  dashboard) dashboard ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; dashboard; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|dashboard|controls|tests]" >&2; exit 2 ;;
 esac

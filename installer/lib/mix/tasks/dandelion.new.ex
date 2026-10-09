@@ -58,6 +58,7 @@ defmodule Mix.Tasks.Dandelion.New do
     deploy/audit-proof.sh
     deploy/email-proof.sh
     deploy/search-proof.sh
+    deploy/dashboard-proof.sh
     deploy/webhook-receiver.conf
     test/platform/pubsub_test.exs
   )

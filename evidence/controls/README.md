@@ -44,6 +44,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`noindex.log`](noindex.log) | the full-text index is never created | `the plan uses the GIN index` is never reached (claim 22) | every search read the whole table |
 
+| [`badpanel.log`](badpanel.log) | a panel's metric name has a typo | `and the 16 panels … all have data` is never reached (claim 23) | the panel ran and showed nothing |
+
+| [`nocircuitmetric.log`](nocircuitmetric.log) | a circuit that opens is not counted (the metric is never emitted) | `the mail server stopped` is never reached (claim 23) | nothing on the dashboard said a service was being left alone |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the
