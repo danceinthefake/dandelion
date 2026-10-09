@@ -22,8 +22,10 @@ volumes:
   mailpit: {}
 # @example-end
 
+# (APP_SOURCE and APP_VERSION build and tag another version of the app: deploy/upgrade-proof.sh)
 x-node: &node
-  build: ..
+  build: ${APP_SOURCE:-..}
+  image: acme-node:${APP_VERSION:-1}
   networks: [default, db]
   # @example-start
   # one directory for all three nodes: a file uploaded through one is downloaded from any
@@ -84,7 +86,8 @@ services:
       retries: 30
 
   migrate:
-    build: ..
+    build: ${APP_SOURCE:-..}
+    image: acme-node:${APP_VERSION:-1}
     networks: [db]
     command: /app/bin/migrate
     depends_on:

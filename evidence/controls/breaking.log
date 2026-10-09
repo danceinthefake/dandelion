@@ -1,0 +1,17 @@
+# control: breaking
+# broken on purpose: the migration renames a column the running version still uses (BREAKING=1)
+# expected: the proof FAILS after 'the schema changes under load:' and never reaches 'no request failed during the upgrade'
+# commit: f4cc2cb, recorded 2026-10-09T02:57Z
+# verdict: ok
+
+02:56:07 building version 2:
+02:56:50   ok  version 2 built (one more column, and code that reads and writes it)
+02:56:55 the schema changes under load:
+02:57:06   ok  the migration ran while all three nodes still ran version 1 (they did not notice)
+02:57:06   09:57:06 replacing node1
+02:57:16   ok  node1 runs version 2 and the cluster is whole (10 s)
+02:57:17 FAIL  in the mixed state 0 + 0 of 30 orders were answered as expected
+02:57:17 /home/hafidz/danceinthefake/dandelion/example/deploy/upgrade-proof.sh: line 99: /tmp/tmp.bYDUhWvDpv/fails: No such file or directory
+02:57:17 /home/hafidz/danceinthefake/dandelion/example/deploy/upgrade-proof.sh: line 99: /tmp/tmp.bYDUhWvDpv/fails: No such file or directory
+02:57:19 /home/hafidz/danceinthefake/dandelion/example/deploy/upgrade-proof.sh: line 99: /tmp/tmp.bYDUhWvDpv/fails: No such file or directory
+02:57:19 /home/hafidz/danceinthefake/dandelion/example/deploy/upgrade-proof.sh: line 99: /tmp/tmp.bYDUhWvDpv/fails: No such file or directory

@@ -968,6 +968,33 @@ on every machine.
   Prometheus keeps its data in the container (not a volume): a restart starts a new history.
   The compose file scrapes every 2 s so a short test shows something; use 15 s in real life.
 
+### 10.22 A deploy that changes the database
+
+Decided 2026-10-11. A rolling deploy (§10.14) puts two versions of the app on the same table
+for a while. A schema change that only the new version can live with turns that while into an
+outage, and "run the migration, then restart" does exactly that.
+
+- **Expand, then roll.** First a migration that the *old* code does not notice (a new column
+  with a default or nullable, a new table, a new index built `CONCURRENTLY`); then the new code
+  (reads and writes the new column), one node at a time; only when no old node is left, the
+  contraction (drop the column nobody reads, add the `NOT NULL`). Each step is deployable and
+  reversible on its own. A rename or a drop in the same release as the code that stops using
+  the old name is the thing not to do: the proof's control does it and both versions fail.
+- **The proof builds two versions for real**: the example tree plus a patch
+  (`deploy/versions/order-channel.patch`) becomes a second image; the migration runs from that
+  image while all three nodes still run the first; each node is then replaced, the load balancer
+  told about its new address (nginx resolves names once; a real balancer discovers nodes), and
+  the cluster must be whole again before the next. Under load throughout: slow clients, retries
+  with idempotency keys, every order read back through any node. A request that fails with
+  anything but a 503 fails the proof.
+- **The patch is a real maintenance cost**: it must apply to the current code. When it
+  stops applying, the proof says so rather than testing something else.
+- **Not covered:** a migration that locks a big table (the proof's table is small: take the
+  usual care — `lock_timeout`, concurrent index builds, batched backfills), rolling *back* a
+  version (the old code over the new column is the same situation: it works because the column
+  has a default), a change to what jobs carry between versions, and a change of the Erlang
+  or Elixir version between nodes.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

@@ -38,6 +38,9 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/upgrade-proof.sh`: a second version of the app (a new column, and code using it) is built,
+  its migration runs while the first version serves, and the nodes are replaced one at a time under
+  load: no request fails, version 1 and 2 serve together, every order is read back from any node;
 - `./deploy/dashboard-proof.sh`: Prometheus reads all three nodes and Grafana (http://localhost:13000)
   has the dashboard; traffic, a rate limit, orders paused, a dead mail server and a draining node
   are made to happen, and every query of the dashboard runs and the panels for those have data;

@@ -1,0 +1,68 @@
+diff --git a/example/lib/app/shop/handlers/order_handler.ex b/example/lib/app/shop/handlers/order_handler.ex
+index 26f3461..e9aa609 100644
+--- a/example/lib/app/shop/handlers/order_handler.ex
++++ b/example/lib/app/shop/handlers/order_handler.ex
+@@ -21,6 +21,11 @@ defmodule App.Shop.Handlers.OrderHandler do
+   # true`) instead of making a second one.
+   def create(conn, params) do
+     with {:ok, key} <- idempotency_key(conn) do
++      params =
++        with [channel] <- get_req_header(conn, "x-channel"),
++             do: Map.put(params, "channel", channel),
++             else: (_ -> params)
++
+       case OrderService.create(params, viewer(conn), idempotency_key: key) do
+         {:ok, order} ->
+           conn |> put_status(:created) |> json(OrderJSON.order(order))
+diff --git a/example/lib/app/shop/handlers/order_json.ex b/example/lib/app/shop/handlers/order_json.ex
+index 04b0378..e17c80f 100644
+--- a/example/lib/app/shop/handlers/order_json.ex
++++ b/example/lib/app/shop/handlers/order_json.ex
+@@ -9,6 +9,7 @@ defmodule App.Shop.Handlers.OrderJSON do
+     %{
+       id: o.id,
+       customer_email: o.customer_email,
++      channel: o.channel,
+       status: o.status,
+       total_cents: o.total_cents,
+       items: Enum.map(o.items, &item/1),
+diff --git a/example/lib/app/shop/models/order.ex b/example/lib/app/shop/models/order.ex
+index b0eebed..8e13824 100644
+--- a/example/lib/app/shop/models/order.ex
++++ b/example/lib/app/shop/models/order.ex
+@@ -16,6 +16,8 @@ defmodule App.Shop.Models.Order do
+   @timestamps_opts [type: :utc_datetime_usec]
+   schema "orders" do
+     field :customer_email, :string
++    # where the order came from: web (the default), mobile or api
++    field :channel, :string, default: "web"
+     field :status, :string, default: "pending"
+     field :total_cents, :integer
+     # who made it (App.Accounts); nil for orders made by the system
+@@ -37,7 +39,8 @@ defmodule App.Shop.Models.Order do
+   """
+   def create_changeset(order \\ %__MODULE__{}, attrs) do
+     order
+-    |> cast(attrs, [:customer_email])
++    |> cast(attrs, [:customer_email, :channel])
++    |> validate_inclusion(:channel, ~w(web mobile api))
+     |> validate_required([:customer_email])
+     |> validate_format(:customer_email, ~r/\A[^@\s]+@[^@\s]+\z/,
+       message: "must be an email address"
+diff --git a/example/priv/repo/migrations/20261011000001_add_order_channel.exs b/example/priv/repo/migrations/20261011000001_add_order_channel.exs
+new file mode 100644
+index 0000000..b586b7e
+--- /dev/null
++++ b/example/priv/repo/migrations/20261011000001_add_order_channel.exs
+@@ -0,0 +1,11 @@
++defmodule Platform.Database.Repo.Migrations.AddOrderChannel do
++  use Ecto.Migration
++
++  def change do
++    # Safe while the old code is still running: the column has a default, so an order made by
++    # code that doesn't know it gets "web", and code that doesn't know it never reads it.
++    alter table(:orders) do
++      add :channel, :text, null: false, default: "web"
++    end
++  end
++end

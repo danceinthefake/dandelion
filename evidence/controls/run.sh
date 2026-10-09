@@ -301,6 +301,9 @@ assert a in s; open(p, "w").write(s.replace(a, "failure_threshold: 100_000,"))
 PY
 }
 
+# The migration of the second version renames a column the first still uses (BREAKING=1 in the proof).
+patch_breaking() { :; }
+
 # A node that is told to stop stops at once, cutting the requests it is serving.
 patch_rollingcut() { :; }
 
@@ -337,6 +340,9 @@ selected badpanel && control badpanel "a panel's metric name has a typo (the das
 
 selected nocircuitmetric && control nocircuitmetric "a circuit that opens is not counted (the metric is never emitted)" \
   "making things happen:" "the mail server stopped:" "" dashboard-proof.sh
+
+selected breaking && control breaking "the migration renames a column the running version still uses (BREAKING=1)" \
+  "the schema changes under load:" "no request failed during the upgrade" "" upgrade-proof.sh "BREAKING=1"
 
 selected unsafequery && control unsafequery "what the user types reaches the query language (Dandelion.Search.tsquery/1 splits on spaces only)" \
   "finding things:" "14 nasty queries" "" search-proof.sh

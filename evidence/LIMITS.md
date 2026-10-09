@@ -44,9 +44,10 @@ Said plainly, so nobody has to find out the hard way.
   nginx, which does not read `/health`: it shows that nothing is lost, not that a
   health-checking balancer moves away within the delay. A stop longer than
   `stop_grace_period` is still a kill, and so is `SIGKILL` (that case is claim 03/13).
-- **Rolling deploy and retries** ([15](15-rolling-deploy/), [16](16-idempotency/)).
-  The deploy restarts the same image, not a new version, so a change of schema or
-  of the message format between versions is not exercised. Slow clients are
+- **Rolling deploy and retries** ([15](15-rolling-deploy/), [16](16-idempotency/), [24](24-upgrade/)).
+  [15](15-rolling-deploy/) restarts the same image; [24](24-upgrade/) replaces it with a second
+  version that has one more column. A change of what jobs or messages carry between versions, a
+  migration that locks a large table, and rolling back are not exercised. Slow clients are
   simulated with `curl --limit-rate` and nginx streaming the body. Several runs
   saw a few requests answered 503 (some also 500 before the mapping was fixed)
   while a node stopped: a Postgres `COMMIT` waited on the disk, and every commit

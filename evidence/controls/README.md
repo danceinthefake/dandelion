@@ -48,6 +48,8 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`nocircuitmetric.log`](nocircuitmetric.log) | a circuit that opens is not counted (the metric is never emitted) | `the mail server stopped` is never reached (claim 23) | nothing on the dashboard said a service was being left alone |
 
+| [`breaking.log`](breaking.log) | the migration renames a column the running version still uses | `in the mixed state only 0 of 30 orders were answered` (claim 24) | the first version could not read its own table |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

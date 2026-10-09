@@ -1,0 +1,23 @@
+# commit: f4cc2cb (+ uncommitted changes)
+# recorded: 2026-10-09T02:53Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/upgrade-proof.sh (3 containers behind nginx; a second version of the app built and rolled over a migration, under load)
+
+02:53:49 building version 2:
+02:54:15   ok  version 2 built (one more column, and code that reads and writes it)
+02:54:20 the schema changes under load:
+02:54:31   ok  the migration ran while all three nodes still ran version 1 (they did not notice)
+02:54:31   09:54:31 replacing node1
+02:54:45   ok  node1 runs version 2 and the cluster is whole (14 s)
+02:54:45   ok  version 1 and 2 serve together: of 30 orders asking for a channel, 10 were answered by version 2 (with it), 20 by version 1 (ignoring it); all 201
+02:54:50   09:54:50 replacing node2
+02:55:02   ok  node2 runs version 2 and the cluster is whole (12 s)
+02:55:07   09:55:07 replacing node3
+02:55:20   ok  node3 runs version 2 and the cluster is whole (13 s)
+02:55:26 afterwards:
+02:55:26   ok  no request failed during the upgrade: 1011 orders made and read back from any node (0 refused with 503 and retried)
+02:55:27   ok  all three nodes run version 2; Docker restarted nothing
+02:55:31   ok  the database has exactly those 1011 orders, each with the column's default (web)
+02:55:31   ok  every order, whichever version made it, has all its events done once
+02:55:31   ok  now every node uses the column: 12 of 12 orders carry the channel they asked for

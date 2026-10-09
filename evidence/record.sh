@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search, dashboard)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search, dashboard, upgrade)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
@@ -17,6 +17,7 @@
 #   email     order confirmations by SMTP, a mail server that goes away → 21
 #   search    full-text search over 20 000 products → 22
 #   dashboard the Grafana dashboard: every query run against live metrics, a screenshot → 23
+#   upgrade   a deploy that changes the database: v1 and v2 side by side under load → 24
 #   controls  the proof with one thing broken on purpose → controls/
 #             (ONLY=rejoin ./record.sh controls runs just one)
 #   tests     library and example tests, integration tests → 06, 08
@@ -210,6 +211,8 @@ dashboard() {
   proof_run dashboard dashboard-proof.sh "$here/23-dashboard" "3 containers, Prometheus and Grafana; traffic, a rate limit, a pause, a dead mail server and a draining node, then every query of the dashboard run" shot
 }
 
+upgrade() { mkdir -p "$here/24-upgrade"; proof_run upgrade upgrade-proof.sh "$here/24-upgrade" "3 containers behind nginx; a second version of the app built and rolled over a migration, under load"; }
+
 controls() { "$here/controls/run.sh"; }
 
 tests() {
@@ -248,6 +251,7 @@ case "${1:-all}" in
   email) email ;;
   search) search ;;
   dashboard) dashboard ;;
-  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; dashboard; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|dashboard|controls|tests]" >&2; exit 2 ;;
+  upgrade) upgrade ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; dashboard; upgrade; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|dashboard|upgrade|controls|tests]" >&2; exit 2 ;;
 esac

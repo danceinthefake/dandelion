@@ -214,6 +214,17 @@ defmodule DandelionNew.GenerateTest do
     end
   end
 
+  test "the example can build a second version of itself, to prove a deploy that changes the database" do
+    files = files("my_app", "MyApp")
+    assert files["deploy/versions/order-channel.patch"] =~ "add_order_channel"
+    assert files["deploy/upgrade-proof.sh"] =~ "upgrade proof passed"
+    assert files["deploy/compose.cluster.yaml"] =~ "APP_SOURCE"
+
+    bare = files("my_app", "MyApp", false)
+    refute Map.has_key?(bare, "deploy/versions/order-channel.patch")
+    refute Map.has_key?(bare, "deploy/upgrade-proof.sh")
+  end
+
   test "the example searches its products with Postgres full-text search" do
     files = files("my_app", "MyApp")
 

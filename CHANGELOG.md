@@ -49,6 +49,10 @@
   orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
   migration `add_flags` (every project gets it: `Platform.Application` starts
   `Dandelion.Flags`).
+- `deploy/upgrade-proof.sh`: a deploy that changes the database. `deploy/versions/order-channel.patch`
+  makes a second version of the app (a new column with a default, and code that uses it); the proof
+  builds it, runs its migration while the first version serves, and replaces the nodes one at a time
+  under load. The compose file takes `APP_SOURCE` and `APP_VERSION` to build and tag another version.
 - A Grafana dashboard for the service (`deploy/grafana/dashboards/dandelion.json`) with
   Prometheus and Grafana in the cluster compose file (http://localhost:13000, no login to
   look): requests, latency and errors, what is refused (429, 503), calls to other services and
