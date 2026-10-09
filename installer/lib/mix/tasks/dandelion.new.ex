@@ -63,6 +63,9 @@ defmodule Mix.Tasks.Dandelion.New do
     deploy/dashboard-proof.sh
     deploy/upgrade-proof.sh
     deploy/accounts-proof.sh
+    deploy/backup.sh
+    deploy/restore.sh
+    deploy/backup-proof.sh
     deploy/webhook-receiver.conf
     test/platform/pubsub_test.exs
   )

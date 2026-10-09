@@ -98,6 +98,13 @@ Said plainly, so nobody has to find out the hard way.
   rules ship, and a number being plausible in a one-minute test says nothing about a day's
   traffic. Prometheus and Grafana are single local containers (no retention volume, no login to
   look), scraping every 2 s. The screenshot is a fresh cluster after a minute of made-up events.
+- **Backup and restore** ([27](27-backup/)). A logical dump at one moment: nothing between the dump and the
+  loss is recoverable (no WAL archive, no point-in-time recovery). Tried on a database of a few thousand
+  orders and a few megabytes of files on one machine, not on a large one (`pg_dump` and `pg_restore` time grows
+  with the data, and the restore's 11 s here says nothing about yours). The backup is a directory on the
+  same disk as the cluster: copying it elsewhere, encrypting it and scheduling it are yours. The files are a
+  second copy, taken after the dump: a file deleted between the two comes back as a row without bytes. Restored
+  into the same Postgres major version (18) the dump came from.
 - **The console** ([26](26-console/)). Driven in Chromium only, at one desktop and one phone width;
   not in Firefox or Safari, not with a screen reader or the keyboard alone (the component library is built
   for both, nothing here proves the pages are), and not with a slow network. No type checking of the

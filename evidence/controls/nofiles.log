@@ -1,0 +1,24 @@
+# control: nofiles
+# broken on purpose: the uploaded files are left out of the backup
+# expected: the proof FAILS after 'the audit log has the product and the flag' and never reaches 'the file downloads with the checksum'
+# commit: 6ce8aa6, recorded 2026-10-09T18:59Z
+# verdict: ok
+
+18:57:36 what people have made:
+18:57:37   ok  a customer with a password, a product, a flag, a 1.5 MB file and an order (#1)
+18:57:37 a backup taken while the cluster is busy:
+18:57:43         backed up: 224K database, 12K files, in /tmp/tmp.87ObyFct3I/backup
+18:57:51   ok  1330 orders made during the backup, and the backup is of a cluster that never stopped
+18:57:52 the machine is lost:
+18:58:09   ok  containers, Postgres and the uploads volume are gone
+18:58:09 rebuilt from the backup alone:
+18:58:21         restored: database and files from /tmp/tmp.87ObyFct3I/backup; the nodes are starting
+18:58:24   ok  three nodes are a cluster again, 15 s after the restore started
+18:58:30   ok  1111 orders came back; the cluster had 1331 when it was lost (the rest were made after the snapshot)
+18:58:31   ok  every restored order has its 3 events and its items: a snapshot, not a smear
+18:58:31   ok  every restored order is, byte for byte, one the cluster made
+18:58:32   ok  the customer's password signs in (the admin's too)
+18:58:32   ok  the product is found by a word of its description (the search index came back with the table)
+18:58:32   ok  the flag has its value
+18:58:32   ok  the audit log has the product and the flag, and still refuses to be changed
+18:58:32 FAIL  download 1 differs from what was uploaded

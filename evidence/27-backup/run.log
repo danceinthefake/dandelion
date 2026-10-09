@@ -1,0 +1,27 @@
+# commit: 6ce8aa6 (+ uncommitted changes)
+# recorded: 2026-10-09T05:08Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/backup-proof.sh (3 containers behind nginx busy making orders; backed up, then containers, Postgres and the uploads volume destroyed, rebuilt from the backup alone)
+
+05:09:06 what people have made:
+05:09:06   ok  a customer with a password, a product, a flag, a 1.5 MB file and an order (#1)
+05:09:06 a backup taken while the cluster is busy:
+05:09:13         backed up: 240K database, 1.5M files, in /tmp/tmp.knqIRYLqtZ/backup
+05:09:20   ok  1671 orders made during the backup, and the backup is of a cluster that never stopped
+05:09:20 the machine is lost:
+05:09:39   ok  containers, Postgres and the uploads volume are gone
+05:09:39 rebuilt from the backup alone:
+05:09:48         restored: database and files from /tmp/tmp.knqIRYLqtZ/backup; the nodes are starting
+05:09:50   ok  three nodes are a cluster again, 11 s after the restore started
+05:09:50   ok  1212 orders came back; the cluster had 1672 when it was lost (the rest were made after the snapshot)
+05:09:51   ok  every restored order has its 3 events and its items: a snapshot, not a smear
+05:09:51   ok  every restored order is, byte for byte, one the cluster made
+05:09:52   ok  the customer's password signs in (the admin's too)
+05:09:52   ok  the product is found by a word of its description (the search index came back with the table)
+05:09:52   ok  the flag has its value
+05:09:52   ok  the audit log has the product and the flag, and still refuses to be changed
+05:09:52   ok  the file downloads with the checksum it was uploaded with (6 downloads, all three nodes)
+05:09:55   ok  the events still in flight when the backup was taken ran: every restored order has 3 completed, none doubled
+05:09:55   ok  the idempotency key of the order made before the backup still returns order #1
+05:09:55   ok  a new order is #1231, after the restored ones (up to #1212)

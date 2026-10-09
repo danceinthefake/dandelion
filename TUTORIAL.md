@@ -226,7 +226,27 @@ customer to see what a customer sees):
 
 (Claim 26: a real browser does all of this, and checks it.)
 
-## 12. Watch it
+## 12. Lose everything, and get it back
+
+The cluster survives a node, a split and a deploy. What it cannot survive is losing the state itself, so
+back it up (the cluster keeps serving while this runs):
+
+```sh
+./deploy/backup.sh ~/backup-1       # the database in one snapshot, then the uploaded files
+```
+
+Now destroy it: `docker compose -f deploy/compose.cluster.yaml down -v` removes the containers, Postgres
+and the uploads volume. Everything is gone; the backup directory is all that is left.
+
+```sh
+./deploy/restore.sh ~/backup-1      # checks the backup, replaces the database, puts the files back, starts the nodes
+```
+
+About ten seconds later, sign in with the same passwords, search for your products, download your files:
+all there, and the orders that were still being processed finish. (`./deploy/backup-proof.sh` does this
+with the cluster busy making orders and checks every claim; it is claim 27.)
+
+## 13. Watch it
 
 Open http://localhost:13000 (Grafana, no login to look): requests, latency and errors, what is
 refused, the circuits of the services it calls, jobs waiting, the database, the cache. Make
@@ -234,7 +254,7 @@ some of the above happen and watch the panels move. (Claim 23.)
 
 ![the dashboard](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/23-dashboard/dashboard.png)
 
-## 13. Check the claims yourself
+## 14. Check the claims yourself
 
 ```sh
 deploy/cluster-proof.sh        # ~10 min: broadcast, jobs, ordering, cache, logins, traces, outage
@@ -253,7 +273,7 @@ Each line it prints is a claim; [`evidence/`](evidence/) has the same runs
 recorded, the negative controls (the same proof must *fail* when a feature is
 broken on purpose), and [what is not proven](evidence/LIMITS.md).
 
-## 14. Add your own resource
+## 15. Add your own resource
 
 ```sh
 docker compose up -d           # Postgres on localhost:55432
@@ -270,7 +290,7 @@ project's own layout, behind the login. The routes go in the domain's own file,
 (`mix phx.routes App.Router` lists them all). Add the rules (who may see what, a
 cancel, an event) by hand the way `lib/app/shop/` does.
 
-## 15. Clean up
+## 16. Clean up
 
 ```sh
 docker compose -f deploy/compose.cluster.yaml down -v

@@ -49,6 +49,11 @@
   orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
   migration `add_flags` (every project gets it: `Platform.Application` starts
   `Dandelion.Flags`).
+- Backup and restore for the example: `deploy/backup.sh DIR` (the database in one `pg_dump`
+  snapshot while the cluster keeps serving, then the uploaded files) and `deploy/restore.sh DIR` (checks
+  the checksums, replaces the database, puts the files back, starts the nodes). `deploy/backup-proof.sh`
+  backs up a cluster that is busy making orders, destroys it (containers, Postgres, the uploads volume),
+  and rebuilds it from the backup alone.
 - The Vue console covers what the service does (it was the live order list and one order's page):
   **Products** (search as you type — only the newest answer is shown, the typo notice, highlighted
   matches rendered as text, never as HTML; staff add, rename and remove products), **Files** (upload

@@ -1,0 +1,18 @@
+# control: smeared
+# broken on purpose: the database is backed up table by table, not as one snapshot
+# expected: the proof FAILS after 'orders came back' and never reaches 'a snapshot, not a smear'
+# commit: 6ce8aa6, recorded 2026-10-09T05:11Z
+# verdict: ok
+
+05:10:25 what people have made:
+05:10:25   ok  a customer with a password, a product, a flag, a 1.5 MB file and an order (#1)
+05:10:25 a backup taken while the cluster is busy:
+05:10:33         backed up: 2.2M database, 1.5M files, in /tmp/tmp.uaSFEbDgaP/backup
+05:10:36   ok  2047 orders made during the backup, and the backup is of a cluster that never stopped
+05:10:37 the machine is lost:
+05:10:45   ok  containers, Postgres and the uploads volume are gone
+05:10:45 rebuilt from the backup alone:
+05:10:55         restored: database and files from /tmp/tmp.uaSFEbDgaP/backup; the nodes are starting
+05:10:57   ok  three nodes are a cluster again, 12 s after the restore started
+05:10:57   ok  1398 orders came back; the cluster had 2048 when it was lost (the rest were made after the snapshot)
+05:10:58 FAIL  192 restored orders do not have their 3 queued events: the backup is not a snapshot

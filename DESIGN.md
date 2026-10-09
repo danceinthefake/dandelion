@@ -1060,6 +1060,30 @@ list: a place to see how an Elixir API and a Vue app are meant to fit.
 - **Not here:** type checking (`vue-tsc` is not wired in), end-to-end tests of other browsers (Chromium
   only), translations, a dark theme beyond what the component library does, offline use.
 
+### 10.25 Backup and restore
+
+Decided 2026-10-13. Everything the cluster survives (a node, a partition, a deploy) leaves the one
+thing it cannot survive untouched: the loss of the state itself. "Postgres decides" only helps while there
+is a Postgres.
+
+- **Two kinds of state, two copies, in an order.** The database goes first, in **one `pg_dump`**: a
+  single snapshot, so what was committed together (an order, its items, the events queued with it) is in
+  the dump together or not at all. The uploaded files are copied **after** it: every file row in the dump
+  then has its bytes in the copy; a file stored in between is an extra nobody lists. The other order would
+  leave rows without bytes.
+- **The cluster keeps serving.** `pg_dump` takes its snapshot without blocking writers. A backup is of
+  the moment the dump began, not of the last order.
+- **Restore replaces, and starts what it can start.** It checks `SHA256SUMS` first (a damaged backup is
+  refused before anything is dropped), drops and recreates `acme`, restores, puts the files on the volume
+  with a one-off container (no node has to run), and starts the rest. The schema comes in the dump, so the
+  migrate step finds nothing to do; sequences come back (a new order's id is after the restored ones).
+- **Work in flight is the queue's job.** A job that was `executing` in the snapshot has no node behind it
+  after a restore; the queue's lifeline hands it back after `OBAN_RESCUE_AFTER_SECONDS` (DESIGN §10.5), and
+  jobs are at-least-once with dedupe keys already. Nothing in the restore knows about jobs.
+- **Not here:** point-in-time recovery (WAL archiving, `pg_basebackup`: the backup is as old as the
+  last dump), encryption or off-machine copies (the scripts write a directory: where it goes is yours), a
+  schedule, restoring one table, or a restore into a different Postgres major version than the dump's.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

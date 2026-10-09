@@ -247,6 +247,9 @@ defmodule DandelionNew.GenerateTest do
              "login_throttle"
 
     assert files["deploy/accounts-proof.sh"] =~ "accounts proof passed"
+    assert files["deploy/backup.sh"] =~ "pg_dump"
+    assert files["deploy/restore.sh"] =~ "pg_restore"
+    assert files["deploy/backup-proof.sh"] =~ "backup proof passed"
     assert files["lib/platform/cron.ex"] =~ "PruneAccountTables"
 
     bare = files("my_app", "MyApp", false)

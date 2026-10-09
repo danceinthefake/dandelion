@@ -221,6 +221,44 @@ assert a in s; open(p, "w").write(s.replace(a, "true <- is_binary(fingerprint) d
 PY
 }
 
+# The database is backed up table by table, a second apart (not one snapshot): the queued events are
+# taken first, the orders later, so orders made in between come back without their events.
+patch_smeared() {
+  break_file "$example/deploy/backup.sh" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "compose exec -T postgres pg_dump -U postgres --format=custom acme > \"$dir/db.dump\"\n"
+assert a in s
+new = '''{
+  d="compose exec -T postgres pg_dump -U postgres"
+  $d --schema-only acme
+  $d --data-only --disable-triggers -t oban_jobs acme
+  sleep 1
+  $d --data-only --disable-triggers -T oban_jobs acme
+} > "$dir/db.dump"
+'''
+open(p, "w").write(s.replace(a, new))
+PY
+  break_file "$example/deploy/restore.sh" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "pg_restore -U postgres -d acme --exit-on-error"
+assert a in s
+open(p, "w").write(s.replace(a, "psql -U postgres -d acme -q -v ON_ERROR_STOP=1 -o /dev/null"))
+PY
+}
+
+# The uploaded files are left out of the backup.
+patch_nofiles() {
+  break_file "$example/deploy/backup.sh" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "tar -C /data/uploads -cf - ."
+assert a in s
+open(p, "w").write(s.replace(a, "tar -C /data/uploads -cf - --exclude=./* ."))
+PY
+}
+
 # A product's name is put on the page as HTML (v-html), so what an admin typed becomes markup.
 patch_xss() {
   break_file "$example/assets/src/pages/ProductsPage.vue" <<'PY'
@@ -396,6 +434,12 @@ selected nolockout && control nolockout "an address is never locked (login_max_f
 
 selected norevoke && control norevoke "a password change does not end the old sessions (Token.verify/1 ignores the fingerprint)" \
   "a forgotten password:" "the new password works, the old does not, and the session" "" accounts-proof.sh
+
+selected smeared && control smeared "the database is backed up table by table, not as one snapshot" \
+  "orders came back" "a snapshot, not a smear" "" backup-proof.sh
+
+selected nofiles && control nofiles "the uploaded files are left out of the backup" \
+  "the audit log has the product and the flag" "the file downloads with the checksum" "" backup-proof.sh
 
 selected xss && control xss "a product's name is put on the page as HTML (v-html)" \
   "staff:" "ok  a name with HTML in it shows as the characters typed" "" "$here/browser/console.sh"

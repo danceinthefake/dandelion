@@ -60,6 +60,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`leakyorders.log`](leakyorders.log) | the orders page is not hidden when another page is open | `the orders page is hidden while another page is open` is never reached (claim 26) | the orders list showed on top of every page |
 
+| [`smeared.log`](smeared.log) | the database is backed up table by table, a second apart | `a snapshot, not a smear` is never reached (claim 27) | restored orders lacked their queued events |
+
+| [`nofiles.log`](nofiles.log) | the uploaded files are left out of the backup | `the file downloads with the checksum` is never reached (claim 27) | the file rows came back without bytes |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

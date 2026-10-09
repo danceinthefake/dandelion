@@ -38,6 +38,12 @@ http://localhost:8080. The proof script checks that:
   under load says "draining" on `/health`, finishes its requests and exits 0, with
   no order refused or lost; a request body that never arrives and a silent client
   are cut off (about 3 minutes);
+- `./deploy/backup.sh DIR` and `./deploy/restore.sh DIR`: the database in one `pg_dump` snapshot (the
+  cluster keeps serving) and the uploaded files taken after it; restore replaces the database, puts the files
+  back and starts the nodes. `./deploy/backup-proof.sh`: a busy cluster is backed up, then destroyed
+  (containers, Postgres, the uploads volume) and rebuilt from the backup alone: every order that came back
+  has its events and is one the cluster made, passwords, search, flags, audit log and files are back, and the
+  events in flight finish;
 - `./deploy/accounts-proof.sh`: registering sends a confirmation link; a forgotten password: the same
   answer for any address, one use of the link, a short password refused without using it up, an expired
   link refused, the old sessions ended; five wrong passwords lock an address (also one nobody has) on every
