@@ -1,6 +1,6 @@
 # 10. Tests
 
-**In Go** — table-driven:
+**In Go**, tests are table-driven:
 
 ```go
 func TestCreateRejectsInvalid(t *testing.T) {
@@ -14,8 +14,7 @@ func TestCreateRejectsInvalid(t *testing.T) {
 }
 ```
 
-**In Elixir** — the same table, a list of tuples
-([`test/app/shop/services/order_service_test.exs`](../example/test/app/shop/services/order_service_test.exs#L19)):
+**In Elixir**, the table is the same, a list of tuples ([`test/app/shop/services/order_service_test.exs`](../example/test/app/shop/services/order_service_test.exs#L19)):
 
 ```elixir
 test "rejects invalid input" do
@@ -35,13 +34,12 @@ end
 
 | Go | Elixir |
 |---|---|
-| `go test ./...` | `mix test` (`mix test path/to/file.exs:19` for one test) |
+| `go test ./...` | `mix test` (use `mix test path/to/file.exs:19` for one test) |
 | `t.Run` subtests | `describe` blocks + `test` |
 | `if got != want { t.Errorf(…) }` | `assert got == want` (prints both on failure) |
 | `t.Parallel()` | `use Platform.DataCase, async: true` |
-| test DB in a tx rolled back after | the same: the Ecto *sandbox* rolls back each test |
+| test DB in a tx rolled back after | the same: the Ecto sandbox rolls back each test |
 | `newTestOrder(t)` helpers | [`test/support/app/shop/fixtures.ex`](../example/test/support/app/shop/fixtures.ex) |
 | `httptest.NewRecorder` | `Platform.ConnCase`: `post(conn, "/api/orders", params)` ([handler tests](../example/test/app/shop/handlers/order_handler_test.exs)) |
 
-**Why:** `async: true` tests run in parallel, each inside its own database
-transaction — fast, and they can't see each other's data.
+**Why:** Tests with `async: true` run in parallel, each inside its own database transaction. They are fast, and they cannot see the data of each other.

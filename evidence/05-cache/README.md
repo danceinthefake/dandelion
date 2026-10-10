@@ -1,19 +1,16 @@
 # 05 — A price changed on one node is read fresh on all three
 
-**Claim.** Every node keeps its own copy of a cached value (a read costs no
-network trip), and a delete through any node clears it on all of them. A node
-that loses a node and gets it back starts with an empty cache.
+Claim: Every node keeps its own copy of a cached value, so a read costs no network trip. A delete through any node clears the value on all nodes. A node that loses a node and gets it back starts with an empty cache.
 
-**Library code:** `Dandelion.Cache`, `Dandelion.Cache.Listener`.
+Library code: `Dandelion.Cache`, `Dandelion.Cache.Listener`.
 
 ![the proof section cache](cache.gif)
 
-**What the log shows** ([`run.log`](run.log)):
+The [`run.log`](run.log) shows these events:
 
-- a product is read on all three nodes; each keeps its own copy;
-- the price is changed through nginx (whichever node answers); every node then
-  reads the new price;
-- `node1` drops a node and gets it back: its cache was emptied.
+- The proof reads a product on all three nodes. Each node keeps its own copy.
+- The proof changes the price through nginx. Any node can answer. Then every node reads the new price.
+- `node1` drops a node and gets it back. Its cache is empty.
 
 ```mermaid
 sequenceDiagram
@@ -29,11 +26,8 @@ sequenceDiagram
     Note over C,N2: the next read on any node loads the new price
 ```
 
-**Negative control:** with the broadcast removed, the proof **fails** at the
-price check: two nodes still read the old price
-([`controls/cache.log`](../controls/cache.log)).
+Negative control: If we remove the broadcast, the proof fails at the price check. Two nodes still read the old price ([`controls/cache.log`](../controls/cache.log)).
 
-**Not shown:** a network split (halves may drift for up to the 60 s TTL, then
-converge; see [LIMITS](../LIMITS.md)).
+Not shown: a network split. The halves can drift for up to the 60 s TTL and then converge (see [LIMITS](../LIMITS.md)).
 
-**Re-run:** `evidence/record.sh proof` (control: `evidence/record.sh controls`)
+To run it again, run `evidence/record.sh proof`. To run the control, run `evidence/record.sh controls`.

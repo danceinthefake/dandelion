@@ -1,6 +1,6 @@
 # 2. Starting up
 
-**In Go** — `main` wires things up and blocks:
+**In Go**, `main` wires things up and blocks:
 
 ```go
 func main() {
@@ -10,8 +10,7 @@ func main() {
 }
 ```
 
-**In Elixir** — the application lists what must run, in order, and hands
-the list to a **supervisor** ([`lib/platform/application.ex`](../example/lib/platform/application.ex#L13)):
+**In Elixir**, the application lists what must run, in order. It gives the list to a supervisor ([`lib/platform/application.ex`](../example/lib/platform/application.ex#L13)). A supervisor is a process that starts other processes and watches them.
 
 ```elixir
 def start(_type, _args) do
@@ -31,9 +30,6 @@ def start(_type, _args) do
 end
 ```
 
-Each child is a process started in that order; the HTTP endpoint comes last,
-so requests only arrive once the database pool and jobs are up.
+The supervisor starts each child process in that order. The HTTP endpoint comes last. Requests therefore arrive only after the database pool and the jobs are up.
 
-**Why:** in Go, `main` starts things and hopes they keep running. A
-supervisor *watches* them: if one dies (the job queue, a database connection), it
-starts it again — see [12. When it crashes](12-when-it-crashes.md).
+**Why:** In Go, `main` starts things and hopes that they keep running. A supervisor watches them. If one of them dies (the job queue or a database connection), the supervisor starts it again. See [12. When it crashes](12-when-it-crashes.md).

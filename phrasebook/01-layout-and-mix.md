@@ -9,11 +9,11 @@ internal/http/  internal/service/  internal/repo/  internal/model/
 go run ./cmd/server   go test ./...   gofmt   golangci-lint
 ```
 
-**In Elixir** — `mix` is `go` (build, run, test, deps) in one tool:
+**In Elixir**, `mix` is `go` (build, run, test, and deps) in one tool:
 
 | Go | Elixir |
 |---|---|
-| `go.mod` | [`mix.exs`](../example/mix.exs) — `deps/0` lists dependencies |
+| `go.mod` | [`mix.exs`](../example/mix.exs), where `deps/0` lists the dependencies |
 | `go mod download` | `mix deps.get` |
 | `go run ./cmd/server` | `mix phx.server` |
 | `go test ./...` | `mix test` |
@@ -21,7 +21,7 @@ go run ./cmd/server   go test ./...   gofmt   golangci-lint
 | `golangci-lint` | `mix credo --strict` |
 | `go vet` | `mix compile --warnings-as-errors` |
 | `cmd/server/main.go` | [`lib/platform/application.ex`](../example/lib/platform/application.ex) |
-| router, middleware | [`lib/app/router.ex`](../example/lib/app/router.ex) mounts each domain's `routes.ex`; [`lib/platform/web/`](../example/lib/platform/web) is the server |
+| router, middleware | [`lib/app/router.ex`](../example/lib/app/router.ex) mounts the `routes.ex` of each domain. [`lib/platform/web/`](../example/lib/platform/web) is the server |
 | `internal/<domain>/http/` | [`lib/app/shop/handlers/`](../example/lib/app/shop/handlers) |
 | `internal/<domain>/service/` | [`lib/app/shop/services/`](../example/lib/app/shop/services) |
 | `internal/<domain>/repo/` | [`lib/app/shop/repos/`](../example/lib/app/shop/repos) |
@@ -42,9 +42,4 @@ defp deps do
 end
 ```
 
-**Why:** the folder names are the same on purpose. `lib/platform/` is what
-every app runs on — the same in every dandelion project; `lib/app/<domain>/`
-is your business, one folder per domain (`shop` here). Module names follow
-the folders, like Go packages: `lib/app/shop/services/order_service.ex` is
-`App.Shop.Services.OrderService`. Services don't know about HTTP, so the
-same code runs from a handler, a worker, a script or a test.
+**Why:** The folder names are the same on purpose. `lib/platform/` is what every app runs on. It is the same in every dandelion project. `lib/app/<domain>/` is your business, with one folder for each domain (`shop` here). Module names follow the folders, like Go packages. For example, `lib/app/shop/services/order_service.ex` is `App.Shop.Services.OrderService`. Services do not know about HTTP. The same code therefore runs from a handler, a worker, a script, or a test.

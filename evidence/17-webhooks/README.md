@@ -1,34 +1,24 @@
 # 17 — Telling another service what happened, reliably
 
-**Claim.** An admin registers a URL; every new order is sent to it as a signed
-webhook, and the sending survives the receiver going away:
+Claim: An admin registers a URL. The service sends every new order to the URL as a signed webhook. The sending survives when the receiver goes away.
 
-1. **Each order is delivered once, signed.** 5 orders, 5 requests at the receiver, each
-   with `webhook-id`, `webhook-timestamp` and `webhook-signature`; the proof
-   **recomputes the signature outside the app** (`openssl`, the secret shown when the
-   endpoint was created, the id, the timestamp and the raw body) and it matches. The
-   secret is not in the list afterwards; registering needs an admin.
-2. **The receiver goes away** (its container is stopped) while 6 more orders are made:
-   **the circuit for it opens** on a node (callers stop waiting on it), and **6 deliveries
-   are waiting to be retried** — not lost, not given up.
-3. **It comes back**: all 6 arrive, each under its own `webhook-id`, signed — a retry is
-   the same event, not a new one.
+1. The service delivers each order one time, signed. The proof makes 5 orders, and the receiver gets 5 requests. Each request has `webhook-id`, `webhook-timestamp`, and `webhook-signature`. The proof recomputes the signature outside the app with `openssl`, the secret that the service showed when it created the endpoint, the id, the timestamp, and the raw body. The signature matches. The list does not show the secret afterwards. Only an admin can register an endpoint.
+2. The receiver goes away (the proof stops its container) while the proof makes 6 more orders. The circuit for the receiver opens on a node, so callers stop waiting on it. 6 deliveries wait for a retry. The service does not lose them and does not give up.
+3. The receiver comes back. All 6 deliveries arrive, each under its own `webhook-id` and signed. A retry is the same event and not a new event.
 
-**Code:** `Dandelion.Webhook` (sign, verify) and `Dandelion.Resilience` in the library;
-`App.Webhooks.*` in the example. DESIGN.md §10.15.
+Code: `Dandelion.Webhook` (sign and verify) and `Dandelion.Resilience` in the library, and `App.Webhooks.*` in the example. See DESIGN.md §10.15.
 
-**Negative controls** ([`webhooksig.log`](../controls/webhooksig.log),
-[`nobreaker.log`](../controls/nobreaker.log)): signed with the wrong secret, the recomputed
-signature doesn't match and the proof fails; with a circuit that never opens, no node opens
-one and the proof fails.
+Negative controls ([`webhooksig.log`](../controls/webhooksig.log), [`nobreaker.log`](../controls/nobreaker.log)): If the service signs with the wrong secret, the recomputed signature does not match and the proof fails. If the circuit never opens, no node opens one and the proof fails.
 
-**What the log shows** ([`run.log`](run.log)): the node that opened the circuit, the number
-of deliveries waiting, and how long after the receiver returned everything had arrived
-(about a minute: the wait before a retry doubles; the proof sets the first one to 1 s).
+The [`run.log`](run.log) shows the node that opened the circuit, the number of deliveries that wait, and the time from the return of the receiver until everything arrived. That time is about a minute, because the wait before a retry doubles. The proof sets the first wait to 1 s.
 
-**Not shown:** a receiver that is slow rather than gone; a 410; a long outage and a large
-backlog; the production URL rules (https only, no private addresses) end to end; the
-circuit being per node means each node opens its own. See [LIMITS.md](../LIMITS.md).
+Not shown:
+- A receiver that is slow and not gone.
+- A 410 answer.
+- A long outage and a large backlog.
+- The production URL rules (https only, no private addresses) end to end.
+- The circuit works for each node, so each node opens its own circuit.
 
-**Re-run:** `evidence/record.sh webhooks` (about 2 minutes); controls:
-`ONLY=webhooksig evidence/record.sh controls`, `ONLY=nobreaker …`.
+See [LIMITS.md](../LIMITS.md).
+
+To run it again, run `evidence/record.sh webhooks`. This takes about 2 minutes. To run the controls, run `ONLY=webhooksig evidence/record.sh controls` and `ONLY=nobreaker …`.

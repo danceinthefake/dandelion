@@ -1,8 +1,6 @@
 # From zero to a three-node cluster
 
-About twenty minutes of your time, plus the first Docker build (a few minutes).
-You need Erlang and Elixir ([mise](https://mise.jdx.dev) installs them), Docker,
-`curl` and `jq`. Written for `dandelion_new` 0.2.1 or later.
+This tutorial takes about twenty minutes. The first Docker build takes a few more minutes. You need Erlang and Elixir ([mise](https://mise.jdx.dev) installs them), Docker, `curl`, and `jq`. It is for `dandelion_new` 0.2.1 or later.
 
 ## 1. Make a project
 
@@ -12,8 +10,7 @@ mix dandelion.new shop_demo
 cd shop_demo
 ```
 
-You get a service laid out like a Go service (`lib/platform/`, `lib/app/<domain>/`),
-a Vue console, and a compose file that runs **three copies of it** behind nginx.
+The command makes a service with the layout of a Go service (`lib/platform/` and `lib/app/<domain>/`). It also makes a Vue console and a compose file. The compose file runs three copies of the service behind nginx.
 
 ## 2. Start the cluster
 
@@ -22,24 +19,22 @@ docker compose -f deploy/compose.cluster.yaml up -d --build
 deploy/seed.sh      # a few products, two users
 ```
 
-The first build takes a few minutes (the next ones seconds). When
-`curl localhost:8080/health` says `{"status":"ok"}`, three nodes are running and
-have found each other through Postgres: nothing else to install.
+The first build takes a few minutes. The next builds take seconds. Run `curl localhost:8080/health`. If it answers `{"status":"ok"}`, three nodes run and they found each other through Postgres. You do not install anything else.
 
 ## 3. Sign in and make orders on two nodes
 
-Open http://localhost:8080 in **two browsers**, sign in as `admin@example.com`
-with password `local-password-1` (public, local only). The page says which node
-you are connected to; nginx gives each browser a node. Make an order in one:
-it appears in the other at once, and "online now" counts both.
+1. Open http://localhost:8080 in two browsers.
+2. Sign in as `admin@example.com` with the password `local-password-1`. This password is public and is for local use only.
+3. Read the node name on the page. nginx gives each browser its own node.
+4. Make an order in one browser.
+
+The order appears in the other browser at once. The "online now" count shows both browsers.
 
 ![two browsers on two different nodes](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/02-live-feed/live-feed.gif)
 
-No Redis, no socket server: the nodes are connected to each other. (Claim 02 of
-the [evidence](evidence/).)
+The stack has no Redis and no socket server. The nodes connect to each other. This is claim 02 of the [evidence](evidence/).
 
-The same from the command line. Log in as the customer, make an order, and see
-that the API needs the token:
+You can do the same from the command line. Log in as the customer and make an order. Then make sure that the API needs the token:
 
 ```sh
 TOKEN=$(curl -s -X POST localhost:8080/api/session -H 'content-type: application/json' \
@@ -49,18 +44,16 @@ curl -X POST localhost:8080/api/orders -H "authorization: Bearer $TOKEN" -H 'con
 curl -o /dev/null -w '%{http_code}\n' localhost:8080/api/orders      # 401: no token
 ```
 
-The price comes from the products table, never from the request. A customer sees
-only their own orders; the token works on any of the three nodes (it is signed,
-not stored).
+The price comes from the products table. It never comes from the request. A customer sees only their own orders. The token works on any of the three nodes because the server signs it and does not store it.
 
 ## 4. Follow one order across nodes
 
-Open http://localhost:16686 (Jaeger). Service: your app's name (`shop_demo`),
-operation `POST /api/orders`, **Find Traces**, open one. You see the request, its
-database queries, and the background jobs the order queued (its confirmation email,
-the customer's stats, the webhook fan-out) — and the jobs may have run on a
-**different node** than the request. Click a span, open *Process*:
-`service.instance.id` is the node.
+1. Open http://localhost:16686 (Jaeger).
+2. Select the service that has the name of your app (`shop_demo`).
+3. Select the operation `POST /api/orders` and click **Find Traces**.
+4. Open one trace.
+
+The trace shows the request and its database queries. It also shows the background jobs that the order queued: its confirmation email, the customer statistics, and the webhook fan-out. A different node than the request node can run these jobs. To see the node, click a span and open *Process*. The value `service.instance.id` is the node.
 
 ![an order's trace in Jaeger: the request, its queries, and the jobs it queued](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/11-tracing/jaeger-ui.png)
 
@@ -74,13 +67,11 @@ curl localhost:8080/health                                              # still 
 docker compose -f deploy/compose.cluster.yaml start node2              # back to 3 in ~15 s
 ```
 
-Jobs a dead node was running are run again by the others, and a payment event for
-one order is never applied before the one that came first.
+The other nodes run again the jobs that the dead node ran. A payment event for one order never runs before the event that came first.
 
 ## 6. Deploy without dropping a request
 
-A deploy stops nodes and starts new ones. In one terminal, keep making orders and count
-what comes back; in another, stop and start the nodes one at a time, as a deploy would:
+A deploy stops nodes and starts new nodes. In the first terminal, make orders without a stop and count the answers. In the second terminal, stop and start the nodes one at a time, as a deploy does:
 
 ```sh
 # terminal 1 (Ctrl-C to see the count): one order every 0.2 s
@@ -96,14 +87,13 @@ for n in node1 node2 node3; do
 done
 ```
 
-Terminal 1 should count only `201`. A node told to stop says so on `/health` (a 503) while it
-keeps serving, then finishes the requests it has and exits; the others carry on. (Claim 15
-of the [evidence](evidence/); claim 14 has the pieces, and says what it cannot show.)
+Terminal 1 must count only `201`. A node that gets the stop signal says so on `/health` with a 503. It keeps serving, finishes the requests that it has, and then exits. The other nodes continue to work. This is claim 15 of the [evidence](evidence/). Claim 14 has the separate parts and says what it cannot show.
 
 ## 7. Make it say no, and ask again safely
 
-**A client that asks twice.** An order sent with an `Idempotency-Key` is made once, however
-many times it arrives — a retry after a timeout, a double click:
+### A client that asks twice
+
+If you send an order with an `Idempotency-Key`, the service makes the order one time. This is true when the request arrives many times. A timeout or a double click can cause this.
 
 ```sh
 for i in 1 2; do curl -s -i -X POST localhost:8080/api/orders -H "authorization: Bearer $TOKEN" \
@@ -112,8 +102,9 @@ for i in 1 2; do curl -s -i -X POST localhost:8080/api/orders -H "authorization:
 # 201 the first time; 200 and `idempotent-replayed: true` the second, the same order id
 ```
 
-**A switch you can flip while it runs.** Pause new orders on every node, then turn them back
-on (an admin token; `ADMIN` is made like `TOKEN`, with `admin@example.com`):
+### A switch that you can flip while the app runs
+
+Pause new orders on every node, and then turn them on again. You need an admin token. Make the `ADMIN` variable in the same way as `TOKEN`, with `admin@example.com`.
 
 ```sh
 curl -X PUT localhost:8080/api/flags/orders.enabled -H "authorization: Bearer $ADMIN" \
@@ -125,9 +116,9 @@ curl -X PUT localhost:8080/api/flags/orders.enabled -H "authorization: Bearer $A
   -H 'content-type: application/json' -d '{"value":true}'
 ```
 
-**A client that guesses passwords.** Logging in is limited per address (10 a minute per node
-by default; the compose file lifts it so the proofs can make hundreds of requests). Lower it
-and guess:
+### A client that guesses passwords
+
+The service limits logins for each address. The limit is 10 each minute for each node. The compose file lifts the limit so that the proofs can make hundreds of requests. Lower the limit and guess passwords:
 
 ```sh
 RATE_LIMIT_AUTH=3 docker compose -f deploy/compose.cluster.yaml up -d node1 node2 node3
@@ -137,12 +128,11 @@ sleep 40; for i in $(seq 1 20); do curl -s -o /dev/null -w '%{http_code} ' -X PO
 docker compose -f deploy/compose.cluster.yaml up -d node1 node2 node3      # back to the default
 ```
 
-(Claims 14, 16 and 18 of the [evidence](evidence/).)
+This is claims 14, 16, and 18 of the [evidence](evidence/).
 
 ## 8. See who changed what
 
-The flag changes above, the failed logins, order cancels, price changes and more are recorded
-— in the same transaction as the change, in a table the database will not let anyone rewrite:
+The service records the flag changes above, the failed logins, order cancels, price changes, and more. It records each change in the same transaction as the change. The table does not let anyone rewrite an entry.
 
 ```sh
 curl -s "localhost:8080/api/audit?action=flag.&limit=3" -H "authorization: Bearer $ADMIN" \
@@ -150,13 +140,13 @@ curl -s "localhost:8080/api/audit?action=flag.&limit=3" -H "authorization: Beare
 # {"actor":"user:1","action":"flag.set","subject":"flag:orders.enabled","details":{"value":true}} …
 ```
 
-Each entry also has the `request_id` of the request that made it: the id in the `x-request-id`
-header of the response, in the logs and in the trace. (Claim 20.)
+Each entry has the `request_id` of the request that made it. The same id is in the `x-request-id` header of the response, in the logs, and in the trace. This is claim 20.
 
 ## 9. Tell the outside world: webhooks and email
 
-**A webhook.** Register a URL (the compose file has a receiver, `hook-receiver`, that prints what it
-gets), make an order, and read what arrived:
+### A webhook
+
+The compose file has a receiver named `hook-receiver`. It prints what it gets. Register a URL, make an order, and read what arrived:
 
 ```sh
 curl -X POST localhost:8080/api/webhooks -H "authorization: Bearer $ADMIN" -H 'content-type: application/json' \
@@ -167,12 +157,11 @@ sleep 6; docker compose -f deploy/compose.cluster.yaml logs --no-log-prefix hook
 # time | webhook-id | timestamp | v1,signature | the JSON body
 ```
 
-The receiver checks the signature with `Dandelion.Webhook.verify/4`. Stop `hook-receiver` and the
-deliveries wait and are retried (and the circuit for that host opens); start it and they arrive.
-(Claim 17.)
+The receiver makes sure that the signature is valid with `Dandelion.Webhook.verify/4`. If you stop `hook-receiver`, the deliveries wait and the service tries them again. The circuit for that host opens. If you start the receiver, the deliveries arrive. This is claim 17.
 
-**Email.** Every order also emails its customer. The compose file has a mail server that keeps
-what it receives — http://localhost:18025:
+### Email
+
+Each order also sends an email to its customer. The compose file has a mail server that keeps what it receives. Open it at http://localhost:18025.
 
 ```sh
 curl -s "localhost:18025/api/v1/search?query=to%3Ahook%40example.com" | jq -c '.messages[0] | {Subject, To: .To[0].Address}'
@@ -181,21 +170,24 @@ docker compose -f deploy/compose.cluster.yaml stop mailpit      # the mail serve
 docker compose -f deploy/compose.cluster.yaml start mailpit
 ```
 
-(Claim 21.) With `SMTP_HOST` set, mail goes to your server instead.
+This is claim 21. If you set `SMTP_HOST`, the mail goes to your server.
 
 ## 10. Search, and keep files
 
-**Search** is Postgres full-text search, with nothing indexed on the side:
+### Search
+
+Search is Postgres full-text search. Nothing is indexed on the side.
 
 ```sh
 curl -s 'localhost:8080/api/search/products?q=gre' | jq -c '.results[] | {sku, name}'     # a prefix finds "Green tea"
 curl -s 'localhost:8080/api/search/products?q=grean' | jq -c '{match, results: [.results[].name]}'   # a typo: "match":"fuzzy"
 ```
 
-An admin adds and renames products (`POST /api/products`, `PUT /api/products/:sku/details`) and the
-change is searchable on every node at once. (Claim 22.)
+An admin adds and renames products with `POST /api/products` and `PUT /api/products/:sku/details`. The change is searchable on every node at once. This is claim 22.
 
-**Files** are kept on a directory all three nodes share:
+### Files
+
+The three nodes share one directory, and the service keeps files in it.
 
 ```sh
 printf '\211PNG\r\n\032\nhello' > pic.png
@@ -203,62 +195,52 @@ curl -s -X POST localhost:8080/api/files -H "authorization: Bearer $TOKEN" -F 'f
 curl -s -o out.png localhost:8080/api/files/1 -H "authorization: Bearer $TOKEN"; cmp pic.png out.png && echo same bytes
 ```
 
-What a file is comes from its bytes, not from its name; downloads are attachments. (Claim 19.)
+The type of a file comes from its bytes and not from its name. Downloads are attachments. This is claim 19.
 
 ### Files in a bucket instead
 
-The uploads above went to a Docker volume the three nodes share. To keep them in an S3-compatible bucket
-(Amazon's, Google's, Cloudflare R2, or a small one you run yourself) set five variables on the nodes:
-`S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`. Nothing else changes; no volume is
-needed. `./deploy/s3-proof.sh` tries this against SeaweedFS and Garage (claim 28), including a bucket that is
-stopped for a while (uploads and downloads answer 503, and no file is lost or half-made).
+The uploads above went to a Docker volume that the three nodes share. You can keep them in an S3-compatible bucket instead. Amazon, Google, Cloudflare R2, or a small server that you run yourself can provide the bucket. Set five variables on the nodes:
+
+- `S3_ENDPOINT`
+- `S3_BUCKET`
+- `S3_REGION`
+- `S3_ACCESS_KEY_ID`
+- `S3_SECRET_ACCESS_KEY`
+
+Nothing else changes, and you do not need a volume. Run `./deploy/s3-proof.sh` to try this against SeaweedFS and Garage. This is claim 28. The proof includes a bucket that stops for a while. Uploads and downloads then answer 503, and no file is lost or half made.
 
 ## 11. Do it all from the browser
 
-Everything above has a page in the console at http://localhost:8080 (sign in as the admin, or as the
-customer to see what a customer sees):
+The console at http://localhost:8080 has a page for each item above. Sign in as the admin. To see what a customer sees, sign in as the customer. These are the pages:
 
-- **Products** — type `gre` and watch the list narrow as you type; try `grean tea` (a typo: the page says
-  the names are only close). Add a product as the admin, with a description, and search for a word in it:
-  the match is highlighted. Put `<b>bold</b>` in a name: it shows as the characters, never as bold.
-- **Settings** — the *Accept new orders* switch pauses orders on every node. Turn it off, go to *Orders*,
-  make one: "orders are paused". Turn it on again.
-- **Audit log** — the switch you just flipped, and who flipped it. Filter to *settings*.
-- **Webhooks** — add `http://hook-receiver/hook`; the signing secret is shown once.
-- **Files** — drop a PNG or a PDF: a progress bar, then a list; download it back. A program renamed
-  `.png` is refused.
-- **Create an account** (from the sign-in page): the console signs you in and says the address is not
-  confirmed. Open http://localhost:18025 (the mail server that keeps what it receives), click the link in
-  the email: the address is confirmed. *Forgot your password?* works the same way, and five wrong passwords
-  lock the address.
+- **Products.** Type `gre` and watch the list get shorter as you type. Try `grean tea`. This is a typo, and the page says that the names are only close. Add a product as the admin with a description. Search for a word in the description, and the page highlights the match. Put `<b>bold</b>` in a name. The page shows the characters and never shows bold text.
+- **Settings.** The *Accept new orders* switch pauses orders on every node. Turn it off, go to *Orders*, and make an order. The page says "orders are paused". Turn the switch on again.
+- **Audit log.** This page shows the switch that you flipped and who flipped it. Filter to *settings*.
+- **Webhooks.** Add `http://hook-receiver/hook`. The page shows the signing secret one time.
+- **Files.** Drop a PNG or a PDF. A progress bar shows, and then a list. Download the file again. The page refuses a program that has the name `.png`.
+- **Create an account.** Use the link on the sign-in page. The console signs you in and says that the address is not confirmed. Open http://localhost:18025, which is the mail server that keeps what it receives. Click the link in the email, and the address is confirmed. *Forgot your password?* works in the same way. Five wrong passwords lock the address.
 
-(Claim 26: a real browser does all of this, and checks it.)
+This is claim 26. A real browser does all of this and checks it.
 
 ## 12. Lose everything, and get it back
 
-The cluster survives a node, a split and a deploy. What it cannot survive is losing the state itself, so
-back it up (the cluster keeps serving while this runs):
+The cluster survives a node failure, a network split, and a deploy. It cannot survive the loss of the state itself. Make a backup. The cluster continues to serve while the backup runs.
 
 ```sh
 ./deploy/backup.sh ~/backup-1       # the database in one snapshot, then the uploaded files
 ```
 
-Now destroy it: `docker compose -f deploy/compose.cluster.yaml down -v` removes the containers, Postgres
-and the uploads volume. Everything is gone; the backup directory is all that is left.
+Now destroy the cluster. The command `docker compose -f deploy/compose.cluster.yaml down -v` removes the containers, Postgres, and the uploads volume. Everything is gone. Only the backup directory is left.
 
 ```sh
 ./deploy/restore.sh ~/backup-1      # checks the backup, replaces the database, puts the files back, starts the nodes
 ```
 
-About ten seconds later, sign in with the same passwords, search for your products, download your files:
-all there, and the orders that were still being processed finish. (`./deploy/backup-proof.sh` does this
-with the cluster busy making orders and checks every claim; it is claim 27.)
+After about ten seconds, sign in with the same passwords. Search for your products and download your files. All of them are there. The orders that the nodes were still processing finish. Run `./deploy/backup-proof.sh` to do this while the cluster is busy with orders. It makes sure that each claim holds. This is claim 27.
 
 ## 13. Watch it
 
-Open http://localhost:13000 (Grafana, no login to look): requests, latency and errors, what is
-refused, the circuits of the services it calls, jobs waiting, the database, the cache. Make
-some of the above happen and watch the panels move. (Claim 23.)
+Open http://localhost:13000 (Grafana). You do not need a login to look. The dashboard shows requests, latency, errors, what the service refuses, the circuits of the services that it calls, waiting jobs, the database, and the cache. Make some of the events above happen and watch the panels move. This is claim 23.
 
 ![the dashboard](https://raw.githubusercontent.com/danceinthefake/dandelion/main/evidence/23-dashboard/dashboard.png)
 
@@ -277,9 +259,7 @@ deploy/flags-proof.sh  deploy/audit-proof.sh  deploy/uploads-proof.sh
 deploy/search-proof.sh  deploy/dashboard-proof.sh
 ```
 
-Each line it prints is a claim; [`evidence/`](evidence/) has the same runs
-recorded, the negative controls (the same proof must *fail* when a feature is
-broken on purpose), and [what is not proven](evidence/LIMITS.md).
+Each line that a script prints is a claim. The [`evidence/`](evidence/) directory has the same runs recorded. It also has the negative controls. In a negative control, we break a feature on purpose, and the same proof must fail. The directory also has the list of [what we did not prove](evidence/LIMITS.md).
 
 ## 15. Add your own resource
 
@@ -291,12 +271,7 @@ mix ecto.migrate && mix test
 mix phx.server                 # http://localhost:4000
 ```
 
-It writes the model, repo, service, handler, migration, tests and routes in the
-project's own layout, behind the login. The routes go in the domain's own file,
-`lib/app/billing/routes.ex`; a new domain also gets one line in
-[`lib/app/router.ex`](example/lib/app/router.ex), which mounts every domain
-(`mix phx.routes App.Router` lists them all). Add the rules (who may see what, a
-cancel, an event) by hand the way `lib/app/shop/` does.
+The generator writes the model, repo, service, handler, migration, tests, and routes in the layout of the project. All of them are behind the login. The routes go in the file of the domain, `lib/app/billing/routes.ex`. A new domain also gets one line in [`lib/app/router.ex`](example/lib/app/router.ex), which mounts every domain. Run `mix phx.routes App.Router` to list all routes. Add the rules by hand in the same way as `lib/app/shop/`. The rules are who can see what, a cancel, and an event.
 
 ## 16. Clean up
 
@@ -306,5 +281,4 @@ docker compose -f deploy/compose.cluster.yaml down -v
 
 ## Where to go next
 
-[`phrasebook/`](phrasebook/) maps each Go habit to the Elixir way (19 short
-pages), and [`DESIGN.md`](DESIGN.md) says why it's built this way.
+The [`phrasebook/`](phrasebook/) directory maps each Go habit to the Elixir way in 19 short pages. The file [`DESIGN.md`](DESIGN.md) explains why we built it this way.

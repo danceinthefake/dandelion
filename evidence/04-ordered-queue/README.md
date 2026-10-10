@@ -1,24 +1,17 @@
 # 04 — Events of one order keep their order, while three nodes race for them
 
-**Claim.** Each `order.created` subscriber runs once per order. Payment events
-for one order run in the order they arrived even when three nodes compete for
-the jobs; other orders are not held back; a dead node's unfinished event holds
-back only its own order, until it is given back.
+Claim: Each `order.created` subscriber runs one time for each order. The payment events of one order run in the order that they arrived, also when three nodes compete for the jobs. Other orders are not held back. An unfinished event of a dead node holds back only its own order, until the service gives the event back.
 
-**Library code:** `Dandelion.Queue.Ordered`, `Dandelion.PubSub`.
+Library code: `Dandelion.Queue.Ordered`, `Dandelion.PubSub`.
 
 ![the proof sections events and ordered queue](ordered-queue.gif)
 
-**What the log shows** ([`run.log`](run.log)):
+The [`run.log`](run.log) shows these events:
 
-- every subscriber of `order.created` completed, once each (the count is read from `Platform.PubSub`);
-- the webhook refuses a request without the token (401);
-- ten orders each get *payment, then refund*, sent in that order while the
-  queue is held, then released to all three nodes. A refund that ran before
-  its payment would be dropped (a pending order can't be refunded), so ten
-  orders ending `refunded` means the order was kept;
-- a job stuck on a "dead node" blocks only its own order; another order is
-  paid meanwhile; after the rescue, the held order's refund runs after it.
+- Every subscriber of `order.created` completed one time. The proof reads the count from `Platform.PubSub`.
+- The webhook refuses a request without the token (401).
+- Ten orders each get a payment and then a refund. The proof sends them in that order while the queue is held. Then it releases the queue to all three nodes. A refund that runs before its payment is dropped, because a pending order cannot be refunded. Ten orders that end as `refunded` therefore mean that the order was kept.
+- A job that is stuck on a "dead node" blocks only its own order. Another order is paid in the meantime. After the rescue, the refund of the held order runs after the payment.
 
 ```mermaid
 flowchart LR
@@ -31,11 +24,8 @@ flowchart LR
     A1 -. "#103 snoozes until #101 is done" .-> A2
 ```
 
-**Negative control — this is the important one.** With the order check
-disabled, the same proof **fails**: some order ends `paid`, not `refunded`
-([`controls/ordering.log`](../controls/ordering.log)). The proof can tell.
+Negative control (the important one): If we disable the order check, the same proof fails. Some order ends as `paid` and not as `refunded` ([`controls/ordering.log`](../controls/ordering.log)). The proof can tell the difference.
 
-**Not shown:** the order of events sent by *different* servers at nearly the
-same instant: order means arrival at Postgres, not the senders' clocks.
+Not shown: the order of events that different servers send at nearly the same instant. Order means arrival at Postgres and not the clocks of the senders.
 
-**Re-run:** `evidence/record.sh proof` (control: `evidence/record.sh controls`)
+To run it again, run `evidence/record.sh proof`. To run the control, run `evidence/record.sh controls`.

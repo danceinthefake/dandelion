@@ -19,7 +19,7 @@ func (h *OrderHandler) Show(w http.ResponseWriter, r *http.Request) {
 }
 ```
 
-**In Elixir** — routes in [`lib/app/shop/routes.ex`](../example/lib/app/shop/routes.ex):
+**In Elixir**, the routes are in [`lib/app/shop/routes.ex`](../example/lib/app/shop/routes.ex):
 
 ```elixir
 # domain: shop
@@ -33,12 +33,9 @@ scope "/api" do
 end
 ```
 
-Each domain lists its own routes, with full module names, and
-[`lib/app/router.ex`](../example/lib/app/router.ex) mounts them — like chi's
-`r.Mount("/orders", shop.Routes())` in `main.go`. Adding a domain never edits
-another domain's file.
+Each domain lists its own routes, with full module names. [`lib/app/router.ex`](../example/lib/app/router.ex) mounts them. This is like `r.Mount("/orders", shop.Routes())` of chi in `main.go`. A new domain never edits the file of another domain.
 
-and the handler in [`lib/app/shop/handlers/order_handler.ex`](../example/lib/app/shop/handlers/order_handler.ex#L23):
+The handler is in [`lib/app/shop/handlers/order_handler.ex`](../example/lib/app/shop/handlers/order_handler.ex#L23):
 
 ```elixir
 action_fallback Platform.Web.FallbackHandler
@@ -53,14 +50,11 @@ end
 
 | Go | Elixir |
 |---|---|
-| `w http.ResponseWriter, r *http.Request` | one `conn` — the request *and* the response you're building |
+| `w http.ResponseWriter, r *http.Request` | one `conn`, which is the request and the response that you build |
 | `chi.URLParam(r, "id")` | `%{"id" => id}` pattern-matched from the params |
 | `writeJSON(w, 200, v)` | `json(conn, v)` |
 | `writeError(w, err)` in every handler | `action_fallback`: any `{:error, _}` goes to [`FallbackHandler`](../example/lib/platform/web/fallback_handler.ex) |
 | response struct with `json:"…"` tags | [`OrderJSON`](../example/lib/app/shop/handlers/order_json.ex) builds the map |
 | middleware | *plugs* (`pipe_through :api`) |
 
-**Why:** handlers are Phoenix *controllers* under the hood; dandelion calls them
-handlers and puts them in `handlers/` because that's what they are to you.
-`action_fallback` removes the `if err != nil { writeError… }` from every
-action — errors are mapped to status codes in exactly one place.
+**Why:** Handlers are Phoenix controllers under the hood. dandelion calls them handlers and puts them in `handlers/`, because that is what they are to you. `action_fallback` removes the `if err != nil { writeError… }` from every action. The code maps errors to status codes in exactly one place.

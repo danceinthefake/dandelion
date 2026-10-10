@@ -1,7 +1,6 @@
-# 19. Logins, tokens and who may see what
+# 19. Logins, tokens, and who can see what
 
-**In Go** — authentication is middleware: a function that wraps your handlers,
-checks `Authorization`, and puts the user in the request's `context`:
+**In Go**, authentication is middleware. This is a function that wraps your handlers, reads `Authorization`, and puts the user in the `context` of the request:
 
 ```go
 func Auth(next http.Handler) http.Handler {
@@ -14,8 +13,7 @@ func Auth(next http.Handler) http.Handler {
 r.With(Auth).Get("/orders", listOrders)         // chi
 ```
 
-**In Elixir** — the same thing is a **plug**, listed in the router as a
-pipeline, and the user goes in `conn.assigns` (the `context`):
+**In Elixir**, the same thing is a plug. The router lists it in a pipeline, and the user goes in `conn.assigns` (the `context`):
 
 ```elixir
 pipeline :authenticated do
@@ -28,40 +26,28 @@ scope "/api" do
 end
 ```
 
-[`auth.ex`](../example/lib/app/accounts/handlers/auth.ex) is the middleware;
-[`router.ex`](../example/lib/app/router.ex) defines the pipelines and each domain's `routes.ex` says which routes need it,
-and `:admin` (a second pipeline) adds a role check.
+[`auth.ex`](../example/lib/app/accounts/handlers/auth.ex) is the middleware. [`router.ex`](../example/lib/app/router.ex) defines the pipelines, and the `routes.ex` of each domain says which routes need the pipeline. `:admin` is a second pipeline, and it adds a role check.
 
 | Go | Elixir |
 |---|---|
 | `func Auth(next http.Handler) http.Handler` | a plug: `call(conn, opts)` |
-| `r.With(Auth).Get(…)` / `r.Group` | `pipe_through [:api, :authenticated]` |
+| `r.With(Auth).Get(…)` or `r.Group` | `pipe_through [:api, :authenticated]` |
 | `r.Context().Value(userKey)` | `conn.assigns.current_user` |
 | `golang.org/x/crypto/pbkdf2`, bcrypt, argon2 | [`password.ex`](../example/lib/app/accounts/services/password.ex): PBKDF2 from `:crypto`, no dependency |
-| a signed JWT | [`Phoenix.Token`](../example/lib/app/accounts/handlers/token.ex): signed, expires, nothing stored |
+| a signed JWT | [`Phoenix.Token`](../example/lib/app/accounts/handlers/token.ex): it is signed, it expires, and nothing is stored |
 
 ## One login, many nodes
 
-A JWT or a `Phoenix.Token` is **signed, not stored**, so there's no session table
-or Redis to share. Every node has the same `SECRET_KEY_BASE`, so every node
-accepts a token any node issued — the cluster proof logs in once and gets answers
-from all three nodes. The price is that a token can't be taken back before it
-expires; the code says what to do if you need that.
+A JWT or a `Phoenix.Token` is signed and not stored. You therefore have no session table or Redis to share. Every node has the same `SECRET_KEY_BASE`. Every node therefore accepts a token that any node issued. The cluster proof logs in one time and gets answers from all three nodes. The price is that you cannot take a token back before it expires. The code says what to do if you need that.
 
 ## Who may see what is a rule
 
-The plug answers "who are you"; "what may you see" depends on the data, so it is
-a **service** rule, like any other:
+The plug answers "who are you". The answer to "what can you see" depends on the data, so it is a service rule like any other rule:
 
 ```elixir
 OrderService.get(id, viewer)    # a customer asking for somebody else's order: :not_found
 ```
 
-A customer gets `404` for another customer's order — the same as for one that
-doesn't exist, so the response doesn't say it's there. This is the mistake that
-tops most API-security lists (an id in the URL that anyone can change), and the
-reason ownership lives in the service and the repo's query, not in each handler.
+A customer gets `404` for the order of another customer. This is the same answer as for an order that does not exist, so the response does not say that the order is there. The mistake of an id in the URL that anyone can change tops most API-security lists. This is the reason that ownership lives in the service and in the query of the repo, and not in each handler.
 
-**Why:** a plug is a function from conn to conn, so the middleware is not a
-wrapper and not a framework: it's a function in a list. And because tokens are
-signed, logging in costs the cluster nothing.
+**Why:** A plug is a function from conn to conn. The middleware is not a wrapper and not a framework. It is a function in a list. Tokens are signed, so a login costs the cluster nothing.

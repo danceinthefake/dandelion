@@ -1,43 +1,26 @@
 # 25 — Keeping an account yours
 
-**Claim.** An account can be recovered and protected, with email doing the work and nothing about a
-person's account given away:
+Claim: A person can recover and protect an account. Email does the work, and the service gives away nothing about the account of a person.
 
-1. **Confirming an address.** Registering sends one email with a link; using it confirms the address
-   (`/api/me` says so); using it again is a 400.
-2. **A forgotten password.** Asking gives **the same answer** for an address with an account and one
-   without, and only the first is sent an email; asking again within the minute sends no second one. The
-   link sets a new password **once**; a password that is too short is refused **without using the link up**;
-   a made-up link and an **expired** one are refused. And **the session made under the old password is a
-   401 on all three nodes** afterwards.
-3. **Guessing.** Five wrong passwords through the load balancer **lock the address**: the right password is
-   then a 429 (with `retry-after: 900`) from every node — the count is in Postgres. **An address nobody
-   has is locked the same way**, so a lock does not say an account exists. A password reset unlocks.
-4. **The mail server goes away.** Asking for a reset still answers 202 at once; the email arrives, exactly
-   once, when the mail server is back, and its link works.
-5. **Where the links are not.** A link is not in the table of links (only its hash), not in any job's
-   arguments, not in the body of a sent email (blanked), not in the audit log — each checked for each link
-   the proof used. What happened *is* in the audit log: reset asked (with whether the address was known), reset
-   made, address confirmed, address locked.
-6. **An order and an unconfirmed address.** With `require_confirmed_email` on, an unconfirmed address's order
-   is a 403; confirmed, a 201 (and off, nobody is turned away).
+1. Confirming an address. Registration sends one email with a link. If the person uses the link, the address is confirmed (`/api/me` says so). If the person uses the link again, the answer is 400.
+2. A forgotten password. A request gives the same answer for an address with an account and for an address without an account. Only the first address gets an email. A second request within the minute sends no second email. The link sets a new password one time. A password that is too short is refused, and the link is not used up. A made-up link and an expired link are refused. The session that the old password made gets 401 on all three nodes afterwards.
+3. Guessing. Five wrong passwords through the load balancer lock the address. The right password then gets 429 (with `retry-after: 900`) from every node, because Postgres keeps the count. An address that nobody has is locked in the same way, so a lock does not say that an account exists. A password reset unlocks the address.
+4. The mail server goes away. A request for a reset still answers 202 at once. The email arrives exactly one time when the mail server is back, and its link works.
+5. Where the links are not. A link is not in the table of links (only its hash is). It is not in the arguments of any job. It is not in the body of a sent email, because the service blanks it. It is not in the audit log. The proof checks this for each link that it used. The audit log does have what happened: reset asked (with the fact whether the address was known), reset made, address confirmed, and address locked.
+6. An order and an unconfirmed address. If `require_confirmed_email` is on, the order of an unconfirmed address gets 403. After the person confirms the address, the order gets 201. If the option is off, the service turns nobody away.
 
-**Code:** `App.Accounts.Services.{TokenService, LoginThrottle, AccountService}`,
-`App.Accounts.Workers.SendAccountEmail`, the handlers, and the login token's password fingerprint
-(`App.Accounts.Handlers.Token`); `EmailService.send_once_lazy/5`. DESIGN.md §10.23.
+Code: `App.Accounts.Services.{TokenService, LoginThrottle, AccountService}`, `App.Accounts.Workers.SendAccountEmail`, the handlers, and the password fingerprint of the login token (`App.Accounts.Handlers.Token`). Also `EmailService.send_once_lazy/5`. See DESIGN.md §10.23.
 
-**Negative controls** ([`tokenreuse.log`](../controls/tokenreuse.log), [`nolockout.log`](../controls/nolockout.log),
-[`norevoke.log`](../controls/norevoke.log)): a link that is not marked used works twice; with no lockout the right
-password gets through after the guesses; with no fingerprint check the old session survives a reset — each stops
-the proof at its line.
+Negative controls ([`tokenreuse.log`](../controls/tokenreuse.log), [`nolockout.log`](../controls/nolockout.log), [`norevoke.log`](../controls/norevoke.log)): A link that the service does not mark as used works twice. With no lockout, the right password gets through after the guesses. With no fingerprint check, the old session survives a reset. Each one stops the proof at its line.
 
-**Found by running it:** the first attempt to look for a link in the audit log used `grep` with a code that began
-with `-` and silently checked nothing (`grep -F --` now); and the order-confirmation emails to the same address made
-the "exactly one email" count of the gate step wrong, so mail is counted by subject.
+Found by running it: The first attempt to look for a link in the audit log used `grep` with a code that began with `-`. It silently checked nothing. The proof now uses `grep -F --`. The order-confirmation emails to the same address made the "exactly one email" count of the gate step wrong. The proof now counts mail by subject.
 
-**Not shown:** two-factor; a real mail provider's spam filters or link scanners (some "click" every link in an email,
-which would use a one-time link up); a stolen token before a password change; the cost of the lockout as a way to
-annoy someone. See [LIMITS.md](../LIMITS.md).
+Not shown:
+- Two-factor login.
+- The spam filters or link scanners of a real mail provider. Some of them "click" every link in an email, which would use a one-time link up.
+- A stolen token before a password change.
+- The cost of the lockout as a way to annoy a person.
 
-**Re-run:** `evidence/record.sh accounts` (about 1 minute); controls: `ONLY=tokenreuse evidence/record.sh controls`,
-`ONLY=nolockout …`, `ONLY=norevoke …`.
+See [LIMITS.md](../LIMITS.md).
+
+To run it again, run `evidence/record.sh accounts`. This takes about 1 minute. To run the controls, run `ONLY=tokenreuse evidence/record.sh controls`, `ONLY=nolockout …`, and `ONLY=norevoke …`.

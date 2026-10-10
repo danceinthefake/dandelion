@@ -2,148 +2,59 @@
 
 ## Unreleased
 
-- The example sends real email: the order confirmation goes out by SMTP (Swoosh,
-  `SMTP_HOST` and friends in `config/runtime.exs`; without a server the message is
-  logged, as before). A message is written to `outgoing_emails` under a key before it is
-  sent, so a rerun of the job sends nothing twice; a dead mail server opens a circuit
-  (`Dandelion.Resilience`) and the messages wait; a refused address ends the job. Admins
-  see what was sent at `/api/emails`. New dependencies in the example: `swoosh`,
-  `gen_smtp`. New migration `create_outgoing_emails`, a `mail` queue.
-- `Dandelion.Search`: full-text search over a table, in Postgres. `Dandelion.Search.Migration`
-  adds a `search` column that Postgres keeps up to date itself (a generated `tsvector`, weighted
-  by column), a GIN index and a trigram index, and turns on `unaccent` and `pg_trgm`.
-  `search/4` takes the words a user typed — every word a prefix, all required, accents and case
-  ignored, nothing the user types can reach the query language — and returns ranked rows with a
-  total, optional `[[highlighted]]` snippets, and, with `fuzzy:`, a fallback to similar words when
-  nothing matched. `tsquery/1` is the input sanitiser on its own.
-- The example searches its products (`GET /api/search/products?q=`, public), and admins can
-  add, rename and remove products (`POST /api/products`, `PUT /api/products/:sku/details`,
-  `DELETE /api/products/:sku`; all audited). New migration `add_product_search` (a
-  `description` column and the index).
-- `Dandelion.Audit`: `record/4` adds an entry (actor, action, subject, details, and the
-  request id) inside the transaction of the change it describes; `list/1` reads back, newest
-  first, filtered and paged; `prune/1` is retention. The table (`Dandelion.Audit.Migration`)
-  refuses UPDATE, DELETE and TRUNCATE with a trigger. `Dandelion.Flags.put/3` and
-  `delete/2` take `in_transaction:` to record with the change.
-- The example records its admin and security actions (flags, webhooks, prices, order
-  cancels and payments, file deletes, registrations, logins and failed logins) and serves
-  them at `/api/audit` (admins). Every project starts `Dandelion.Audit` and gets the table
-  (migration `add_audit`).
-- `Dandelion.Storage.Local`: uploaded files in a directory — `put/2` (atomic: copied
-  to a temporary file, then renamed; returns a random key, the size and the SHA-256),
-  `path/2`, `delete/2`, `keys/1`. A key is 128 bits of hex and nothing the client sent,
-  and a malformed one is never turned into a path. The directory must be shared by
-  all nodes (a mount) in a cluster.
-- The example takes uploads (`/api/files`): a customer uploads PNG, JPEG, PDF or text
-  (what a file is comes from its bytes, not from the name or the content type the client
-  gave), up to 5 MB, and downloads, lists or deletes their own files; an admin sees all.
-  Downloads are attachments with `nosniff`. New migration `create_stored_files`, a
-  multipart limit in the endpoint, `UPLOADS_DIR` / `UPLOAD_MAX_BYTES`, and a volume in
-  the cluster compose file.
-- `Dandelion.Flags`: settings and feature flags in a Postgres table
-  (`Dandelion.Flags.Migration`), read through `Dandelion.Cache` and cleared on every
-  node when one changes: `get/2`, `enabled?/2`, `put/2`, `delete/1`, `all/0`. A node
-  that missed the message serves the old value for at most the cache's TTL. If
-  Postgres can't be read, the default you gave is returned. New dependency: `jason`.
-- The example has an admin API for flags (`/api/flags`) and a flag that pauses new
-  orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
-  migration `add_flags` (every project gets it: `Platform.Application` starts
-  `Dandelion.Flags`).
-- `Dandelion.Storage.S3`: uploaded files in any S3-compatible bucket (AWS S3, Google Cloud Storage's
-  interoperability endpoint, Cloudflare R2, Backblaze B2, Garage, SeaweedFS, Ceph…), nothing mounted on the
-  nodes. Signature V4 through `Req` (an optional dependency), path-style URLs, one request with a timeout and no
-  retry (the caller decides). `Dandelion.Storage` now says what an adapter is (`put/2`, `fetch/2`, `delete/2`,
-  `keys/1`); `Local` has `fetch/2`. The example picks the bucket with `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`,
-  `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (a bucket that does not answer is a 503 with `Retry-After`, never a
-  500 and never a row without bytes). `deploy/s3-proof.sh` runs against SeaweedFS and Garage.
-- Backup and restore for the example: `deploy/backup.sh DIR` (the database in one `pg_dump`
-  snapshot while the cluster keeps serving, then the uploaded files) and `deploy/restore.sh DIR` (checks
-  the checksums, replaces the database, puts the files back, starts the nodes). `deploy/backup-proof.sh`
-  backs up a cluster that is busy making orders, destroys it (containers, Postgres, the uploads volume),
-  and rebuilds it from the backup alone.
-- The Vue console covers what the service does (it was the live order list and one order's page):
-  **Products** (search as you type — only the newest answer is shown, the typo notice, highlighted
-  matches rendered as text, never as HTML; staff add, rename and remove products), **Files** (upload
-  with progress, download, remove), **Audit log** (filters, older pages), **Settings** (the switch that
-  pauses orders, any flag), **Webhooks** (the signing secret shown once), and, with no login, **create an
-  account**, **forgot password**, and the pages the emailed links open (**reset password**, **confirm
-  email**; the secret is after the `#`, so no server or access log sees it). A customer sees Products
-  and Files only. A small hash router (`src/router.ts`); `npm test` runs the highlighter's tests
-  with Node's own test runner. The emailed links now point at the console (`PUBLIC_URL`).
-  nginx in the cluster compose file accepts bodies up to 6 MB (it refused anything over 1 MB before,
-  so the app's own 5 MB limit could not be reached).
-- The example's accounts keep themselves safe: **password reset** and **address confirmation** by one-time
-  links in email (`/api/password/forgot`, `/api/password/reset`, `/api/email/confirm`,
-  `/api/email/resend`; only a hash of a link is stored, it works once, and asking never says whether an
-  address has an account); a reset **ends every session made under the old password** (a fingerprint of
-  the password hash is inside the login token); **per-address lockout** after 5 wrong passwords for 15
-  minutes, kept in Postgres so it counts the same on every node, and applied to addresses nobody has too;
-  `require_confirmed_email` makes an order need a confirmed address. New migration
-  `add_account_security`; `EmailService.send_once_lazy/5` for a body that must be made only once; the
-  body of an email that held a link is blanked once it is sent.
-- `deploy/upgrade-proof.sh`: a deploy that changes the database. `deploy/versions/order-channel.patch`
-  makes a second version of the app (a new column with a default, and code that uses it); the proof
-  builds it, runs its migration while the first version serves, and replaces the nodes one at a time
-  under load. The compose file takes `APP_SOURCE` and `APP_VERSION` to build and tag another version.
-- A Grafana dashboard for the service (`deploy/grafana/dashboards/dandelion.json`) with
-  Prometheus and Grafana in the cluster compose file (http://localhost:13000, no login to
-  look): requests, latency and errors, what is refused (429, 503), calls to other services and
-  their circuits, jobs waiting and failing, database and cache, the VM. New metrics for it:
-  `dandelion_resilience_calls_total`, `dandelion_resilience_circuit_changes_total`,
-  `platform_oban_queue_jobs` (by queue and state), `platform_node_draining`. `/metrics` is not
-  redirected to https in production (Prometheus scrapes the nodes directly).
-- `Dandelion.Resilience`: `call/3` runs a function with a timeout, retries with
-  backoff and jitter, and a per-name circuit breaker (opens after N failures in a
-  row, lets one call through after a while). Per node. Telemetry for calls and
-  circuit changes.
-- `Dandelion.Webhook`: `headers/4` signs a request body (HMAC-SHA256 of
-  `id.timestamp.body`, the Standard Webhooks headers), `verify/4` checks one, with a
-  timestamp tolerance and several signatures for a secret being rotated.
-- The example sends webhooks: admins register URLs (`/api/webhooks`), every
-  `order.created` is delivered to each, signed, retried with a growing wait, with a
-  circuit per receiver, in its own `webhooks` queue. New dependency in the example:
-  `req`. New migration `create_webhook_endpoints`.
-- `Dandelion.RateLimit`: per-node request limits in memory (`hit/3`, fixed windows).
-- `Dandelion.Drain`: `start/1` marks a node as leaving and waits, `draining?/0` for
-  the health check; call it from `prep_stop/1`.
-- Generated projects gain request and read timeouts, a connection limit, graceful
-  shutdown (a draining `/health`, then the endpoint drains before jobs and the
-  database stop), and rate limiting on `/api` (`Platform.Web.RateLimit`). Settings:
-  `RATE_LIMIT_API`, `RATE_LIMIT_AUTH`, `TRUST_FORWARDED_FOR`, `MAX_CONNECTIONS`,
-  `READ_TIMEOUT_MS`, `SHUTDOWN_TIMEOUT_MS`, `DRAIN_DELAY_MS`, `DB_QUERY_TIMEOUT_MS`.
-  - The example's `POST /api/orders` takes an `Idempotency-Key` (a retry returns the
-  same order, 200; another request with the same key is 409); a statement the
-  database cancelled at the query timeout is a 503, not a 500; nginx streams request
-  bodies. New migration `add_idempotency_to_orders`.
-  These need the new library modules, so the next release raises the requirement
-  (`dandelion ~> 0.2.1`).
+The next release raises the requirement in generated projects to `dandelion ~> 0.2.1`. The new library modules need it.
+
+- The example sends real email. The order confirmation goes out by SMTP (Swoosh). The configuration is `SMTP_HOST` and related variables in `config/runtime.exs`. If no server is set, the message goes to the log, as before. The service writes a message to `outgoing_emails` under a key before it sends the message. A rerun of the job therefore sends nothing twice. If the mail server is dead, a circuit (`Dandelion.Resilience`) opens and the messages wait. A refused address ends the job. Admins see the sent messages at `/api/emails`. The example has the new dependencies `swoosh` and `gen_smtp`, the new migration `create_outgoing_emails`, and a `mail` queue.
+- `Dandelion.Search` adds full-text search over a table, in Postgres. `Dandelion.Search.Migration` adds a `search` column that Postgres keeps up to date. The column is a generated `tsvector` with a weight for each column. The migration also adds a GIN index and a trigram index, and it turns on `unaccent` and `pg_trgm`.
+- `search/4` takes the words that a user typed. Each word is a prefix, and all words are required. Accents and case do not matter. Nothing that the user types can reach the query language. The function returns ranked rows with a total and optional `[[highlighted]]` snippets. If nothing matches and you pass `fuzzy:`, it falls back to similar words. `tsquery/1` is the input sanitizer alone.
+- The example searches its products with the public route `GET /api/search/products?q=`. Admins can add, rename, and remove products with `POST /api/products`, `PUT /api/products/:sku/details`, and `DELETE /api/products/:sku`. The service audits all of these. The new migration `add_product_search` adds a `description` column and the index.
+- `Dandelion.Audit` adds `record/4`, `list/1`, and `prune/1`. `record/4` adds an entry inside the transaction of the change that it describes. The entry has the actor, the action, the subject, the details, and the request id. `list/1` reads the entries back, newest first, with filters and pages. `prune/1` sets the retention. A trigger on the table (`Dandelion.Audit.Migration`) refuses UPDATE, DELETE, and TRUNCATE. `Dandelion.Flags.put/3` and `delete/2` take `in_transaction:` so that they can record with the change.
+- The example records its admin and security actions: flags, webhooks, prices, order cancels and payments, file deletes, registrations, logins, and failed logins. Admins read them at `/api/audit`. Every project starts `Dandelion.Audit` and gets the table (migration `add_audit`).
+- `Dandelion.Storage.Local` keeps uploaded files in a directory. It has `put/2`, `path/2`, `delete/2`, and `keys/1`. `put/2` is atomic: it copies the file to a temporary file and then renames it. It returns a random key, the size, and the SHA-256. A key is 128 bits of hex and contains nothing from the client. The library never turns a malformed key into a path. In a cluster, all nodes must share the directory (a mount).
+- The example takes uploads at `/api/files`. A customer uploads PNG, JPEG, PDF, or text files of 5 MB at most. The bytes of a file decide its type. The name and the content type from the client do not decide it. The customer downloads, lists, and deletes their own files. An admin sees all files. Downloads are attachments with `nosniff`. The example has the new migration `create_stored_files` and a multipart limit in the endpoint. It also has the variables `UPLOADS_DIR` and `UPLOAD_MAX_BYTES` and a volume in the cluster compose file.
+- `Dandelion.Flags` keeps configuration and feature flags in a Postgres table (`Dandelion.Flags.Migration`). It reads them through `Dandelion.Cache`. When a flag changes, the cache clears on every node. The functions are `get/2`, `enabled?/2`, `put/2`, `delete/1`, and `all/0`. A node that missed the message serves the old value for the cache TTL at most. If Postgres cannot be read, the function returns the default that you gave. The new dependency is `jason`.
+- The example has an admin API for flags at `/api/flags`. It also has a flag, `orders.enabled`, that pauses new orders. While the flag is `false`, the service answers 503 with `retry-after`. The new migration `add_flags` is in every project because `Platform.Application` starts `Dandelion.Flags`.
+- `Dandelion.Storage.S3` keeps uploaded files in any S3-compatible bucket. Examples are AWS S3, the interoperability endpoint of Google Cloud Storage, Cloudflare R2, Backblaze B2, Garage, SeaweedFS, and Ceph. The nodes mount nothing. The adapter uses Signature V4 through `Req` (an optional dependency) and path-style URLs. It sends one request with a timeout and does not retry. The caller decides on retries.
+- `Dandelion.Storage` now defines an adapter: `put/2`, `fetch/2`, `delete/2`, and `keys/1`. `Local` has `fetch/2`. The example selects the bucket with `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, and `S3_SECRET_ACCESS_KEY`. If the bucket does not answer, the service answers 503 with `Retry-After`. It never answers 500 and never leaves a row without bytes. `deploy/s3-proof.sh` runs against SeaweedFS and Garage.
+- The example has backup and restore. `deploy/backup.sh DIR` saves the database in one `pg_dump` snapshot while the cluster continues to serve, and then it saves the uploaded files. `deploy/restore.sh DIR` makes sure that the backup is whole, replaces the database, puts the files back, and starts the nodes. `deploy/backup-proof.sh` backs up a cluster that is busy with orders. It destroys the cluster (the containers, Postgres, and the uploads volume) and rebuilds it from the backup alone.
+- The Vue console now covers what the service does. Before, it had only the live order list and the page of one order. These pages are new:
+  - **Products.** Search runs as you type, and only the newest answer shows. The page shows the typo notice. Highlighted matches show as text and never as HTML. Staff add, rename, and remove products.
+  - **Files.** Upload with progress, download, and remove.
+  - **Audit log.** Filters and older pages.
+  - **Settings.** The switch that pauses orders, and any flag.
+  - **Webhooks.** The signing secret shows one time.
+  - Pages without a login: **create an account**, **forgot password**, **reset password**, and **confirm email**. The secret in an emailed link is after the `#`. No server and no access log sees it.
+
+  A customer sees only Products and Files. A small hash router (`src/router.ts`) handles the pages. `npm test` runs the tests of the highlighter with the test runner of Node. The emailed links now point at the console (`PUBLIC_URL`). The nginx configuration in the cluster compose file accepts bodies of up to 6 MB. Before, it refused bodies over 1 MB, so the 5 MB limit of the app was not reachable.
+- The accounts in the example are safer now:
+  - **Password reset** and **address confirmation** use one-time links in email. The routes are `/api/password/forgot`, `/api/password/reset`, `/api/email/confirm`, and `/api/email/resend`. The service stores only a hash of a link. A link works one time. A request never says whether an address has an account.
+  - A reset ends every session that the old password made. The login token holds a fingerprint of the password hash.
+  - A lockout for each address starts after 5 wrong passwords and lasts 15 minutes. Postgres keeps the count, so it is the same on every node. The lockout also applies to addresses that nobody has.
+  - `require_confirmed_email` makes an order need a confirmed address.
+
+  The new migration is `add_account_security`. `EmailService.send_once_lazy/5` is for a body that the service must make one time. After the service sends an email that held a link, it blanks the body.
+- `deploy/upgrade-proof.sh` proves a deploy that changes the database. `deploy/versions/order-channel.patch` makes a second version of the app, with a new column that has a default and code that uses the column. The proof builds the second version and runs its migration while the first version serves. Then it replaces the nodes one at a time under load. The compose file takes `APP_SOURCE` and `APP_VERSION` to build and tag another version.
+- The service has a Grafana dashboard (`deploy/grafana/dashboards/dandelion.json`). The cluster compose file now has Prometheus and Grafana at http://localhost:13000. You do not need a login to look. The dashboard shows requests, latency, and errors. It also shows what the service refuses (429 and 503) and calls to other services with their circuits. The last panels show waiting and failing jobs, the database, the cache, and the VM. These metrics are new: `dandelion_resilience_calls_total`, `dandelion_resilience_circuit_changes_total`, `platform_oban_queue_jobs` (by queue and state), and `platform_node_draining`. In production, the service does not redirect `/metrics` to https. Prometheus scrapes the nodes directly.
+- `Dandelion.Resilience` adds `call/3`. It runs a function with a timeout, retries with backoff and jitter, and a circuit breaker for each name. The circuit opens after N failures in a row. After a while, it lets one call through. The circuit is for each node. The module emits telemetry for calls and for circuit changes.
+- `Dandelion.Webhook` adds `headers/4` and `verify/4`. `headers/4` signs a request body with HMAC-SHA256 of `id.timestamp.body` and returns the Standard Webhooks headers. `verify/4` makes sure that a signature is valid. It has a timestamp tolerance and accepts several signatures for a secret that you rotate.
+- The example sends webhooks. Admins register URLs at `/api/webhooks`. The service delivers each `order.created` event to each URL. It signs the delivery and tries again with a longer wait each time. Each receiver has its own circuit, and the deliveries use their own `webhooks` queue. The example has the new dependency `req` and the new migration `create_webhook_endpoints`.
+- `Dandelion.RateLimit` limits requests for each node, in memory (`hit/3`, fixed windows).
+- `Dandelion.Drain` has `start/1` and `draining?/0`. `start/1` marks a node as leaving and waits. `draining?/0` is for the health endpoint. Call `start/1` from `prep_stop/1`.
+- Generated projects now have request and read timeouts, a connection limit, a graceful shutdown, and rate limiting on `/api` (`Platform.Web.RateLimit`). During a graceful shutdown, `/health` shows that the node drains. Then the endpoint drains before the jobs and the database stop. The configuration variables are `RATE_LIMIT_API`, `RATE_LIMIT_AUTH`, `TRUST_FORWARDED_FOR`, `MAX_CONNECTIONS`, `READ_TIMEOUT_MS`, `SHUTDOWN_TIMEOUT_MS`, `DRAIN_DELAY_MS`, and `DB_QUERY_TIMEOUT_MS`.
+- `POST /api/orders` in the example takes an `Idempotency-Key`. A retry returns the same order with 200. Another request with the same key gets 409. If the database cancels a statement at the query timeout, the service answers 503 and not 500. nginx streams request bodies. The new migration is `add_idempotency_to_orders`.
 
 ## 0.2.0
 
-- Jobs queued by `Dandelion.PubSub.publish/3` and `Dandelion.Queue.Ordered.insert/2`
-  carry the current OpenTelemetry trace context (W3C `traceparent`, in the job's
-  `meta`), so with `opentelemetry_oban` a job's span is part of the trace of the
-  code that queued it, on whichever node runs it. Nothing changes without
-  OpenTelemetry. (`opentelemetry_api` is an optional dependency.)
-- `Dandelion.Queue.Ordered.insert/2` keeps the job's existing `meta` (it used to
-  replace it with the key).
-- `mix dandelion.gen.domain DOMAIN RESOURCE field:type …` adds a resource to a
-  project's domain in the project's own layout: model, repo, service, handler,
-  JSON, migration, tests and the routes.
-  The routes go through the project's `:authenticated` pipeline when it has one.
+- Jobs that `Dandelion.PubSub.publish/3` and `Dandelion.Queue.Ordered.insert/2` queue carry the current OpenTelemetry trace context. It is the W3C `traceparent` in the `meta` of the job. With `opentelemetry_oban`, the span of a job is part of the trace of the code that queued it. This is true on any node that runs the job. Nothing changes without OpenTelemetry. `opentelemetry_api` is an optional dependency.
+- `Dandelion.Queue.Ordered.insert/2` keeps the existing `meta` of the job. Before, it replaced the `meta` with the key.
+- `mix dandelion.gen.domain DOMAIN RESOURCE field:type …` adds a resource to the domain of a project in the layout of the project. It makes the model, repo, service, handler, JSON, migration, tests, and routes. If the project has an `:authenticated` pipeline, the routes go through it.
 
-The example and the generator (`dandelion_new` 0.2.0) also gain, in generated
-projects: logins with signed tokens and per-user orders, `/metrics`, OpenTelemetry
-tracing (Jaeger in the compose file), a network-partition proof, and orders priced
-from a products table. Generated projects require `dandelion ~> 0.2.0`.
+The example and the generator (`dandelion_new` 0.2.0) also add these features to generated projects: logins with signed tokens, per-user orders, `/metrics`, OpenTelemetry tracing (Jaeger in the compose file), a network-partition proof, and orders priced from a products table. Generated projects require `dandelion ~> 0.2.0`.
 
 ## 0.1.1
 
-- `Dandelion.Cache.fetch/2` emits `[:dandelion, :cache, :fetch]` (`result: :hit | :miss`)
-  for a hit/miss counter.
+- `Dandelion.Cache.fetch/2` emits `[:dandelion, :cache, :fetch]` with `result: :hit | :miss`. Use it for a counter of hits and misses.
 
 ## 0.1.0
 
-The first release: `Dandelion.Cluster`, `Dandelion.Cache`, `Dandelion.Queue`,
-`Dandelion.Queue.Ordered`, `Dandelion.PubSub` and `Dandelion.Migration`,
-extracted from the example service.
+This is the first release. It has `Dandelion.Cluster`, `Dandelion.Cache`, `Dandelion.Queue`, `Dandelion.Queue.Ordered`, `Dandelion.PubSub`, and `Dandelion.Migration`. We extracted them from the example service.

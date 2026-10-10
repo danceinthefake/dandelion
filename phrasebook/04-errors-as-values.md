@@ -14,9 +14,7 @@ func (s *OrderService) List(p Params) (Page, error) {
 }
 ```
 
-**In Elixir** — functions return `{:ok, value}` or `{:error, reason}`, and
-`with` runs the happy path, stopping at the first thing that doesn't match
-([`lib/app/shop/services/order_service.ex`](../example/lib/app/shop/services/order_service.ex#L44)):
+**In Elixir**, functions return `{:ok, value}` or `{:error, reason}`. `with` runs the happy path and stops at the first value that does not match ([`lib/app/shop/services/order_service.ex`](../example/lib/app/shop/services/order_service.ex#L44)):
 
 ```elixir
 def list(params) do
@@ -29,8 +27,7 @@ def list(params) do
 end
 ```
 
-If `status_param/1` returns `{:error, {:invalid, "…"}}`, `with` returns
-that error as it is — no `if err != nil` per step.
+If `status_param/1` returns `{:error, {:invalid, "…"}}`, `with` returns that error as it is. You do not write an `if err != nil` for each step.
 
 | Go | Elixir |
 |---|---|
@@ -40,10 +37,6 @@ that error as it is — no `if err != nil` per step.
 | typed errors (`*ConflictError`) | tuples: `{:error, {:conflict, "…"}}` |
 | `errors.Is(err, ErrNotFound)` | pattern matching: `{:error, :not_found} ->` |
 
-The errors the service can return are listed in one type
-([`order_service.ex`](../example/lib/app/shop/services/order_service.ex#L12)) and turned
-into HTTP statuses in one place ([`fallback_handler.ex`](../example/lib/platform/web/fallback_handler.ex#L13)).
+One type lists the errors that the service can return ([`order_service.ex`](../example/lib/app/shop/services/order_service.ex#L12)). One place turns them into HTTP statuses ([`fallback_handler.ex`](../example/lib/platform/web/fallback_handler.ex#L13)).
 
-**Why:** same idea as Go — errors are ordinary values, not exceptions — with
-less repetition. Exceptions exist in Elixir, but they're for bugs, not for
-"order not found".
+**Why:** The idea is the same as in Go. Errors are ordinary values and not exceptions. The code repeats less. Exceptions exist in Elixir, but they are for bugs and not for "order not found".

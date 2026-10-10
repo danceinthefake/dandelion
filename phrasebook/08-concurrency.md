@@ -1,14 +1,10 @@
 # 8. Concurrency
 
-Everything in Elixir runs in **processes** — not OS processes: tiny,
-isolated, cheap (a few KB each; millions per machine). Each HTTP request is
-one; the background job is one. They share nothing: they talk by sending
-messages.
+Everything in Elixir runs in processes. These are not OS processes. They are small, isolated, and cheap: a few KB each, and millions for each machine. Each HTTP request is one process, and the background job is one process. They share nothing. They talk when they send messages.
 
-The example doesn't need fan-out yet, so try these in `iex -S mix` (from
-`example/`).
+The example does not need fan-out yet. Try these examples in `iex -S mix` (from `example/`).
 
-**Goroutine + `WaitGroup`** — run several things at once, wait for all:
+Goroutine and `WaitGroup`: run several things at once and wait for all of them.
 
 ```go
 var wg sync.WaitGroup
@@ -26,7 +22,7 @@ ids
 |> Enum.map(fn {:ok, result} -> result end)
 ```
 
-**`context.WithTimeout`** — give up after a while:
+`context.WithTimeout`: give up after a while.
 
 ```go
 ctx, cancel := context.WithTimeout(ctx, 2*time.Second)
@@ -52,7 +48,4 @@ end
 | channels | messages: `send(pid, msg)` / `receive` |
 | `select` on channels | `receive` with several patterns (+ `after ms`) |
 
-**Why:** a goroutine has to cooperate to be cancelled (check `ctx.Done()`);
-a process can simply be stopped, and it cleans up because it owns nothing
-anyone else uses. That's what makes timeouts and cancellation boring in
-Elixir.
+**Why:** A goroutine must cooperate to be cancelled (it checks `ctx.Done()`). You can stop a process from outside. It cleans up, because it owns nothing that another process uses. This makes timeouts and cancellation plain in Elixir.

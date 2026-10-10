@@ -13,8 +13,7 @@ func (r *OrderRepo) List(ctx context.Context, status *string, page, perPage int)
 }
 ```
 
-**In Elixir** — Ecto queries are built from functions, and compiled to
-parameterised SQL ([`lib/app/shop/repos/order_repo.ex`](../example/lib/app/shop/repos/order_repo.ex#L21)):
+**In Elixir**, you build Ecto queries from functions, and Ecto compiles them to parameterized SQL ([`lib/app/shop/repos/order_repo.ex`](../example/lib/app/shop/repos/order_repo.ex#L21)):
 
 ```elixir
 def list(%{status: status, page: page, per_page: per_page}) do
@@ -32,12 +31,10 @@ def lock_for_update(id), do: Order |> where(id: ^id) |> lock("FOR UPDATE") |> Re
 
 | Go | Elixir |
 |---|---|
-| SQL string + `$1` args | query built from functions; `^value` marks a parameter |
+| SQL string + `$1` args | a query built from functions, where `^value` marks a parameter |
 | `rows.Scan(&o.ID, …)` | rows come back as `%Order{}` structs |
 | second query for items | `Repo.preload(:items)` |
 | `golang-migrate` up/down files | [`priv/repo/migrations/`](../example/priv/repo/migrations) + `mix ecto.migrate` / `ecto.rollback` |
 | raw SQL when needed | `Repo.query("SELECT …", [args])` still works |
 
-**Why:** optional filters (`if status …`) compose without string building,
-and values are always parameters — no SQL injection by accident. The repo
-stays "queries only": the service decides *what*, the repo knows *how*.
+**Why:** Optional filters (`if status …`) compose without string building. Values are always parameters, so SQL injection cannot happen by accident. The repo stays "queries only". The service decides what to do, and the repo knows how to do it.

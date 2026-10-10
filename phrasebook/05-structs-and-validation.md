@@ -18,7 +18,7 @@ func (o NewOrder) Validate() error {
 }
 ```
 
-**In Elixir** — an Ecto **schema** describes the struct and its table
+**In Elixir**, an Ecto schema describes the struct and its table
 ([`lib/app/shop/models/order.ex`](../example/lib/app/shop/models/order.ex#L17)):
 
 ```elixir
@@ -31,8 +31,7 @@ schema "orders" do
 end
 ```
 
-and a **changeset** validates input — "the changes we want, and what's wrong
-with them" ([`order.ex`](../example/lib/app/shop/models/order.ex#L33)):
+A changeset validates input. It holds the changes that we want and what is wrong with them ([`order.ex`](../example/lib/app/shop/models/order.ex#L33)):
 
 ```elixir
 def create_changeset(order \\ %__MODULE__{}, attrs) do
@@ -48,8 +47,7 @@ def create_changeset(order \\ %__MODULE__{}, attrs) do
 end
 ```
 
-It collects **every** error, including per item, and the fallback handler
-turns them into:
+The changeset collects every error, also the errors for each item. The fallback handler turns them into this:
 
 ```json
 {"errors": {"customer_email": ["must be an email address"],
@@ -63,6 +61,4 @@ turns them into:
 | `Validate() error` (first error) | changeset (all errors, per field) |
 | `a \|> b \|> c` | `\|>` passes the result as the first argument: `c(b(a))` |
 
-**Why:** data and functions live apart — a struct is just data, and any
-function can take it. Structs are immutable: `put_total/1` returns a *new*
-changeset instead of changing the one it got.
+**Why:** Data and functions live apart. A struct is only data, and any function can take it. Structs are immutable. `put_total/1` returns a new changeset and does not change the changeset that it got.

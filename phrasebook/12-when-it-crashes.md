@@ -1,7 +1,6 @@
 # 12. When it crashes
 
-**In Go** — a panic in a goroutine takes down the whole program unless you
-`recover` it, and a background goroutine that dies just… stops:
+**In Go**, a panic in a goroutine takes down the whole program unless you `recover` it. A background goroutine that dies only stops:
 
 ```go
 go func() {
@@ -12,8 +11,7 @@ go func() {
 }()
 ```
 
-**In Elixir** — a crash ends **one process**, and its **supervisor** starts a
-fresh one ([`lib/platform/application.ex`](../example/lib/platform/application.ex#L13)):
+**In Elixir**, a crash ends one process, and its supervisor starts a fresh one ([`lib/platform/application.ex`](../example/lib/platform/application.ex#L13)):
 
 ```elixir
 opts = [strategy: :one_for_one, name: Platform.Supervisor]
@@ -22,30 +20,20 @@ Supervisor.start_link(children, opts)
 
 `:one_for_one`: if a child dies, restart that child only.
 
-Background jobs add a second safety net: a job that crashes isn't lost.
-Oban records the error and runs the job again later, with backoff, up to its
-`max_attempts`
-([`lib/app/shop/workers/expire_unpaid_orders.ex`](../example/lib/app/shop/workers/expire_unpaid_orders.ex)).
-If a whole node dies mid-job, another node picks the job up.
+Background jobs add a second safety net. A job that crashes is not lost. Oban records the error and runs the job again later, with backoff, up to its `max_attempts` ([`lib/app/shop/workers/expire_unpaid_orders.ex`](../example/lib/app/shop/workers/expire_unpaid_orders.ex)).
+If a whole node dies in the middle of a job, another node picks the job up.
 
-What that means day to day:
+This is what it means day to day:
 
-- A bug in one HTTP request crashes that request's process: the client gets a
-  500, every other request carries on.
-- The database goes away for a minute: that minute's job fails and is
-  retried, the next cron tick runs as usual once the database is back — no
-  code for that.
-- No `recover` blocks around business logic: write the happy path (with
-  `{:error, _}` for errors you *expect*, [page 4](04-errors-as-values.md)),
-  and let the unexpected crash.
+- A bug in one HTTP request crashes the process of that request. The client gets a 500, and every other request continues.
+- If the database goes away for a minute, the job of that minute fails and is retried. The next cron tick runs as usual after the database is back. You write no code for this.
+- Do not put `recover` blocks around business logic. Write the happy path, with `{:error, _}` for the errors that you expect ([page 4](04-errors-as-values.md)). Let the unexpected errors crash.
 
 | Go | Elixir |
 |---|---|
-| `panic` | `raise` / a failed match — the process exits |
+| `panic` | `raise` or a failed match, and the process exits |
 | `recover` | a supervisor restarting the process (not in your code) |
 | a dead background goroutine | the process is restarted; a failed job is retried |
 | crash = whole program | crash = one process |
 
-**Why:** this is the reason to learn Elixir. Failures stay small, recovery is
-structural instead of hand-written, and a service keeps running through the
-kind of errors that page someone at 3 a.m.
+**Why:** This is the reason to learn Elixir. Failures stay small. Recovery is part of the structure and you do not write it by hand. A service keeps running through the errors that page a person at 3 a.m.

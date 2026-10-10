@@ -1,6 +1,6 @@
 # 9. State that outlives a request
 
-**In Go** — shared state behind a mutex:
+**In Go**, shared state sits behind a mutex:
 
 ```go
 type Counter struct { mu sync.Mutex; n map[string]int }
@@ -9,8 +9,7 @@ func (c *Counter) Inc(k string) { c.mu.Lock(); defer c.mu.Unlock(); c.n[k]++ }
 func (c *Counter) Get(k string) int { c.mu.Lock(); defer c.mu.Unlock(); return c.n[k] }
 ```
 
-**In Elixir** — nothing is shared. One process **owns** the state; others
-ask it by message. A `GenServer` is that process with the plumbing done:
+**In Elixir**, nothing is shared. One process owns the state, and other processes ask it with a message. A `GenServer` is that process with the plumbing done:
 
 ```elixir
 defmodule Counter do
@@ -29,18 +28,14 @@ defmodule Counter do
 end
 ```
 
-It handles one message at a time, so there is no race to lock against.
+It handles one message at a time, so no race exists that a lock must stop.
 
-The example itself has no `GenServer` of its own, on purpose: its shared
-state lives in Postgres. What it runs on is full of them — Oban's queues and
-its cron, the live broadcast (Phoenix.PubSub), the cache, the database pool — each one process owning its state.
+The example has no `GenServer` of its own, on purpose. Its shared state lives in Postgres. What it runs on has many of them: the queues and the cron of Oban, the live broadcast (Phoenix.PubSub), the cache, and the database pool. Each one is a process that owns its state.
 
 | Go | Elixir |
 |---|---|
 | `sync.Mutex` around a map | a process owning the map |
-| method call | `GenServer.call` (waits for the answer) / `cast` (doesn't) |
+| method call | `GenServer.call` (waits for the answer) or `cast` (does not wait) |
 | `time.Ticker` | inside one process, `Process.send_after(self(), :tick, ms)`; once per cluster, a cron entry ([`lib/platform/cron.ex`](../example/lib/platform/cron.ex)) |
 
-**Why:** most state belongs in the database. For the rest (a cache, a
-counter), one owner process is simpler than locks — and it can't deadlock on
-itself.
+**Why:** Most state belongs in the database. For the rest (a cache or a counter), one owner process is simpler than locks. It also cannot deadlock on itself.

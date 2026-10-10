@@ -1,36 +1,23 @@
-# 21 — Mail that is sent once, and waits when it can't be
+# 21 — Mail that is sent once, and waits when it cannot be sent
 
-**Claim.** Each new order emails its customer by SMTP, and a mail server that goes away
-neither loses the mail nor slows the orders:
+Claim: Each new order sends an email to its customer by SMTP. A mail server that goes away neither loses the mail nor slows the orders.
 
-1. **Once.** 6 orders; the mail server (mailpit) holds **exactly one** confirmation for each,
-   naming the order number and the total.
-2. **The mail server goes away** (its container is stopped): **6 more orders are accepted
-   immediately** (an order never waits for mail); **the circuit for the server opens** on a
-   node, so workers stop waiting on it; **6 messages are waiting, written down** in
-   `outgoing_emails` as `queued`.
-3. **It comes back**: all 6 arrive, **exactly once each**; the first 6 are still one each;
-   every row is `sent`.
-4. **The job runs again** (jobs are at least once) for two orders already mailed: **nothing is
-   sent**, still one each.
+1. Once. The proof makes 6 orders. The mail server (mailpit) holds exactly one confirmation for each order. It names the order number and the total.
+2. The mail server goes away (the proof stops its container). The service accepts 6 more orders immediately, because an order never waits for mail. The circuit for the server opens on a node, so workers stop waiting on it. 6 messages wait. The service wrote them to `outgoing_emails` as `queued`.
+3. The mail server comes back. All 6 messages arrive, exactly one time each. The first 6 messages are still one each. Every row is `sent`.
+4. The job runs again for two orders that the service already mailed, because jobs are at least once. The service sends nothing. There is still one message for each order.
 
-**Code:** `App.Notifications.Services.EmailService` (the row, the send through
-`Dandelion.Resilience`, the three outcomes), `App.Shop.Workers.SendOrderConfirmation` (retry,
-snooze, cancel), `Platform.Mailer` (Swoosh) in the example. DESIGN.md §10.19.
+Code: `App.Notifications.Services.EmailService` (the row, the send through `Dandelion.Resilience`, and the three outcomes), `App.Shop.Workers.SendOrderConfirmation` (retry, snooze, and cancel), and `Platform.Mailer` (Swoosh) in the example. See DESIGN.md §10.19.
 
-**Negative controls** ([`mailnodedupe.log`](../controls/mailnodedupe.log),
-[`mailnoretry.log`](../controls/mailnoretry.log)): sending again when a message is already `sent`
-makes the rerun mail the customer twice and the proof fails; forgetting a send that failed for a
-passing reason loses the mail written while the server was down and the proof fails.
+Negative controls ([`mailnodedupe.log`](../controls/mailnodedupe.log), [`mailnoretry.log`](../controls/mailnoretry.log)): If the service sends again when a message is already `sent`, the rerun mails the customer twice, and the proof fails. If the service forgets a send that failed for a passing reason, it loses the mail written while the server was down, and the proof fails.
 
-**Found by running it:** the first run found no mail at all. Swoosh's SMTP adapter raises on a
-`nil` username even with `auth: :never`; every send failed, and the system did what it should —
-the messages stayed `queued`, attempts were counted, the error was recorded on the row — until
-the config was fixed (`last_error` and `attempts` in `/api/emails` are how it was seen).
+Found by running it: The first run found no mail at all. The SMTP adapter of Swoosh raises an error on a `nil` username, also with `auth: :never`. Every send failed. The system did what it must do. The messages stayed `queued`, the service counted the attempts, and the error was in the row. After we fixed the configuration, the mail arrived. We saw the problem in `last_error` and `attempts` in `/api/emails`.
 
-**Not shown:** a real provider (TLS, login, rate limits, greylisting); a 5xx refusal from a real
-server (unit-tested with a fake adapter: the row becomes `failed` and the job is cancelled);
-bounces. See [LIMITS.md](../LIMITS.md).
+Not shown:
+- A real provider (TLS, login, rate limits, greylisting).
+- A 5xx refusal from a real server. A unit test with a fake adapter covers it: the row becomes `failed` and the job is cancelled.
+- Bounces.
 
-**Re-run:** `evidence/record.sh email` (about a minute); controls:
-`ONLY=mailnodedupe evidence/record.sh controls`, `ONLY=mailnoretry …`.
+See [LIMITS.md](../LIMITS.md).
+
+To run it again, run `evidence/record.sh email`. This takes about a minute. To run the controls, run `ONLY=mailnodedupe evidence/record.sh controls` and `ONLY=mailnoretry …`.

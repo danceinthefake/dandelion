@@ -1,32 +1,21 @@
 # 18 — A setting changed while the app runs, seen by every node
 
-**Claim.** `Dandelion.Flags` changes a setting on a running cluster, and every node
-sees it — with one honest exception, bounded:
+Claim: `Dandelion.Flags` changes a setting on a running cluster, and every node sees the change. One exception exists, and it has a bound.
 
-1. **Pausing orders.** 9 orders, spread over all 3 nodes, are accepted. An admin sets
-   `orders.enabled` to `false` **through one node**; the next 12 orders, answered by
-   all 3 nodes, are all refused (**503, `retry-after: 30`**). Reading orders is not
-   paused. Set back to `true`, 9 orders are accepted on every node.
-2. **A node that cannot hear the others** (split off at the Erlang layer; it still
-   reaches Postgres) **does not hear the change**: it serves the value it has — and
-   after at most the cache's minute it **reads the table** and sees the new one
-   (51 s and 57 s in the recorded runs). Memory makes it fast; Postgres decides.
+1. Pausing orders. The proof accepts 9 orders that spread over all 3 nodes. An admin sets `orders.enabled` to `false` through one node. The next 12 orders, which all 3 nodes answer, are all refused (503, `retry-after: 30`). Reading orders is not paused. The admin sets the flag back to `true`, and every node accepts 9 orders.
+2. A node that cannot hear the others does not hear the change. The proof splits this node off at the Erlang layer. It still reaches Postgres. The node serves the value that it has. After one minute at most (the cache time), it reads the table and sees the new value. The recorded runs took 51 s and 57 s. Memory makes the node fast, and Postgres decides.
 
-**Code:** `Dandelion.Flags` in the library (a table, read through `Dandelion.Cache`,
-cleared on every node by `put/2`); `App.Settings.*` and the `orders.enabled` check in
-`OrderService.create/3` in the example. DESIGN.md §10.16.
+Code: `Dandelion.Flags` in the library keeps a table, reads it through `Dandelion.Cache`, and clears the cache on every node with `put/2`. In the example, `App.Settings.*` and the `orders.enabled` check in `OrderService.create/3` use it. See DESIGN.md §10.16.
 
-**Negative control** ([`controls/noinvalidate.log`](../controls/noinvalidate.log)): if
-`put/2` does not clear the cached copy, all 12 orders are still accepted after the
-pause and the proof fails.
+Negative control ([`controls/noinvalidate.log`](../controls/noinvalidate.log)): If `put/2` does not clear the cached copy, the service still accepts all 12 orders after the pause, and the proof fails.
 
-**Found by running it:** setting the flag through the load balancer could hand the
-request to the very node being tested, which then cleared its own cache and made it
-look as if the message had arrived. The proof sets it directly on node1.
+Found by running it: When the proof set the flag through the load balancer, the request could go to the node under test. That node then cleared its own cache, and it looked as if the message had arrived. The proof now sets the flag directly on node1.
 
-**Not shown:** a flag read while Postgres is unreachable (unit-tested: the default is
-returned), values other than booleans in the cluster, targeting. See
-[LIMITS.md](../LIMITS.md).
+Not shown:
+- A flag read while Postgres is unreachable. A unit test covers this: the function returns the default.
+- Values other than booleans in the cluster.
+- Targeting.
 
-**Re-run:** `evidence/record.sh flags` (about 2 minutes); control:
-`ONLY=noinvalidate evidence/record.sh controls`.
+See [LIMITS.md](../LIMITS.md).
+
+To run it again, run `evidence/record.sh flags`. This takes about 2 minutes. To run the control, run `ONLY=noinvalidate evidence/record.sh controls`.

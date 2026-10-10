@@ -33,10 +33,7 @@ defp cancellable(%Order{status: status}) when status in ["pending", "paid"], do:
 defp cancellable(%Order{status: "shipped"}), do: {:error, {:conflict, "a shipped order can't be cancelled"}}
 ```
 
-`Repo.transact` commits when the function returns `{:ok, _}` and rolls back
-when it returns `{:error, _}` — or raises. There is no `tx` to pass around:
-every query in the function runs inside the transaction, because it runs
-in the same process.
+`Repo.transact` commits when the function returns `{:ok, _}`. It rolls back when the function returns `{:error, _}` or raises an error. You do not pass a `tx` around. Every query in the function runs inside the transaction, because it runs in the same process.
 
 | Go | Elixir |
 |---|---|
@@ -44,6 +41,4 @@ in the same process.
 | passing `tx` to every repo call | nothing: the process holds the transaction |
 | `switch o.Status {…}` | multi-clause functions (`cancellable/1`) |
 
-**Why:** the rule ("shipped can't be cancelled") reads as three small
-function clauses you can test on their own; the transaction is the shape of
-the code, not bookkeeping.
+**Why:** The rule ("a shipped order cannot be cancelled") reads as three small function clauses. You can test each clause on its own. The transaction is the shape of the code and not bookkeeping.

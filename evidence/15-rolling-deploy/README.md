@@ -1,43 +1,23 @@
 # 15 — A rolling deploy under load
 
-**Claim.** The nodes can be stopped and started one at a time — a deploy — while
-orders are being made, and no client notices more than a retry:
+Claim: You can stop and start the nodes one at a time, as in a deploy, while clients make orders. Clients notice nothing more than a retry.
 
-- each node **stops itself** (`docker stop`: drains, finishes its requests, exit
-  code 0, never killed) and **rejoins**: the cluster is whole again before the next
-  one is touched;
-- **no request is cut off by a stopping node** — clients that are slow to send their
-  body (two of the four workers take about 1.5 s per order) are mid-request when a
-  node is told to stop, and still get their answer;
-- clients that are told 503 (see below) ask again with the same `Idempotency-Key`:
-  **every order is accepted, none lost, none made twice**, each has all its events (one job per subscriber);
-- Docker restarted nothing; exactly one cron leader afterwards.
+- Each node stops itself (`docker stop`). It drains, finishes its requests, exits with code 0, and is never killed. Then it joins again. The cluster is whole again before the next node is touched.
+- A stopping node cuts off no request. Some clients are slow to send their body: two of the four workers take about 1.5 s for each order. These clients are in the middle of a request when a node gets the stop signal. They still get their answer.
+- A client that gets 503 (see below) asks again with the same `Idempotency-Key`. The service accepts every order. It loses none and makes none twice. Each order has all its events (one job for each subscriber).
+- Docker restarts nothing. Exactly one cron leader exists afterwards.
 
-**Code:** `Dandelion.Drain` and the shutdown order (claim 14), idempotency keys
-(claim 16). **Proof:** [`deploy/rolling-proof.sh`](../../example/deploy/rolling-proof.sh).
+Code: `Dandelion.Drain` and the shutdown order (claim 14), and idempotency keys (claim 16). Proof: [`deploy/rolling-proof.sh`](../../example/deploy/rolling-proof.sh).
 
-**Negative control** ([`controls/rollingcut.log`](../controls/rollingcut.log)): with
-`DRAIN_DELAY_MS=0` and `SHUTDOWN_TIMEOUT_MS=0` — a node that stops at once — the
-slow clients' requests are cut (502) and the proof fails.
+Negative control ([`controls/rollingcut.log`](../controls/rollingcut.log)): With `DRAIN_DELAY_MS=0` and `SHUTDOWN_TIMEOUT_MS=0`, a node stops at once. The requests of the slow clients are cut (502), and the proof fails.
 
-**What the log shows** ([`run.log`](run.log)): the three stops with their times, the
-number of orders (hundreds), how many needed a retry, and how many of those refusals
-were the database stalling. **Read that line:** on the machine this was recorded on,
-stopping a container made one Postgres `COMMIT` wait on the disk for several
-seconds, and every commit that sends a `NOTIFY` waits behind it, so a few requests
-were answered 503 and retried. The proof tells those apart from the one thing a
-deploy can cause (a connection cut or a bad gateway, which must be zero) and does
-not hide them. DESIGN.md §10.14 and [LIMITS.md](../LIMITS.md) say what is and isn't
-known about it.
+The [`run.log`](run.log) shows the three stops with their times. It shows the number of orders (hundreds), how many needed a retry, and how many of those refusals came from a database stall. Read that line. On the machine that recorded this proof, stopping a container made one Postgres `COMMIT` wait on the disk for several seconds. Every commit that sends a `NOTIFY` waits behind it. A few requests therefore got 503 and the client retried them. The proof separates these cases from the one thing that a deploy can cause: a cut connection or a bad gateway. That count must be zero. The proof does not hide the 503 answers. DESIGN.md §10.14 and [LIMITS.md](../LIMITS.md) say what we know and do not know about this.
 
-**Found by running it:** nginx buffered request bodies, so a slow client never
-occupied a node and the control could not fail; `proxy_request_buffering off` fixed
-that, and the first version of the proof's check of the requests' statuses mixed up
-a stalled database with a stopped node.
+Found by running it: nginx buffered the request bodies. A slow client therefore never occupied a node, and the control could not fail. `proxy_request_buffering off` fixed this. The first version of the status check in the proof also mixed up a stalled database and a stopped node.
 
-**Not shown:** a new version replacing the old (the same image restarts); WebSocket
-clients across the deploy (they reconnect; claim 02 shows the feed, not a deploy);
-nodes stopped two at a time.
+Not shown:
+- A new version that replaces the old version. The same image restarts. ([Claim 24](../24-upgrade/) covers the new version.)
+- WebSocket clients across the deploy. They reconnect. Claim 02 shows the feed and not a deploy.
+- Nodes that stop two at a time.
 
-**Re-run:** `evidence/record.sh rolling` (about 2 minutes); control:
-`ONLY=rollingcut evidence/record.sh controls`.
+To run it again, run `evidence/record.sh rolling`. This takes about 2 minutes. To run the control, run `ONLY=rollingcut evidence/record.sh controls`.

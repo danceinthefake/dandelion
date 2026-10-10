@@ -1,15 +1,8 @@
 # acme — dandelion's example service
 
-A JSON API service in two parts: `lib/platform/`, what every app runs on,
-and `lib/app/<domain>/`, the business, laid out the way a Go service is
-(handlers → services → repos → models). It is what `mix dandelion.new`
-generates; see [../DESIGN.md](../DESIGN.md).
+This is a JSON API service with two parts. `lib/platform/` has what every app runs on. `lib/app/<domain>/` has the business, in the layout of a Go service: handlers, services, repos, and models. `mix dandelion.new` generates this service. See [../DESIGN.md](../DESIGN.md).
 
-The parts that are the same in every project — `Dandelion.Cluster`,
-`Dandelion.Cache`, `Dandelion.Queue`, `Dandelion.Queue.Ordered`,
-`Dandelion.PubSub` — come from the [`dandelion`](../lib) library; `platform/`
-wires them up and holds what belongs to *this* app (endpoint, cron
-schedule, subscriptions; the router is in `lib/app/`).
+The parts that are the same in every project come from the [`dandelion`](../lib) library. They are `Dandelion.Cluster`, `Dandelion.Cache`, `Dandelion.Queue`, `Dandelion.Queue.Ordered`, and `Dandelion.PubSub`. `platform/` wires them up. It also holds what belongs to this app: the endpoint, the cron schedule, and the subscriptions. The router is in `lib/app/`.
 
 ```
 lib/
@@ -32,13 +25,9 @@ lib/
       models/  repos/  services/
 ```
 
-Adding another domain: `mix dandelion.gen.domain Billing Invoice number:string
-amount_cents:integer` writes the layers, a migration, tests and the routes for
-one resource in `lib/app/billing/` — the same shape as `shop` — then
-`mix ecto.migrate`.
+To add another domain, run `mix dandelion.gen.domain Billing Invoice number:string amount_cents:integer`. It writes the layers, a migration, tests, and the routes for one resource in `lib/app/billing/`. The shape is the same as `shop`. Then run `mix ecto.migrate`.
 
-Module names follow the folders: `lib/app/shop/services/order_service.ex`
-is `App.Shop.Services.OrderService`.
+Module names follow the folders. For example, `lib/app/shop/services/order_service.ex` is `App.Shop.Services.OrderService`.
 
 ```sh
 mise install              # Erlang + Elixir (mise.toml)
@@ -49,17 +38,11 @@ mise exec -- mix credo --strict
 mise exec -- mix phx.server   # http://localhost:4000
 ```
 
-The Vue + blessing-ui frontend is in `assets/` (Node needed): `cd assets &&
-npm install && npm run build` puts it in `priv/static/app`, and Phoenix serves
-it at `/`. While working on it, `npm run dev` runs Vite on :5173 and forwards
-`/api` and `/socket` to Phoenix. It shows the live order feed (an order made
-on any node appears at once), who's online, a new-order form and an order's
-detail. `mix dandelion.new --no-frontend` leaves it out.
+The Vue and blessing-ui frontend is in `assets/`. You need Node. Run `cd assets && npm install && npm run build` to put it in `priv/static/app`. Phoenix serves it at `/`. While you work on it, run `npm run dev`. This runs Vite on :5173 and forwards `/api` and `/socket` to Phoenix. The frontend shows the live order feed (an order made on any node appears at once) and who is online. It also has a new-order form and the detail of an order. `mix dandelion.new --no-frontend` leaves it out.
 
 ## Release image
 
-≈ a Go multi-stage Dockerfile: `mix release` builds a self-contained
-release (the Erlang runtime included), copied into a slim Debian image.
+This is like a Go multi-stage Dockerfile. `mix release` builds a self-contained release with the Erlang runtime. The Dockerfile copies the release into a slim Debian image.
 
 ```sh
 docker build -t acme .
@@ -67,26 +50,15 @@ docker run --rm -e DATABASE_URL=… -e SECRET_KEY_BASE=… acme /app/bin/migrate
 docker run -e DATABASE_URL=… -e SECRET_KEY_BASE=… -e PAYMENT_WEBHOOK_TOKEN=… -e RELEASE_COOKIE=… -e PHX_HOST=… -p 4000:4000 acme
 ```
 
-More than one node: [deploy/README.md](deploy/README.md) — a local 3-node
-cluster behind nginx, and what each node needs.
+For more than one node, read [deploy/README.md](deploy/README.md). It describes a local 3-node cluster behind nginx and what each node needs.
 
-In production, plain-HTTP requests are redirected to HTTPS, trusting the
-load balancer's `x-forwarded-proto` header; `GET /health` (for probes) is
-left alone. If other services call yours over plain HTTP inside the network
-(`http://acme:4000` in Kubernetes), remove `force_ssl` from
-[`config/prod.exs`](config/prod.exs).
+In production, the service redirects plain-HTTP requests to HTTPS. It trusts the `x-forwarded-proto` header of the load balancer. It does not redirect `GET /health` (for probes). If other services call yours over plain HTTP inside the network (`http://acme:4000` in Kubernetes), remove `force_ssl` from [`config/prod.exs`](config/prod.exs).
 
-`SECRET_KEY_BASE`: `mix phx.gen.secret`. `PAYMENT_WEBHOOK_TOKEN`: the secret the payment provider sends in `x-callback-token`. Unpaid orders are cancelled after
-`UNPAID_ORDER_MAX_AGE_SECONDS` (default 3600), checked every minute
-(`lib/platform/cron.ex`).
+Make `SECRET_KEY_BASE` with `mix phx.gen.secret`. `PAYMENT_WEBHOOK_TOKEN` is the secret that the payment provider sends in `x-callback-token`. The service cancels unpaid orders after `UNPAID_ORDER_MAX_AGE_SECONDS` (default 3600). It checks every minute (`lib/platform/cron.ex`).
 
 ## Try the API
 
-`mix setup` seeds two products (`TEA-01`, `CUP-02`) and two users, `admin@example.com`
-and `customer@example.com`, both with the password `local-password-1` (public:
-local use only). Orders need a login, and are **priced from the products
-table**: send the SKU and the quantity; a `price_cents` in the request is
-ignored, and an unknown SKU is a 400.
+`mix setup` seeds two products (`TEA-01` and `CUP-02`) and two users, `admin@example.com` and `customer@example.com`. Both users have the password `local-password-1`. This password is public and is for local use only. Orders need a login. The service prices orders from the products table. Send the SKU and the quantity. The service ignores a `price_cents` in the request. An unknown SKU gets a 400.
 
 ```sh
 # log in: a signed token comes back
@@ -99,64 +71,37 @@ curl -X POST localhost:4000/api/orders -H "authorization: Bearer $TOKEN" -H 'con
 curl localhost:4000/api/orders -H "authorization: Bearer $TOKEN"   # your orders, not everyone's
 ```
 
-New users register with `POST /api/users` (`{"email": …, "password": …}`, at least
-10 characters); they are customers — the role is never read from a request.
+New users register with `POST /api/users` (`{"email": …, "password": …}`, at least 10 characters). They are customers. The service never reads the role from a request.
 
 ## Logins and who may do what
 
-[`lib/app/accounts/`](lib/app/accounts) is a small, real login — a place to
-start, not a library to depend on:
+[`lib/app/accounts/`](lib/app/accounts) is a small, real login. It is a place to start and not a library to depend on.
 
-- **Passwords** are hashed with PBKDF2-SHA256 from Erlang's `:crypto` (no
-  dependency), 600 000 iterations, a salt each; the iteration count is stored
-  in the hash so it can be raised later. Logging in as an unknown email costs
-  the same time as a wrong password, and gives the same answer.
-- **Tokens** are signed and expire after a day (`Phoenix.Token`): nothing is
-  stored, so any node accepts a token another node issued. They can't be revoked
-  before they expire; `App.Accounts.Handlers.Token` says what to do if you
-  need that.
-- **The plug** [`App.Accounts.Handlers.Auth`](lib/app/accounts/handlers/auth.ex)
-  guards routes, as pipelines in [`router.ex`](lib/app/router.ex):
-  `:authenticated` (a valid token, else 401) and `:admin` (else 403). The
-  catalogue and the payment webhook (which has its own token) stay public.
-- **Who may see what is a rule, so it's in the service:** an order belongs to
-  the user who made it; a customer gets their own orders and a 404 for anyone
-  else's (the same as for one that doesn't exist), an admin sees all.
-  Prices are changed by admins only, and so is the live feed.
-- **The web console** signs in, then shows the live feed to admins. The token
-  is kept in `sessionStorage`, and sent as a header and as the WebSocket's
-  `token` parameter.
+- Passwords: The service hashes passwords with PBKDF2-SHA256 from `:crypto` of Erlang, so it needs no dependency. It uses 600 000 iterations and a salt for each password. The hash stores the iteration count, so you can raise it later. A login with an unknown email costs the same time as a wrong password and gives the same answer.
+- Tokens: The tokens are signed and expire after a day (`Phoenix.Token`). The service stores nothing, so any node accepts a token that another node issued. You cannot revoke a token before it expires. `App.Accounts.Handlers.Token` says what to do if you need that.
+- The plug [`App.Accounts.Handlers.Auth`](lib/app/accounts/handlers/auth.ex) guards routes with the pipelines in [`router.ex`](lib/app/router.ex). `:authenticated` needs a valid token, or the answer is 401. `:admin` needs the admin role, or the answer is 403. The catalog and the payment webhook (which has its own token) stay public.
+- Who can see what is a rule, so it is in the service. An order belongs to the user who made it. A customer gets their own orders. For the order of another customer, the answer is 404. This is the same answer as for an order that does not exist. An admin sees all orders. Only admins change prices, and only admins see the live feed.
+- The web console signs in and then shows the live feed to admins. It keeps the token in `sessionStorage`. It sends the token as a header and as the `token` parameter of the WebSocket.
 
-Not here: password reset, email confirmation, lockout after failed attempts or
-rate limiting (the load balancer's job, as DESIGN says), two-factor login.
+Password reset, address confirmation, and lockout after failed attempts also exist (see [../evidence/25-accounts/](../evidence/25-accounts/)). Two-factor login does not exist.
 
 ## Metrics
 
-`GET /metrics` is Prometheus text: request and handler durations, database
-query and pool-queue time, Oban jobs (duration by queue, worker and outcome;
-exceptions), the cache's hits and misses, the number of nodes in the cluster as
-this node sees it, and VM memory. What is reported is the list in
-[`lib/platform/web/telemetry.ex`](lib/platform/web/telemetry.ex): add a line
-to add a metric. Keep the endpoint on your private network; setting
-`METRICS_TOKEN` also requires `Authorization: Bearer <token>`.
+`GET /metrics` returns Prometheus text. It has these metrics:
+- Request and handler durations.
+- Database query time and pool-queue time.
+- Oban jobs: duration by queue, worker, and outcome, and exceptions.
+- The hits and misses of the cache.
+- The number of nodes in the cluster as this node sees it.
+- VM memory.
+
+The list in [`lib/platform/web/telemetry.ex`](lib/platform/web/telemetry.ex) defines what the service reports. To add a metric, add a line. Keep the endpoint on your private network. If you set `METRICS_TOKEN`, the endpoint also needs `Authorization: Bearer <token>`.
 
 ## Tracing
 
-Every request, database query and background job is a span
-([OpenTelemetry](https://opentelemetry.io)), and a job continues the trace of
-the request that queued it — on whichever node runs it. Set
-`OTEL_EXPORTER_OTLP_ENDPOINT` (for example `http://jaeger:4318`) and the nodes
-send spans there over OTLP/HTTP, to Jaeger, Tempo, Honeycomb or any collector;
-without it nothing is exported and nothing tries to connect. `OTEL_SERVICE_NAME`
-names the service (default: the app), and each node tags its spans with
-`service.instance.id`, so a trace shows which node did what.
+Every request, database query, and background job is a span ([OpenTelemetry](https://opentelemetry.io)). A job continues the trace of the request that queued it, on any node that runs the job. Set `OTEL_EXPORTER_OTLP_ENDPOINT` (for example `http://jaeger:4318`). The nodes then send spans there over OTLP/HTTP, to Jaeger, Tempo, Honeycomb, or any collector. Without it, the service exports nothing and does not try to connect. `OTEL_SERVICE_NAME` names the service (default: the app). Each node tags its spans with `service.instance.id`, so a trace shows which node did what.
 
-`docker compose -f deploy/compose.cluster.yaml up` starts Jaeger next to the
-nodes: make an order, then open http://localhost:16686 and look at the trace —
-the request on one node, the order's jobs on another.
+`docker compose -f deploy/compose.cluster.yaml up` starts Jaeger next to the nodes. Make an order, then open http://localhost:16686 and look at the trace. It shows the request on one node and the jobs of the order on another node.
 
-The wiring is five lines in [`lib/platform/application.ex`](lib/platform/application.ex)
-and a block in [`config/runtime.exs`](config/runtime.exs). Every span is kept:
-in production, sample (`OTEL_TRACES_SAMPLER=parentbased_traceidratio`,
-`OTEL_TRACES_SAMPLER_ARG=0.1`).
+The wiring is five lines in [`lib/platform/application.ex`](lib/platform/application.ex) and a block in [`config/runtime.exs`](config/runtime.exs). The service keeps every span. In production, sample the spans (`OTEL_TRACES_SAMPLER=parentbased_traceidratio` and `OTEL_TRACES_SAMPLER_ARG=0.1`).
 
