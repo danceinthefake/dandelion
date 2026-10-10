@@ -205,6 +205,14 @@ curl -s -o out.png localhost:8080/api/files/1 -H "authorization: Bearer $TOKEN";
 
 What a file is comes from its bytes, not from its name; downloads are attachments. (Claim 19.)
 
+### Files in a bucket instead
+
+The uploads above went to a Docker volume the three nodes share. To keep them in an S3-compatible bucket
+(Amazon's, Google's, Cloudflare R2, or a small one you run yourself) set five variables on the nodes:
+`S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`. Nothing else changes; no volume is
+needed. `./deploy/s3-proof.sh` tries this against SeaweedFS and Garage (claim 28), including a bucket that is
+stopped for a while (uploads and downloads answer 503, and no file is lost or half-made).
+
 ## 11. Do it all from the browser
 
 Everything above has a page in the console at http://localhost:8080 (sign in as the admin, or as the

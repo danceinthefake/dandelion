@@ -49,6 +49,13 @@
   orders (`orders.enabled`; 503 with `retry-after` while it is `false`). New
   migration `add_flags` (every project gets it: `Platform.Application` starts
   `Dandelion.Flags`).
+- `Dandelion.Storage.S3`: uploaded files in any S3-compatible bucket (AWS S3, Google Cloud Storage's
+  interoperability endpoint, Cloudflare R2, Backblaze B2, Garage, SeaweedFS, Ceph…), nothing mounted on the
+  nodes. Signature V4 through `Req` (an optional dependency), path-style URLs, one request with a timeout and no
+  retry (the caller decides). `Dandelion.Storage` now says what an adapter is (`put/2`, `fetch/2`, `delete/2`,
+  `keys/1`); `Local` has `fetch/2`. The example picks the bucket with `S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`,
+  `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY` (a bucket that does not answer is a 503 with `Retry-After`, never a
+  500 and never a row without bytes). `deploy/s3-proof.sh` runs against SeaweedFS and Garage.
 - Backup and restore for the example: `deploy/backup.sh DIR` (the database in one `pg_dump`
   snapshot while the cluster keeps serving, then the uploaded files) and `deploy/restore.sh DIR` (checks
   the checksums, replaces the database, puts the files back, starts the nodes). `deploy/backup-proof.sh`

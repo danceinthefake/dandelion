@@ -2,13 +2,14 @@ defmodule App.Files.Services.FileService do
   @moduledoc """
   Uploaded files. ≈ `service/files.go` over a bucket.
 
-  The bytes go to `Dandelion.Storage.Local` (a directory every node sees); the row in
+  The bytes go to the configured storage (`storage/0`: `Dandelion.Storage.Local`, a directory every
+  node sees, or `Dandelion.Storage.S3`, a bucket); the row in
   `stored_files` says whose they are. A customer sees only their own files (`:not_found`
   for anyone else's); an admin sees all.
 
   Order matters: the file is written first, then the row. If the row can't be saved
   the file is removed; a crash in between leaves a file nothing points at (found with
-  `Dandelion.Storage.Local.keys/1`), never a row that points at nothing.
+  the adapter's `keys/1`), never a row that points at nothing.
   """
   alias App.Audit.Services.AuditService
   alias App.Files.Models.StoredFile
@@ -21,7 +22,10 @@ defmodule App.Files.Services.FileService do
 
   @type viewer :: %{id: integer(), role: String.t()}
 
-  @doc "Where uploads are kept, and the largest file accepted, in bytes."
+  @doc "Where uploads are kept: `{adapter, its configuration}`; a directory unless `:storage` says otherwise."
+  def storage, do: Application.get_env(:acme, :storage) || {Local, root()}
+
+  @doc "The directory of the local adapter, and the largest file accepted, in bytes."
   def root, do: Application.fetch_env!(:acme, :uploads_dir)
   def max_bytes, do: Application.fetch_env!(:acme, :upload_max_bytes)
 
@@ -34,7 +38,7 @@ defmodule App.Files.Services.FileService do
     with {:ok, %{size: size}} <- File.stat(path),
          :ok <- check_size(size),
          {:ok, type} <- check_type(path),
-         {:ok, stored} <- Local.put(root(), path) do
+         {:ok, stored} <- put(path) do
       save(stored, type, filename, viewer)
     else
       {:error, :too_big} ->
@@ -43,13 +47,24 @@ defmodule App.Files.Services.FileService do
       {:error, :unsupported} ->
         {:error, {:invalid, "only PNG, JPEG, PDF and plain text files are accepted"}}
 
-      {:error, reason} ->
+      {:error, {:invalid, _}} = invalid ->
+        invalid
+
+      {:error, reason} when is_atom(reason) ->
         {:error, {:invalid, "can't read the upload: #{inspect(reason)}"}}
+
+      {:error, _storage_down} ->
+        {:error, {:unavailable, "the file storage is not answering: try again in a moment"}}
     end
   end
 
   def create(_other, _viewer),
     do: {:error, {:invalid, "send the file as multipart form data, in the field \"file\""}}
+
+  defp put(path) do
+    {adapter, conf} = storage()
+    adapter.put(conf, path)
+  end
 
   defp save(stored, type, filename, viewer) do
     attrs = [
@@ -66,17 +81,30 @@ defmodule App.Files.Services.FileService do
         {:ok, file}
 
       {:error, _} = error ->
-        Local.delete(root(), stored.key)
+        remove(stored.key)
         error
     end
   end
 
-  @doc "A file and where its bytes are, to send it."
-  @spec get(integer(), viewer()) :: {:ok, StoredFile.t(), Path.t()} | {:error, :not_found}
+  @doc "A file and its bytes, as `{:file, path}` or `{:binary, bytes}`, to send."
+  @spec get(integer(), viewer()) ::
+          {:ok, StoredFile.t(), {:file, Path.t()} | {:binary, binary()}} | {:error, term()}
   def get(id, viewer) do
+    {adapter, conf} = storage()
+
     with %StoredFile{} = file <- StoredFileRepo.get(id, scope(viewer)) || {:error, :not_found},
-         {:ok, path} <- Local.path(root(), file.storage_key) do
-      {:ok, file, path}
+         {:ok, source} <- fetch(adapter, conf, file.storage_key) do
+      {:ok, file, source}
+    end
+  end
+
+  defp fetch(adapter, conf, key) do
+    case adapter.fetch(conf, key) do
+      {:error, reason} when reason != :not_found ->
+        {:error, {:unavailable, "the file storage is not answering: try again in a moment"}}
+
+      other ->
+        other
     end
   end
 
@@ -100,9 +128,14 @@ defmodule App.Files.Services.FileService do
       end)
 
     with {:ok, file} <- result do
-      Local.delete(root(), file.storage_key)
+      remove(file.storage_key)
       :ok
     end
+  end
+
+  defp remove(key) do
+    {adapter, conf} = storage()
+    adapter.delete(conf, key)
   end
 
   defp scope(%{role: "admin"}), do: :all

@@ -181,6 +181,21 @@ if config_env() == :prod do
     upload_max_bytes:
       min(String.to_integer(System.get_env("UPLOAD_MAX_BYTES") || "5000000"), 5_000_000)
 
+  # ...or a bucket instead (any S3-compatible service: AWS S3, Google Cloud Storage's
+  # interoperability endpoint, R2, Garage, SeaweedFS…): nothing has to be mounted on the nodes.
+  if (bucket = System.get_env("S3_BUCKET")) not in [nil, ""] do
+    config :acme,
+      storage:
+        {Dandelion.Storage.S3,
+         [
+           endpoint: System.fetch_env!("S3_ENDPOINT"),
+           bucket: bucket,
+           region: System.get_env("S3_REGION") || "us-east-1",
+           access_key_id: System.fetch_env!("S3_ACCESS_KEY_ID"),
+           secret_access_key: System.fetch_env!("S3_SECRET_ACCESS_KEY")
+         ]}
+  end
+
   # @example-end
 
   # @example-start

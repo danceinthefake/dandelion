@@ -27,7 +27,7 @@ defmodule App.Files.Services.FileServiceTest do
   test "the stored row and the bytes agree", %{viewer: viewer} do
     bytes = png()
     assert {:ok, file} = FileService.create(upload(bytes, "a.png"), viewer)
-    assert {:ok, ^file, path} = FileService.get(file.id, viewer)
+    assert {:ok, ^file, {:file, path}} = FileService.get(file.id, viewer)
     assert File.read!(path) == bytes
     assert file.sha256 == :crypto.hash(:sha256, bytes) |> Base.encode16(case: :lower)
   end

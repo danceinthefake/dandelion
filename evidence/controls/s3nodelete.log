@@ -1,0 +1,11 @@
+# control: s3nodelete
+# broken on purpose: deleting a file never reaches the bucket
+# expected: the proof FAILS after 'another customer gets 404' and never reaches 'deleted: the row and the object are gone'
+# commit: c1c4a4e, recorded 2026-10-10T03:17Z
+# verdict: ok
+
+03:16:16 seaweedfs:
+03:16:46   ok  1.5 MB uploaded through the load balancer: the bucket holds it, the uploads volume has no file
+03:16:46   ok  6 downloads (all three nodes) have the checksum it was uploaded with
+03:16:46   ok  another customer gets 404; a program named .png is refused (400), by what the bytes are
+03:16:47 FAIL  the object is still in the bucket after deleting: 109f0a70ed8ac3a735f659104da27477

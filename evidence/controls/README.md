@@ -64,6 +64,10 @@ must fail, at the step that depends on the broken thing, and not before.
 
 | [`nofiles.log`](nofiles.log) | the uploaded files are left out of the backup | `the file downloads with the checksum` is never reached (claim 27) | the file rows came back without bytes |
 
+| [`s3nodelete.log`](s3nodelete.log) | deleting a file never reaches the bucket | `deleted: the row and the object are gone` is never reached (claim 28) | the object stayed in the bucket |
+
+| [`s3unsigned.log`](s3unsigned.log) | requests to the bucket are sent without a signature | `1.5 MB uploaded through the load balancer` is never reached (claim 28) | the bucket refused every request |
+
 Each log's header says what was broken, where the proof must stop
 (`expected:`), and the verdict `ok` if it did. The script
 ([`run.sh`](run.sh)) breaks the library in `example/vendor/dandelion` — the

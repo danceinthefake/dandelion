@@ -1,0 +1,9 @@
+{
+  "identities": [
+    {
+      "name": "acme",
+      "credentials": [{ "accessKey": "seaweedkey", "secretKey": "seaweedsecret-local-only" }],
+      "actions": ["Admin", "Read", "Write", "List"]
+    }
+  ]
+}

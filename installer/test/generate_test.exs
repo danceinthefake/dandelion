@@ -250,6 +250,9 @@ defmodule DandelionNew.GenerateTest do
     assert files["deploy/backup.sh"] =~ "pg_dump"
     assert files["deploy/restore.sh"] =~ "pg_restore"
     assert files["deploy/backup-proof.sh"] =~ "backup proof passed"
+    assert files["deploy/s3-proof.sh"] =~ "s3 proof passed"
+    assert files["deploy/s3/garage.toml"] =~ "replication_factor"
+    assert files["config/runtime.exs"] =~ "S3_BUCKET"
     assert files["lib/platform/cron.ex"] =~ "PruneAccountTables"
 
     bare = files("my_app", "MyApp", false)

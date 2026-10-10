@@ -21,12 +21,33 @@ defmodule Dandelion.Storage do
   Keys are random (128 bits of hex), never made from what the client called the file,
   so no name can reach outside the directory, and two files never collide.
 
-  **Not here:** an S3 or Google Cloud Storage adapter (a second module with the same
-  three functions would be the place); resumable or multi-gigabyte uploads; removing
+  **A bucket instead of a directory:** `Dandelion.Storage.S3` keeps the bytes in any
+  S3-compatible bucket (AWS S3, Google Cloud Storage's interoperability endpoint, Cloudflare R2,
+  Backblaze B2, Garage, SeaweedFS, Ceph…): nothing has to be mounted on the nodes. It has the
+  same functions (the callbacks below), so a service picks one by configuration.
+
+  **Not here:** a native Google Cloud Storage adapter (its own API and sign-in; the S3 one
+  reaches it through the interoperability endpoint); resumable or multi-gigabyte uploads; removing
   files that no row points at (a crash between writing the file and saving the row
   leaves one; `Dandelion.Storage.Local.keys/1` lists what is there, for a sweep).
   """
 
   @type key :: String.t()
   @type stored :: %{key: key(), size: non_neg_integer(), sha256: String.t()}
+
+  @doc """
+  An adapter is a module with these four functions, each taking the adapter's own
+  configuration (`Local`: the directory; `S3`: a keyword list) first:
+
+  - `put/2`: stores the file at a path, under a new random key;
+  - `fetch/2`: what to send for a key, as `{:file, path}` or `{:binary, bytes}` (both are
+    what `Phoenix.Controller.send_download/3` takes), or `{:error, :not_found}`;
+  - `delete/2`: removes it (one that is not there is fine);
+  - `keys/1`: every key held (for finding files no row points at).
+  """
+  @callback put(term(), Path.t()) :: {:ok, stored()} | {:error, term()}
+  @callback fetch(term(), key()) ::
+              {:ok, {:file, Path.t()} | {:binary, binary()}} | {:error, :not_found | term()}
+  @callback delete(term(), key()) :: :ok | {:error, term()}
+  @callback keys(term()) :: [key()] | {:error, term()}
 end

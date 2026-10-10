@@ -98,6 +98,12 @@ Said plainly, so nobody has to find out the hard way.
   rules ship, and a number being plausible in a one-minute test says nothing about a day's
   traffic. Prometheus and Grafana are single local containers (no retention volume, no login to
   look), scraping every 2 s. The screenshot is a fresh cluster after a minute of made-up events.
+- **Files in a bucket** ([28](28-s3/)). Tried against SeaweedFS and Garage, one node each, in Docker on one
+  machine: not against AWS S3, Google Cloud Storage or any paid service (no cloud budget), so the
+  interoperability endpoints of those are untested here, and so are their limits (request rates, eventual
+  behaviour, regional endpoints, virtual-hosted-style URLs: only path-style is used). Files of up to 5 MB, held
+  whole in memory; no multipart upload, no streaming, no presigned URLs. No retry in the adapter (the caller's job).
+  A bucket that is slow rather than down costs a request up to the 15 s timeout.
 - **Backup and restore** ([27](27-backup/)). A logical dump at one moment: nothing between the dump and the
   loss is recoverable (no WAL archive, no point-in-time recovery). Tried on a database of a few thousand
   orders and a few megabytes of files on one machine, not on a large one (`pg_dump` and `pg_restore` time grows

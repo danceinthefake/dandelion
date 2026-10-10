@@ -1,0 +1,8 @@
+# control: s3unsigned
+# broken on purpose: requests to the bucket are sent without a signature
+# expected: the proof FAILS after 'seaweedfs:' and never reaches '1.5 MB uploaded through the load balancer'
+# commit: c1c4a4e, recorded 2026-10-10T03:20Z
+# verdict: ok
+
+03:18:52 seaweedfs:
+03:19:30 FAIL  uploading to seaweedfs answered: {"error":"the file storage is not answering: try again in a moment"} 503

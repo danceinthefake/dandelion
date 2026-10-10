@@ -1084,6 +1084,34 @@ is a Postgres.
   last dump), encryption or off-machine copies (the scripts write a directory: where it goes is yours), a
   schedule, restoring one table, or a restore into a different Postgres major version than the dump's.
 
+### 10.26 Files in a bucket
+
+Decided 2026-10-14. A directory every node can see (§10.19) is one machine's answer. Most deployments keep
+files in a bucket, and nearly all of them speak the S3 API.
+
+- **S3-compatible, not "S3".** One adapter for the API (`Dandelion.Storage.S3`) reaches AWS S3, Google Cloud
+  Storage's interoperability endpoint (HMAC keys), Cloudflare R2, Backblaze B2, Ceph and the small servers used
+  here. A native Google Cloud Storage adapter would be a second implementation with its own sign-in (service
+  accounts, OAuth) for little a user of the first could not already do; it is not here.
+- **Tried against two servers that are not Amazon's**, because an adapter that has only met one server has met
+  that server's habits: SeaweedFS and Garage (MinIO is in maintenance mode). Both run in Docker for the proof, and
+  nothing here was tried against a paid cloud (LIMITS.md).
+- **An adapter is four functions** (`put`, `fetch`, `delete`, `keys`), each taking the adapter's configuration
+  first, now written down as callbacks. `fetch` answers `{:file, path}` or `{:binary, bytes}`, which is what
+  `send_download` takes; that is the only place the web layer learned there was more than one kind of storage.
+- **Signing is `Req`'s.** `aws_sigv4` is in the HTTP client the example already uses; Signature V4 written by
+  hand, or a dependency of its own (ex_aws), would be the heavier answers. `Req` is an optional dependency of the
+  library: without it the module does not compile, and nothing else is affected.
+- **A failure is returned, not retried.** One request, a 15 s timeout. A download that cannot reach the bucket is
+  a 503 with `Retry-After` (the client asks again), an upload likewise, and **the bytes go first, the row second**
+  (§10.19): a bucket that refuses leaves no row, a crash in between leaves an object nothing points at (`keys/1`
+  lists it). Retries belong to the caller, who knows whether the request is safe to repeat (it is: idempotency keys).
+- **Whole files in memory**, as the example's limit is 5 MB. Multipart upload and streaming are the way past
+  that; they are not here. No presigned URLs either: the bytes go through the node, so the authorisation and the
+  `nosniff`/attachment headers of §10.19 apply to a bucket as they do to a directory.
+- **The row says nothing about where.** The key is all `stored_files` keeps, so moving from a directory to a
+  bucket is copying objects and changing the configuration, not a migration. That copy is not here.
+
 ## 11. The library
 
 Decided 2026-09-30. Two hex packages, like Phoenix's `phoenix` and `phx_new`:

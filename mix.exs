@@ -55,6 +55,9 @@ defmodule Dandelion.MixProject do
       {:libcluster, "~> 3.5"},
       {:oban, "~> 2.24"},
       {:phoenix_pubsub, "~> 2.1"},
+      # optional: only for Dandelion.Storage.S3 (any S3-compatible bucket)
+      {:req, "~> 0.5", optional: true},
+      {:plug, "~> 1.16", only: :test},
       {:telemetry, "~> 1.0"},
       # optional: with it, a job continues the trace of what queued it (Dandelion.Trace)
       {:opentelemetry_api, "~> 1.4", optional: true},

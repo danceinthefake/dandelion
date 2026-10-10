@@ -259,6 +259,28 @@ open(p, "w").write(s.replace(a, "tar -C /data/uploads -cf - --exclude=./* ."))
 PY
 }
 
+# Deleting a file never reaches the bucket.
+patch_s3nodelete() {
+  break_file "$vendor/lib/dandelion/storage/s3.ex" <<'PY'
+import sys
+p = sys.argv[1]; s = open(p).read()
+a = "case request(conf, :delete, key) do"
+assert a in s
+open(p, "w").write(s.replace(a, "case {:ok, %{status: 204}} do"))
+PY
+}
+
+# Requests are sent without a signature.
+patch_s3unsigned() {
+  break_file "$vendor/lib/dandelion/storage/s3.ex" <<'PY'
+import re, sys
+p = sys.argv[1]; s = open(p).read()
+new, n = re.subn(r"aws_sigv4: \[.*?\],\n(\s+)retry", r"retry", s, flags=re.S)
+assert n == 1
+open(p, "w").write(new)
+PY
+}
+
 # A product's name is put on the page as HTML (v-html), so what an admin typed becomes markup.
 patch_xss() {
   break_file "$example/assets/src/pages/ProductsPage.vue" <<'PY'
@@ -440,6 +462,12 @@ selected smeared && control smeared "the database is backed up table by table, n
 
 selected nofiles && control nofiles "the uploaded files are left out of the backup" \
   "the audit log has the product and the flag" "the file downloads with the checksum" "" backup-proof.sh
+
+selected s3nodelete && control s3nodelete "deleting a file never reaches the bucket" \
+  "another customer gets 404" "deleted: the row and the object are gone" "" s3-proof.sh
+
+selected s3unsigned && control s3unsigned "requests to the bucket are sent without a signature" \
+  "seaweedfs:" "1.5 MB uploaded through the load balancer" "" s3-proof.sh
 
 selected xss && control xss "a product's name is put on the page as HTML (v-html)" \
   "staff:" "ok  a name with HTML in it shows as the characters typed" "" "$here/browser/console.sh"

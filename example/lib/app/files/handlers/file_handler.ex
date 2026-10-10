@@ -26,11 +26,11 @@ defmodule App.Files.Handlers.FileHandler do
   # GET /api/files/:id  (the bytes)
   def show(conn, %{"id" => id}) do
     with {:ok, id} <- id(id),
-         {:ok, file, path} <- FileService.get(id, viewer(conn)) do
+         {:ok, file, source} <- FileService.get(id, viewer(conn)) do
       conn
       |> put_resp_header("x-content-type-options", "nosniff")
       |> put_resp_header("etag", ~s("#{file.sha256}"))
-      |> send_download({:file, path}, filename: file.filename, content_type: file.content_type)
+      |> send_download(source, filename: file.filename, content_type: file.content_type)
     end
   end
 

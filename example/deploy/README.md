@@ -44,6 +44,10 @@ http://localhost:8080. The proof script checks that:
   (containers, Postgres, the uploads volume) and rebuilt from the backup alone: every order that came back
   has its events and is one the cluster made, passwords, search, flags, audit log and files are back, and the
   events in flight finish;
+- `./deploy/s3-proof.sh`: the same files, kept in an S3-compatible bucket instead of the uploads volume
+  (`S3_ENDPOINT`, `S3_BUCKET`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`), first in SeaweedFS and
+  then in Garage: downloads from every node match the upload, deleting removes the object, a stopped bucket is a
+  503 with `Retry-After` and leaves no row, a replaced node still serves the file;
 - `./deploy/accounts-proof.sh`: registering sends a confirmation link; a forgotten password: the same
   answer for any address, one use of the link, a short password refused without using it up, an expired
   link refused, the old sessions ended; five wrong passwords lock an address (also one nobody has) on every

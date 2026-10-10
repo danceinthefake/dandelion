@@ -32,7 +32,7 @@ defmodule Mix.Tasks.Dandelion.New do
     lib/app/settings/ test/app/settings/
     lib/app/files/ test/app/files/ test/support/app/files/
     lib/app/audit/ test/app/audit/
-    deploy/versions/
+    deploy/versions/ deploy/s3/
     lib/app/notifications/ test/app/notifications/
     lib/platform/mailer.ex
   )
@@ -66,6 +66,7 @@ defmodule Mix.Tasks.Dandelion.New do
     deploy/backup.sh
     deploy/restore.sh
     deploy/backup-proof.sh
+    deploy/s3-proof.sh
     deploy/webhook-receiver.conf
     test/platform/pubsub_test.exs
   )

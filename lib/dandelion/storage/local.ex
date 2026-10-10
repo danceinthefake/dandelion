@@ -12,6 +12,8 @@ defmodule Dandelion.Storage.Local do
   """
   alias Dandelion.Storage
 
+  @behaviour Storage
+
   @key_format ~r/\A[0-9a-f]{32}\z/
 
   @doc """
@@ -19,6 +21,7 @@ defmodule Dandelion.Storage.Local do
   (lowercase hex). The source is left where it is (it is usually a `Plug.Upload`
   temporary file that is removed on its own).
   """
+  @impl true
   @spec put(Path.t(), Path.t()) :: {:ok, Storage.stored()} | {:error, File.posix()}
   def put(root, source) do
     key = Base.encode16(:crypto.strong_rand_bytes(16), case: :lower)
@@ -49,7 +52,15 @@ defmodule Dandelion.Storage.Local do
     end
   end
 
+  @doc "The file to send, in the shape every adapter's `fetch/2` has (see `Dandelion.Storage`)."
+  @impl true
+  @spec fetch(Path.t(), Storage.key()) :: {:ok, {:file, Path.t()}} | {:error, :not_found}
+  def fetch(root, key) do
+    with {:ok, path} <- path(root, key), do: {:ok, {:file, path}}
+  end
+
   @doc "Removes the file. Removing one that is not there is fine."
+  @impl true
   @spec delete(Path.t(), Storage.key()) :: :ok
   def delete(root, key) do
     if valid_key?(key), do: File.rm(location(root, key))
@@ -57,6 +68,7 @@ defmodule Dandelion.Storage.Local do
   end
 
   @doc "Every key in the directory (for finding files no row points at)."
+  @impl true
   @spec keys(Path.t()) :: [Storage.key()]
   def keys(root) do
     root

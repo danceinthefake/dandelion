@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regenerates the evidence (logs, GIFs) from the code in this checkout.
 #
-#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search, dashboard, upgrade, accounts, backup, console)
+#   ./record.sh [all | proof | live | controls | tests]  (also: partition, failures, reliability, rolling, idempotency, webhooks, flags, uploads, audit, email, search, dashboard, upgrade, accounts, backup, s3, console)
 #
 #   proof     the 3-node cluster proof → 01, 03, 04, 05, 07, 10, 11, 12 (run.log + GIFs)
 #   live      two browsers on two nodes → 02 (live-feed.gif)
@@ -19,6 +19,7 @@
 #   dashboard the Grafana dashboard: every query run against live metrics, a screenshot → 23
 #   upgrade   a deploy that changes the database: v1 and v2 side by side under load → 24
 #   accounts  confirm an address, reset a password, lock a guessed account → 25
+#   s3        files in SeaweedFS and in Garage (S3-compatible buckets) → 28
 #   backup    back up a busy cluster, destroy it, rebuild it from the backup → 27
 #   console   the Vue console driven in a browser: every page, the emailed links → 26
 #   controls  the proof with one thing broken on purpose → controls/
@@ -218,6 +219,8 @@ upgrade() { mkdir -p "$here/24-upgrade"; proof_run upgrade upgrade-proof.sh "$he
 
 backup() { mkdir -p "$here/27-backup"; proof_run backup backup-proof.sh "$here/27-backup" "3 containers behind nginx busy making orders; backed up, then containers, Postgres and the uploads volume destroyed, rebuilt from the backup alone"; }
 
+s3() { mkdir -p "$here/28-s3"; proof_run s3 s3-proof.sh "$here/28-s3" "3 containers behind nginx with no uploads volume in use; files in SeaweedFS, then in Garage; the bucket stopped and started, a node replaced"; }
+
 accounts() { mkdir -p "$here/25-accounts"; proof_run accounts accounts-proof.sh "$here/25-accounts" "3 containers behind nginx and mailpit; confirm, reset, lock, a mail server that goes away"; }
 
 console() {
@@ -278,8 +281,9 @@ case "${1:-all}" in
   dashboard) dashboard ;;
   upgrade) upgrade ;;
   accounts) accounts ;;
+  s3) s3 ;;
   backup) backup ;;
   console) console ;;
-  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; dashboard; upgrade; accounts; backup; console; controls; tests ;;
-  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|dashboard|upgrade|accounts|backup|console|controls|tests]" >&2; exit 2 ;;
+  all) proof; live; partition; failures; reliability; rolling; idempotency; webhooks; flags; uploads; audit; email; search; dashboard; upgrade; accounts; backup; s3; console; controls; tests ;;
+  *) echo "usage: $0 [all|proof|live|partition|failures|reliability|rolling|idempotency|webhooks|flags|uploads|audit|email|search|dashboard|upgrade|accounts|backup|s3|console|controls|tests]" >&2; exit 2 ;;
 esac

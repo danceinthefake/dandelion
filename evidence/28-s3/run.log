@@ -1,0 +1,22 @@
+# commit: c1c4a4e (+ uncommitted changes)
+# recorded: 2026-10-10T03:20Z
+# machine: Linux 7.2.9-arch1-1, docker 29.8.2
+# runtime: 1.20.4, OTP 29
+# source: example/deploy/s3-proof.sh (3 containers behind nginx with no uploads volume in use; files in SeaweedFS, then in Garage; the bucket stopped and started, a node replaced)
+
+03:20:28 seaweedfs:
+03:21:11   ok  1.5 MB uploaded through the load balancer: the bucket holds it, the uploads volume has no file
+03:21:11   ok  6 downloads (all three nodes) have the checksum it was uploaded with
+03:21:11   ok  another customer gets 404; a program named .png is refused (400), by what the bytes are
+03:21:11   ok  deleted: the row and the object are gone, 404 from every node
+03:21:23   ok  bucket stopped: download and upload answer 503 with Retry-After, and the failed upload left no row
+03:21:47   ok  bucket back: the file is intact
+03:21:57   ok  a node replaced from scratch serves it too: nothing was on its disk
+03:22:08 garage:
+03:22:23   ok  1.5 MB uploaded through the load balancer: the bucket holds it, the uploads volume has no file
+03:22:23   ok  6 downloads (all three nodes) have the checksum it was uploaded with
+03:22:23   ok  another customer gets 404; a program named .png is refused (400), by what the bytes are
+03:22:24   ok  deleted: the row and the object are gone, 404 from every node
+03:22:35   ok  bucket stopped: download and upload answer 503 with Retry-After, and the failed upload left no row
+03:22:37   ok  bucket back: the file is intact
+03:22:47   ok  a node replaced from scratch serves it too: nothing was on its disk
